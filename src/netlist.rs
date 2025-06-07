@@ -155,6 +155,11 @@ where
         }
     }
 
+    /// Get the underlying object as a mutable reference
+    pub fn as_obj_mut(&mut self) -> &mut Object<I> {
+        &mut self.object
+    }
+
     /// Get the operand as a weak index
     pub fn get_operand_as_net(&self, index: usize) -> Net {
         let operand = &self.operands[index];
@@ -172,7 +177,8 @@ where
     }
 }
 
-type NetRef = Rc<RefCell<OwnedObject<GatePrimitive, Netlist>>>;
+/// This type exposes the interior mutability of elements in a netlist.
+pub type NetRef = Rc<RefCell<OwnedObject<GatePrimitive, Netlist>>>;
 
 /// A netlist data structure
 #[derive(Debug)]
