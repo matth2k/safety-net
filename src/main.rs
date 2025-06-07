@@ -15,7 +15,7 @@ fn main() {
 
     let output_net = netlist.add_gate(and_gate, "and1".to_string(), &[input_net, input_net2]);
 
-    netlist.add_as_output(output_net, Net::new_logic("out1".to_string()));
+    let output_net = netlist.add_as_output(output_net, Net::new_logic("out1".to_string()));
 
     println!("{}", netlist);
 }

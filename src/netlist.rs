@@ -232,7 +232,7 @@ impl Netlist {
         self.insert_object(obj, &[])
     }
 
-    /// Adds an input net to the netlist
+    /// Adds a gate to the netlist
     pub fn add_gate(
         self: &Rc<Self>,
         inst_type: GatePrimitive,
@@ -360,6 +360,20 @@ impl std::fmt::Display for Netlist {
                 let indent = " ".repeat(level);
                 writeln!(f, "{});", indent)?;
             }
+        }
+
+        for (driver, net) in outputs.iter() {
+            let driver_net = match driver {
+                Operand::DirectIndex(idx) => self.index_weak(idx).borrow().as_net(),
+                _ => todo!("add_as_output(): Handle other operand types"),
+            };
+            writeln!(
+                f,
+                "{}assign {} = {};",
+                indent,
+                net.get_identifier().emit_name(),
+                driver_net.get_identifier().emit_name()
+            )?;
         }
 
         writeln!(f, "endmodule")
