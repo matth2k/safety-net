@@ -1,4 +1,3 @@
-use circuit::circuit::Net;
 use circuit::netlist::{GatePrimitive, Netlist};
 fn main() {
     let and_gate = GatePrimitive::new_logical(
@@ -14,10 +13,9 @@ fn main() {
 
     let output = netlist.add_gate(and_gate, "my_and_gate".to_string(), &[input1, input2]);
 
-    let output_net = netlist.add_as_output(output, Net::new_logic("out1".to_string()));
+    output.expose_with_name("my_output".to_string());
 
-    output_net.as_net_mut().set_name("woah".to_string());
-
+    println!("{}", netlist);
     // output_net
     //     .borrow()
     //     .get_operand(1)
@@ -25,7 +23,7 @@ fn main() {
     //     .as_net_mut()
     //     .set_name("hijacked".to_string());
 
-    output_net
+    output
         .get_instance_type_mut()
         .unwrap()
         .change_gate_name("AND_X1".to_string());

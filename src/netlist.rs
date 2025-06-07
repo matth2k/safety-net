@@ -252,6 +252,18 @@ impl NetRef {
             _ => None,
         }
     }
+
+    /// Exposes this circuit node as a top-level output in the netlist.
+    pub fn expose_as_output(self: &Self) -> NetRef {
+        let netlist = self.netref.borrow().owner.upgrade().unwrap();
+        netlist.expose_as_output(self.clone())
+    }
+
+    /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
+    pub fn expose_with_name(self: &Self, port: String) -> NetRef {
+        let netlist = self.netref.borrow().owner.upgrade().unwrap();
+        netlist.add_as_output_with(self.clone(), self.clone().as_net().with_name(port))
+    }
 }
 
 /// A netlist data structure
@@ -350,11 +362,21 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
-    pub fn add_as_output(self: &Rc<Self>, net: NetRef, port: Net) -> NetRef {
+    pub fn add_as_output_with(self: &Rc<Self>, net: NetRef, port: Net) -> NetRef {
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(
             Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
             port,
+        );
+        net
+    }
+
+    /// Set an added object as a top-level output.
+    pub fn expose_as_output(self: &Rc<Self>, net: NetRef) -> NetRef {
+        let mut outputs = self.outputs.borrow_mut();
+        outputs.insert(
+            Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
+            net.clone().unwrap().borrow().as_net().clone(),
         );
         net
     }
