@@ -20,14 +20,9 @@ fn main() {
 
     println!("{}", netlist);
 
-    // Now let's mutate it
-    output
-        .get_operand(1)
-        .unwrap()
-        .as_net_mut()
-        .set_name("hijacked input".to_string());
-
-    output.set_instance_name("hijacked_and_gate".to_string());
+    for (i, operand) in output.operands().enumerate() {
+        operand.unwrap().expose_with_name(format!("operand_{}", i));
+    }
 
     println!("{}", netlist);
 }

@@ -267,7 +267,7 @@ impl NetRef {
     }
 
     /// Exposes this circuit node as a top-level output in the netlist.
-    pub fn expose_as_output(&self) -> NetRef {
+    pub fn expose_as_output(&self) -> Result<NetRef, String> {
         let netlist = self.netref.borrow().owner.upgrade().unwrap();
         netlist.expose_as_output(self.clone())
     }
@@ -439,13 +439,16 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
-    pub fn expose_as_output(self: &Rc<Self>, net: NetRef) -> NetRef {
+    pub fn expose_as_output(self: &Rc<Self>, net: NetRef) -> Result<NetRef, String> {
+        if net.is_an_input() {
+            return Err("Cannot expose an input net as output without a new name".to_string());
+        }
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(
             Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
             net.clone().unwrap().borrow().as_net().clone(),
         );
-        net
+        Ok(net)
     }
 }
 
