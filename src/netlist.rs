@@ -17,6 +17,8 @@ trait WeakIndex<Idx: ?Sized> {
     type Output: ?Sized;
     /// Indexes the collection weakly by the given index.
     fn index_weak(&self, index: &Idx) -> Rc<RefCell<Self::Output>>;
+    /// Gets a weak reference to the object at the given index.
+    fn get_weak(&self, index: &Idx) -> Option<Rc<RefCell<Self::Output>>>;
 }
 
 /// A primitive gate in a digital circuit, such as AND, OR, NOT, etc.
@@ -88,11 +90,9 @@ where
     /// The weak reference to the owner netlist/module
     owner: Weak<O>,
     /// The list of operands for the object
-    operands: Vec<Operand>,
+    operands: Vec<Option<Operand>>,
     /// The index of the object within the netlist/module
     index: usize,
-    /// Whether each output port is a top-level output
-    is_output: Vec<bool>,
 }
 
 impl<I, O> OwnedObject<I, O>
@@ -101,19 +101,20 @@ where
     O: WeakIndex<usize, Output = Self>,
 {
     /// Get the operand as a weak index
-    fn get_operand(&self, index: usize) -> Rc<RefCell<Self>> {
-        let operand = &self.operands[index];
-        match operand {
+    fn get_operand(&self, index: usize) -> Option<Rc<RefCell<Self>>> {
+        self.operands[index].as_ref().map(|operand| match operand {
             Operand::DirectIndex(idx) => self.owner.upgrade().unwrap().index_weak(idx),
             _ => todo!("get_operand(): Handle other operand types"),
-        }
+        })
     }
 
     /// Implement iterator to operands
-    fn operands_iter(&self) -> impl Iterator<Item = Rc<RefCell<Self>>> {
-        self.operands.iter().map(|operand| match operand {
-            Operand::DirectIndex(idx) => self.owner.upgrade().unwrap().index_weak(idx),
-            _ => todo!("operands_iter(): Handle other operand types"),
+    fn operands(&self) -> impl Iterator<Item = Option<Rc<RefCell<Self>>>> {
+        self.operands.iter().map(|operand| {
+            operand.as_ref().map(|operand| match operand {
+                Operand::DirectIndex(idx) => self.owner.upgrade().unwrap().index_weak(idx),
+                _ => todo!("get_operand(): Handle other operand types"),
+            })
         })
     }
 
@@ -161,18 +162,22 @@ where
     }
 
     /// Get the operand as a weak index
-    fn get_operand_as_net(&self, index: usize) -> Net {
+    fn get_operand_as_net(&self, index: usize) -> Option<Net> {
         let operand = &self.operands[index];
         match operand {
-            Operand::DirectIndex(idx) => self
-                .owner
-                .upgrade()
-                .unwrap()
-                .index_weak(idx)
-                .borrow()
-                .as_net()
-                .clone(),
-            _ => todo!("get_operand(): Handle other operand types"),
+            Some(op) => match op {
+                Operand::DirectIndex(idx) => self
+                    .owner
+                    .upgrade()
+                    .unwrap()
+                    .index_weak(idx)
+                    .borrow()
+                    .as_net()
+                    .clone()
+                    .into(),
+                _ => todo!("get_operand(): Handle other operand types"),
+            },
+            None => None,
         }
     }
 }
@@ -274,8 +279,44 @@ impl NetRef {
     }
 
     /// Returns the `index`th input to the circuit node
-    pub fn get_operand(&self, index: usize) -> NetRef {
-        NetRef::wrap(self.netref.borrow().get_operand(index))
+    pub fn get_operand(&self, index: usize) -> Option<NetRef> {
+        self.netref.borrow().get_operand(index).map(NetRef::wrap)
+    }
+
+    /// Returns the number of input ports for this circuit node.
+    pub fn get_num_input_ports(&self) -> usize {
+        if let Some(inst_type) = self.get_instance_type() {
+            inst_type.get_input_ports().len()
+        } else {
+            0
+        }
+    }
+
+    /// Returns `true` if this circuit node has all its input ports connected.
+    pub fn is_fully_connected(&self) -> bool {
+        assert_eq!(
+            self.netref.borrow().operands.len(),
+            self.get_num_input_ports()
+        );
+        let count_nones = self
+            .netref
+            .borrow()
+            .operands
+            .iter()
+            .filter(|o| o.is_none())
+            .count();
+        count_nones == 0
+    }
+
+    /// Returns an iterator to the operands of this circuit node.
+    pub fn operands(&self) -> impl Iterator<Item = Option<NetRef>> {
+        let operands: Vec<Option<NetRef>> = self
+            .netref
+            .borrow()
+            .operands()
+            .map(|o| o.map(NetRef::wrap))
+            .collect();
+        operands.into_iter()
     }
 }
 
@@ -295,6 +336,10 @@ impl WeakIndex<usize> for Netlist {
 
     fn index_weak(&self, index: &usize) -> Rc<RefCell<Self::Output>> {
         self.objects.borrow()[*index].clone()
+    }
+
+    fn get_weak(&self, index: &usize) -> Option<Rc<RefCell<Self::Output>>> {
+        self.objects.borrow().get(*index).cloned()
     }
 }
 
@@ -332,15 +377,17 @@ impl Netlist {
         let weak = Rc::downgrade(self);
         let operands = operands
             .iter()
-            .map(|net| Operand::DirectIndex(net.clone().unwrap().borrow().get_index()))
+            .map(|net| {
+                Some(Operand::DirectIndex(
+                    net.clone().unwrap().borrow().get_index(),
+                ))
+            })
             .collect::<Vec<_>>();
-        let noperands = operands.len();
         let owned_object = Rc::new(RefCell::new(OwnedObject {
             object,
             owner: weak,
             operands,
             index,
-            is_output: vec![false; noperands],
         }));
         self.objects.borrow_mut().push(owned_object.clone());
         NetRef::wrap(owned_object)
@@ -364,14 +411,21 @@ impl Netlist {
         inst_type: GatePrimitive,
         inst_name: String,
         operands: &[NetRef],
-    ) -> NetRef {
+    ) -> Result<NetRef, String> {
         let nets = inst_type
             .get_output_ports()
             .iter()
             .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_name())))
             .collect::<Vec<_>>();
+        if operands.len() != inst_type.get_input_ports().len() {
+            return Err(format!(
+                "Expected {} operands, got {}",
+                inst_type.get_input_ports().len(),
+                operands.len()
+            ));
+        }
         let obj = Object::Instance(nets, inst_name, inst_type);
-        self.insert_object(obj, operands)
+        Ok(self.insert_object(obj, operands))
     }
 
     /// Set an added object as a top-level output.
@@ -462,12 +516,15 @@ impl std::fmt::Display for Netlist {
                 let indent = " ".repeat(level);
                 for (idx, port) in inst_type.get_input_ports().iter().enumerate() {
                     let port_name = port.get_identifier().emit_name();
+                    let operand = owned
+                        .get_operand_as_net(idx)
+                        .expect("All operands should be present");
                     writeln!(
                         f,
                         "{}.{}({}),",
                         indent,
                         port_name,
-                        owned.get_operand_as_net(idx).get_identifier().emit_name()
+                        operand.get_identifier().emit_name()
                     )?;
                 }
 

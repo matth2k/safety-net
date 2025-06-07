@@ -11,7 +11,9 @@ fn main() {
     let input1 = netlist.add_input_logic("input1".to_string());
     let input2 = netlist.add_input_logic("input2".to_string());
 
-    let output = netlist.add_gate(and_gate, "my_and_gate".to_string(), &[input1, input2]);
+    let output = netlist
+        .add_gate(and_gate, "my_and_gate".to_string(), &[input1, input2])
+        .unwrap();
     output.set_name("my_output".to_string());
 
     output.expose_with_name("my_output".to_string());
@@ -21,6 +23,7 @@ fn main() {
     // Now let's mutate it
     output
         .get_operand(1)
+        .unwrap()
         .as_net_mut()
         .set_name("hijacked input".to_string());
 
