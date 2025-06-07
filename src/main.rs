@@ -17,5 +17,10 @@ fn main() {
 
     let output_net = netlist.add_as_output(output_net, Net::new_logic("out1".to_string()));
 
+    output_net
+        .borrow_mut()
+        .as_net_mut()
+        .set_name("woah".to_string());
+
     println!("{}", netlist);
 }

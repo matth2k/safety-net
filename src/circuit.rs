@@ -125,6 +125,11 @@ impl Net {
         self.indentifier.get_name()
     }
 
+    /// Sets the name of the net
+    pub fn set_name(&mut self, name: String) {
+        self.indentifier = Identifier::new(name);
+    }
+
     /// Returns the full identifier to the net
     pub fn get_identifier(&self) -> &Identifier {
         &self.indentifier

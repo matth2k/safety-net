@@ -128,14 +128,28 @@ where
     }
 
     /// Get the net that is driven by this object
-    pub fn as_net(&self) -> Net {
+    pub fn as_net(&self) -> &Net {
         match &self.object {
-            Object::Input(net) => net.clone(),
+            Object::Input(net) => net,
             Object::Instance(nets, _, _) => {
                 if nets.len() > 1 {
                     panic!("Instance has more than one output net");
                 } else {
-                    nets.first().expect("Instance has no output net").clone()
+                    nets.first().expect("Instance has no output net")
+                }
+            }
+        }
+    }
+
+    /// Get the net that is driven by this object
+    pub fn as_net_mut(&mut self) -> &mut Net {
+        match &mut self.object {
+            Object::Input(net) => net,
+            Object::Instance(nets, _, _) => {
+                if nets.len() > 1 {
+                    panic!("Instance has more than one output net");
+                } else {
+                    nets.first_mut().expect("Instance has no output net")
                 }
             }
         }
@@ -151,7 +165,8 @@ where
                 .unwrap()
                 .index_weak(idx)
                 .borrow()
-                .as_net(),
+                .as_net()
+                .clone(),
             _ => todo!("get_operand(): Handle other operand types"),
         }
     }
@@ -364,7 +379,7 @@ impl std::fmt::Display for Netlist {
 
         for (driver, net) in outputs.iter() {
             let driver_net = match driver {
-                Operand::DirectIndex(idx) => self.index_weak(idx).borrow().as_net(),
+                Operand::DirectIndex(idx) => self.index_weak(idx).borrow().as_net().clone(),
                 _ => todo!("add_as_output(): Handle other operand types"),
             };
             writeln!(
