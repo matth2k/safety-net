@@ -12,7 +12,7 @@ use std::{
 };
 
 /// A trait for indexing into a collection of objects weakly.
-pub trait WeakIndex<Idx: ?Sized> {
+trait WeakIndex<Idx: ?Sized> {
     /// The output data type which will be referred to weakly
     type Output: ?Sized;
     /// Indexes the collection weakly by the given index.
@@ -78,7 +78,7 @@ enum Operand {
 
 /// An object that has a reference to its owning netlist/module
 #[derive(Debug)]
-pub struct OwnedObject<I, O>
+struct OwnedObject<I, O>
 where
     I: Instantiable,
     O: WeakIndex<usize, Output = Self>,
@@ -101,7 +101,7 @@ where
     O: WeakIndex<usize, Output = Self>,
 {
     /// Get the operand as a weak index
-    pub fn get_operand(&self, index: usize) -> Rc<RefCell<Self>> {
+    fn get_operand(&self, index: usize) -> Rc<RefCell<Self>> {
         let operand = &self.operands[index];
         match operand {
             Operand::DirectIndex(idx) => self.owner.upgrade().unwrap().index_weak(idx),
@@ -110,7 +110,7 @@ where
     }
 
     /// Implement iterator to operands
-    pub fn operands_iter(&self) -> impl Iterator<Item = Rc<RefCell<Self>>> {
+    fn operands_iter(&self) -> impl Iterator<Item = Rc<RefCell<Self>>> {
         self.operands.iter().map(|operand| match operand {
             Operand::DirectIndex(idx) => self.owner.upgrade().unwrap().index_weak(idx),
             _ => todo!("operands_iter(): Handle other operand types"),
@@ -118,27 +118,22 @@ where
     }
 
     /// Get the underlying object
-    pub fn get(&self) -> &Object<I> {
+    fn get(&self) -> &Object<I> {
         &self.object
     }
 
     /// Get the underlying object mutably
-    pub fn get_mut(&mut self) -> &mut Object<I> {
+    fn get_mut(&mut self) -> &mut Object<I> {
         &mut self.object
     }
 
     /// Get the index of `self` relative to the owning module
-    pub fn get_index(&self) -> usize {
+    fn get_index(&self) -> usize {
         self.index
     }
 
-    /// Returns true if a port on this object is a top-level output
-    pub fn has_top_level_output(&self) -> bool {
-        self.is_output.iter().any(|&is_out| is_out)
-    }
-
     /// Get the net that is driven by this object
-    pub fn as_net(&self) -> &Net {
+    fn as_net(&self) -> &Net {
         match &self.object {
             Object::Input(net) => net,
             Object::Instance(nets, _, _) => {
@@ -152,7 +147,7 @@ where
     }
 
     /// Get the net that is driven by this object
-    pub fn as_net_mut(&mut self) -> &mut Net {
+    fn as_net_mut(&mut self) -> &mut Net {
         match &mut self.object {
             Object::Input(net) => net,
             Object::Instance(nets, _, _) => {
@@ -166,7 +161,7 @@ where
     }
 
     /// Get the operand as a weak index
-    pub fn get_operand_as_net(&self, index: usize) -> Net {
+    fn get_operand_as_net(&self, index: usize) -> Net {
         let operand = &self.operands[index];
         match operand {
             Operand::DirectIndex(idx) => self
@@ -185,8 +180,8 @@ where
 /// This type exposes the interior mutability of elements in a netlist.
 type NetRefT = Rc<RefCell<OwnedObject<GatePrimitive, Netlist>>>;
 
-/// A helper struct around [NetRefT] to provide
-/// a more user-friendly interface to the interior mutability of the netlist
+/// A helper struct to provide a more user-friendly interface
+/// to the interior mutability of the netlist
 #[derive(Clone)]
 pub struct NetRef {
     netref: NetRefT,
@@ -194,17 +189,12 @@ pub struct NetRef {
 
 impl NetRef {
     /// Creates a new [NetRef] from a [NetRefT]
-    pub fn new(netref: NetRefT) -> Self {
-        Self { netref }
-    }
-
-    /// Creates a new [NetRef] from a [NetRefT]
-    pub fn wrap(netref: NetRefT) -> Self {
+    fn wrap(netref: NetRefT) -> Self {
         Self { netref }
     }
 
     /// Returns the underlying [NetRefT]
-    pub fn unwrap(self) -> NetRefT {
+    fn unwrap(self) -> NetRefT {
         self.netref
     }
 
@@ -216,6 +206,16 @@ impl NetRef {
     /// Returns a mutable borrow to the [Net] at this circuit node
     pub fn as_net_mut(&self) -> RefMut<Net> {
         RefMut::map(self.netref.borrow_mut(), |f| f.as_net_mut())
+    }
+
+    /// Returns the name of a circuit node
+    pub fn get_name(&self) -> String {
+        self.as_net().get_name().to_string()
+    }
+
+    /// Changes the name of the circuit node
+    pub fn set_name(&self, name: String) {
+        self.as_net_mut().set_name(name)
     }
 
     /// Returns `true` if this circuit node is a principal input
@@ -253,16 +253,29 @@ impl NetRef {
         }
     }
 
+    /// Updates the name of the instance, if the circuit node is an instance.
+    pub fn set_instance_name(&self, name: String) {
+        match self.netref.borrow_mut().get_mut() {
+            Object::Instance(_, inst_name, _) => *inst_name = name,
+            _ => panic!("Cannot set instance name on a non-instance object"),
+        }
+    }
+
     /// Exposes this circuit node as a top-level output in the netlist.
-    pub fn expose_as_output(self: &Self) -> NetRef {
+    pub fn expose_as_output(&self) -> NetRef {
         let netlist = self.netref.borrow().owner.upgrade().unwrap();
         netlist.expose_as_output(self.clone())
     }
 
     /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
-    pub fn expose_with_name(self: &Self, port: String) -> NetRef {
+    pub fn expose_with_name(&self, port: String) -> NetRef {
         let netlist = self.netref.borrow().owner.upgrade().unwrap();
         netlist.add_as_output_with(self.clone(), self.clone().as_net().with_name(port))
+    }
+
+    /// Returns the `index`th input to the circuit node
+    pub fn get_operand(&self, index: usize) -> NetRef {
+        NetRef::wrap(self.netref.borrow().get_operand(index))
     }
 }
 

@@ -12,21 +12,19 @@ fn main() {
     let input2 = netlist.add_input_logic("input2".to_string());
 
     let output = netlist.add_gate(and_gate, "my_and_gate".to_string(), &[input1, input2]);
+    output.set_name("my_output".to_string());
 
     output.expose_with_name("my_output".to_string());
 
     println!("{}", netlist);
-    // output_net
-    //     .borrow()
-    //     .get_operand(1)
-    //     .borrow_mut()
-    //     .as_net_mut()
-    //     .set_name("hijacked".to_string());
 
+    // Now let's mutate it
     output
-        .get_instance_type_mut()
-        .unwrap()
-        .change_gate_name("AND_X1".to_string());
+        .get_operand(1)
+        .as_net_mut()
+        .set_name("hijacked input".to_string());
+
+    output.set_instance_name("hijacked_and_gate".to_string());
 
     println!("{}", netlist);
 }
