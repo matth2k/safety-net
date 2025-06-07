@@ -226,4 +226,12 @@ where
             Object::Instance(_, _, instance) => Some(instance),
         }
     }
+
+    /// Returns a mutable reference to the instance type within the object, if the object represents one
+    pub fn get_instance_type_mut(&mut self) -> Option<&mut I> {
+        match self {
+            Object::Input(_) => None,
+            Object::Instance(_, _, instance) => Some(instance),
+        }
+    }
 }

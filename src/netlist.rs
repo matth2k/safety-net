@@ -6,7 +6,7 @@
 
 use crate::circuit::{Instantiable, Net, Object};
 use std::{
-    cell::RefCell,
+    cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     rc::{Rc, Weak},
 };
@@ -57,8 +57,13 @@ impl GatePrimitive {
     }
 
     /// Returns the single output port of the gate
-    pub fn get_single_output(&self) -> &Net {
+    pub fn get_single_output_port(&self) -> &Net {
         self.outputs.first().expect("GatePrimitive has no outputs")
+    }
+
+    /// Updates the type of cell by name
+    pub fn change_gate_name(&mut self, new_name: String) {
+        self.name = new_name;
     }
 }
 
@@ -117,6 +122,11 @@ where
         &self.object
     }
 
+    /// Get the underlying object mutably
+    pub fn get_mut(&mut self) -> &mut Object<I> {
+        &mut self.object
+    }
+
     /// Get the index of `self` relative to the owning module
     pub fn get_index(&self) -> usize {
         self.index
@@ -155,11 +165,6 @@ where
         }
     }
 
-    /// Get the underlying object as a mutable reference
-    pub fn as_obj_mut(&mut self) -> &mut Object<I> {
-        &mut self.object
-    }
-
     /// Get the operand as a weak index
     pub fn get_operand_as_net(&self, index: usize) -> Net {
         let operand = &self.operands[index];
@@ -178,7 +183,76 @@ where
 }
 
 /// This type exposes the interior mutability of elements in a netlist.
-pub type NetRef = Rc<RefCell<OwnedObject<GatePrimitive, Netlist>>>;
+type NetRefT = Rc<RefCell<OwnedObject<GatePrimitive, Netlist>>>;
+
+/// A helper struct around [NetRefT] to provide
+/// a more user-friendly interface to the interior mutability of the netlist
+#[derive(Clone)]
+pub struct NetRef {
+    netref: NetRefT,
+}
+
+impl NetRef {
+    /// Creates a new [NetRef] from a [NetRefT]
+    pub fn new(netref: NetRefT) -> Self {
+        Self { netref }
+    }
+
+    /// Creates a new [NetRef] from a [NetRefT]
+    pub fn wrap(netref: NetRefT) -> Self {
+        Self { netref }
+    }
+
+    /// Returns the underlying [NetRefT]
+    pub fn unwrap(self) -> NetRefT {
+        self.netref
+    }
+
+    /// Returns a borrow to the [Net] at this circuit node
+    pub fn as_net(&self) -> Ref<Net> {
+        Ref::map(self.netref.borrow(), |f| f.as_net())
+    }
+
+    /// Returns a mutable borrow to the [Net] at this circuit node
+    pub fn as_net_mut(&self) -> RefMut<Net> {
+        RefMut::map(self.netref.borrow_mut(), |f| f.as_net_mut())
+    }
+
+    /// Returns `true` if this circuit node is a principal input
+    pub fn is_an_input(&self) -> bool {
+        matches!(self.netref.borrow().get(), Object::Input(_))
+    }
+
+    /// Returns the [GatePrimitive] type of the instance, if this circuit node is an instance
+    pub fn get_instance_type(&self) -> Option<Ref<GatePrimitive>> {
+        Ref::filter_map(self.netref.borrow(), |f| {
+            match f.get().get_instance_type() {
+                Some(inst_type) => Some(inst_type),
+                None => None,
+            }
+        })
+        .ok()
+    }
+
+    /// Returns the [GatePrimitive] type of the instance, if this circuit node is an instance
+    pub fn get_instance_type_mut(&self) -> Option<RefMut<GatePrimitive>> {
+        RefMut::filter_map(self.netref.borrow_mut(), |f| {
+            match f.get_mut().get_instance_type_mut() {
+                Some(inst_type) => Some(inst_type),
+                None => None,
+            }
+        })
+        .ok()
+    }
+
+    /// Returns a copy of the name of the instance, if the circuit node is a instance.
+    pub fn get_instance_name(&self) -> Option<String> {
+        match self.netref.borrow().get() {
+            Object::Instance(_, inst_name, _) => Some(inst_name.clone()),
+            _ => None,
+        }
+    }
+}
 
 /// A netlist data structure
 #[derive(Debug)]
@@ -186,7 +260,7 @@ pub struct Netlist {
     /// The name of the netlist
     name: String,
     /// The list of objects in the netlist, such as inputs, modules, and primitives
-    objects: RefCell<Vec<NetRef>>,
+    objects: RefCell<Vec<NetRefT>>,
     /// The list of operands that point to objects which are outputs
     outputs: RefCell<HashMap<Operand, Net>>,
 }
@@ -233,7 +307,7 @@ impl Netlist {
         let weak = Rc::downgrade(self);
         let operands = operands
             .iter()
-            .map(|net| Operand::DirectIndex(net.borrow().get_index()))
+            .map(|net| Operand::DirectIndex(net.clone().unwrap().borrow().get_index()))
             .collect::<Vec<_>>();
         let noperands = operands.len();
         let owned_object = Rc::new(RefCell::new(OwnedObject {
@@ -244,13 +318,19 @@ impl Netlist {
             is_output: vec![false; noperands],
         }));
         self.objects.borrow_mut().push(owned_object.clone());
-        owned_object
+        NetRef::wrap(owned_object)
     }
 
     /// Adds an input net to the netlist
-    pub fn add_input(self: &Rc<Self>, net: Net) -> NetRef {
+    pub fn insert_input(self: &Rc<Self>, net: Net) -> NetRef {
         let obj = Object::Input(net);
         self.insert_object(obj, &[])
+    }
+
+    /// Add a four-state logic input port to the netlist
+    pub fn add_input_logic(self: &Rc<Self>, net: String) -> NetRef {
+        let net = Net::new_logic(net);
+        self.insert_input(net)
     }
 
     /// Adds a gate to the netlist
@@ -272,7 +352,10 @@ impl Netlist {
     /// Set an added object as a top-level output.
     pub fn add_as_output(self: &Rc<Self>, net: NetRef, port: Net) -> NetRef {
         let mut outputs = self.outputs.borrow_mut();
-        outputs.insert(Operand::DirectIndex(net.borrow().get_index()), port);
+        outputs.insert(
+            Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
+            port,
+        );
         net
     }
 }
@@ -388,13 +471,15 @@ impl std::fmt::Display for Netlist {
                 Operand::DirectIndex(idx) => self.index_weak(idx).borrow().as_net().clone(),
                 _ => todo!("add_as_output(): Handle other operand types"),
             };
-            writeln!(
-                f,
-                "{}assign {} = {};",
-                indent,
-                net.get_identifier().emit_name(),
-                driver_net.get_identifier().emit_name()
-            )?;
+            if *net != driver_net {
+                writeln!(
+                    f,
+                    "{}assign {} = {};",
+                    indent,
+                    net.get_identifier().emit_name(),
+                    driver_net.get_identifier().emit_name()
+                )?;
+            }
         }
 
         writeln!(f, "endmodule")
