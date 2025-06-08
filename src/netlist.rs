@@ -168,6 +168,14 @@ where
         self.index
     }
 
+    /// Get `self` as an operand relative to the owning module
+    fn get_as_operand(&self) -> Result<Operand, String> {
+        if self.get().get_outputs().len() > 1 {
+            return Err("Cannot get multi-output cell as a direct index".to_string());
+        }
+        Ok(Operand::DirectIndex(self.get_index()))
+    }
+
     /// Get the net that is driven by this object
     fn as_net(&self) -> &Net {
         match &self.object {
@@ -223,10 +231,16 @@ where
     }
 
     /// Check if this object drives a specific net
-    fn drives_net(&self, net: &Net) -> bool {
+    fn find_net(&self, net: &Net) -> Option<usize> {
         match &self.object {
-            Object::Input(input_net) => input_net == net,
-            Object::Instance(nets, _, _) => nets.contains(net),
+            Object::Input(input_net) => {
+                if input_net == net {
+                    Some(0)
+                } else {
+                    None
+                }
+            }
+            Object::Instance(nets, _, _) => nets.iter().position(|n| n == net),
         }
     }
 
@@ -379,6 +393,19 @@ impl NetRef {
         netlist.add_as_output_with(self.clone(), self.clone().as_net().with_name(port))
     }
 
+    /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
+    pub fn expose_net_with_name(&self, net: Net) -> Result<(), String> {
+        let netlist = self.netref.borrow().owner.upgrade().unwrap();
+        let net_index = self.netref.borrow().find_net(&net).ok_or(format!(
+            "Net {} not found in circuit node",
+            net.get_identifier().emit_name()
+        ))?;
+        netlist.expose_net(
+            Operand::CellIndex(self.netref.borrow().get_index(), net_index),
+            net,
+        )
+    }
+
     /// Returns the `index`th input to the circuit node
     pub fn get_operand(&self, index: usize) -> Option<NetRef> {
         self.netref.borrow().get_operand(index).map(NetRef::wrap)
@@ -442,6 +469,11 @@ impl NetRef {
             .into_iter()
     }
 
+    /// Returns an iterator to the output nets of this circuit node, along with the circuit node itself.
+    pub fn nets_tagged(&self) -> impl Iterator<Item = TaggedNet> {
+        self.nets().map(|net| (net, self.clone()))
+    }
+
     /// Returns an iterator to mutate the output nets of this circuit node.
     pub fn nets_mut(&self) -> impl Iterator<Item = RefMut<Net>> {
         let mut nets: Vec<RefMut<Net>> = Vec::new();
@@ -453,7 +485,7 @@ impl NetRef {
 
     /// Returns `true` if this circuit node drives the given net.
     pub fn drives_net(&self, net: &Net) -> bool {
-        self.netref.borrow().drives_net(net)
+        self.netref.borrow().find_net(net).is_some()
     }
 
     /// Attempts to find a mutable reference to the `net`` within this circuit node.
@@ -472,6 +504,9 @@ pub struct Netlist {
     /// The list of operands that point to objects which are outputs
     outputs: RefCell<HashMap<Operand, Net>>,
 }
+
+/// A type alias for a net and its driving reference
+pub type TaggedNet = (Net, NetRef);
 
 impl WeakIndex<usize> for Netlist {
     type Output = OwnedObject<GatePrimitive, Self>;
@@ -510,16 +545,15 @@ impl Netlist {
         self: &Rc<Self>,
         object: Object<GatePrimitive>,
         operands: &[NetRef],
-    ) -> NetRef {
+    ) -> Result<NetRef, String> {
         let index = self.objects.borrow().len();
         let weak = Rc::downgrade(self);
+        for operand in operands {
+            operand.clone().unwrap().borrow().get_as_operand()?;
+        }
         let operands = operands
             .iter()
-            .map(|net| {
-                Some(Operand::DirectIndex(
-                    net.clone().unwrap().borrow().get_index(),
-                ))
-            })
+            .map(|net| Some(net.clone().unwrap().borrow().get_as_operand().unwrap()))
             .collect::<Vec<_>>();
         let owned_object = Rc::new(RefCell::new(OwnedObject {
             object,
@@ -528,13 +562,13 @@ impl Netlist {
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
-        NetRef::wrap(owned_object)
+        Ok(NetRef::wrap(owned_object))
     }
 
     /// Adds an input net to the netlist
     pub fn insert_input(self: &Rc<Self>, net: Net) -> NetRef {
         let obj = Object::Input(net);
-        self.insert_object(obj, &[])
+        self.insert_object(obj, &[]).unwrap()
     }
 
     /// Add a four-state logic input port to the netlist
@@ -563,7 +597,7 @@ impl Netlist {
             ));
         }
         let obj = Object::Instance(nets, inst_name, inst_type);
-        Ok(self.insert_object(obj, operands))
+        self.insert_object(obj, operands)
     }
 
     /// Set an added object as a top-level output.
@@ -587,6 +621,26 @@ impl Netlist {
             net.clone().unwrap().borrow().as_net().clone(),
         );
         Ok(net)
+    }
+
+    /// Get the circuit node with the given operand index.
+    fn lookup_netref(self: &Rc<Self>, operand: Operand) -> NetRef {
+        match operand {
+            Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
+                NetRef::wrap(self.objects.borrow()[idx].clone())
+            }
+        }
+    }
+
+    /// Set an added object as a top-level output.
+    fn expose_net(self: &Rc<Self>, operand: Operand, net: Net) -> Result<(), String> {
+        let netref = self.lookup_netref(operand.clone());
+        if netref.is_an_input() {
+            return Err("Cannot expose an input net as output without a new name".to_string());
+        }
+        let mut outputs = self.outputs.borrow_mut();
+        outputs.insert(operand, net);
+        Ok(())
     }
 }
 

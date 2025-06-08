@@ -6,23 +6,29 @@ fn main() {
         "Y".to_string(),
     );
 
+    let full_adder = GatePrimitive::new_logical_multi(
+        "FA".to_string(),
+        vec!["CIN".to_string(), "A".to_string(), "B".to_string()],
+        vec!["COUT".to_string(), "S".to_string()],
+    );
+
     let netlist = Netlist::new("top".to_string());
 
-    let input1 = netlist.add_input_logic("input1".to_string());
-    let input2 = netlist.add_input_logic("input2".to_string());
+    let carry_in = netlist.add_input_logic("c0".to_string());
+    let input1 = netlist.add_input_logic("a".to_string());
+    let input2 = netlist.add_input_logic("b".to_string());
 
-    let output = netlist
-        .add_gate(and_gate, "my_and_gate".to_string(), &[input1, input2])
+    let fa = netlist
+        .add_gate(full_adder, "my_fa".to_string(), &[carry_in, input1, input2])
         .unwrap();
-    output.set_name("my_output".to_string());
 
-    output.expose_with_name("my_output".to_string());
+    // lets and the sum and cout together
 
-    println!("{}", netlist);
+    let anded = netlist
+        .add_gate(and_gate, "my_and".to_string(), &[fa.clone(), fa])
+        .unwrap();
 
-    for (i, operand) in output.operands().enumerate() {
-        operand.unwrap().expose_with_name(format!("operand_{}", i));
-    }
+    anded.expose_as_output().unwrap();
 
     println!("{}", netlist);
 }
