@@ -535,6 +535,17 @@ impl NetRef {
             .expect("NetRef is unlinked from netlist");
         netlist.delete_net_uses(self)
     }
+
+    /// Replaces the uses of this circuit node in the netlist with another circuit node.
+    pub fn replace_uses_with(self, other: &Self) -> Result<Object<GatePrimitive>, String> {
+        let netlist = self
+            .netref
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("NetRef is unlinked from netlist");
+        netlist.replace_net_uses(self, other)
+    }
 }
 
 impl From<NetRef> for TaggedNet {
@@ -758,6 +769,35 @@ impl Netlist {
             }
         }
         Ok(netref.unwrap().borrow().get().clone())
+    }
+
+    /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
+    pub fn replace_net_uses(
+        &self,
+        of: NetRef,
+        with: &NetRef,
+    ) -> Result<Object<GatePrimitive>, String> {
+        let unwrapped = of.clone().unwrap();
+        if Rc::strong_count(&unwrapped) > 3 {
+            return Err("Cannot delete a netref that is still in use elsewhere".to_string());
+        }
+
+        let old_tag: TaggedNet = of.clone().into();
+        let old_index = Self::get_operand_of_tag(&old_tag);
+        let new_tag: TaggedNet = with.clone().into();
+        let new_index = Self::get_operand_of_tag(&new_tag);
+        let objects = self.objects.borrow();
+        for oref in objects.iter() {
+            let operands = &mut oref.borrow_mut().operands;
+            for operand in operands.iter_mut() {
+                if let Some(op) = operand {
+                    if *op == old_index {
+                        *operand = Some(new_index.clone());
+                    }
+                }
+            }
+        }
+        Ok(of.unwrap().borrow().get().clone())
     }
 }
 
