@@ -71,6 +71,11 @@ fn harder_example() -> Netlist {
         if i == bitwidth - 1 {
             // Last full adder, expose the carry out
             instance.expose_net(&instance.get_net(1)).unwrap();
+            instance
+                .req_operand_net(0)
+                .unwrap()
+                .borrow_mut()
+                .set_name("renaming_for_fun".to_string());
         }
     }
 

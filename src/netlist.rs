@@ -419,6 +419,13 @@ impl NetRef {
         self.netref.borrow().get_operand_net(index)
     }
 
+    /// Returns a request to mutably borrow the operand net
+    pub fn req_operand_net(&self, index: usize) -> Option<MutBorrowReq> {
+        let net = self.get_operand_net(index)?;
+        let operand = self.get_operand(index).unwrap();
+        Some(MutBorrowReq::new(operand, net))
+    }
+
     /// Returns the number of input ports for this circuit node.
     pub fn get_num_input_ports(&self) -> usize {
         if let Some(inst_type) = self.get_instance_type() {
@@ -511,6 +518,24 @@ impl From<NetRef> for TaggedNet {
 impl From<&NetRef> for TaggedNet {
     fn from(val: &NetRef) -> Self {
         (val.clone().as_net().clone(), val.clone())
+    }
+}
+
+/// A helper-struct for returning operand net references
+pub struct MutBorrowReq {
+    from: NetRef,
+    ind: Net,
+}
+
+impl MutBorrowReq {
+    /// Creates a new mutable borrow request
+    fn new(from: NetRef, ind: Net) -> Self {
+        Self { from, ind }
+    }
+
+    /// Mutably borrows the requested net from the circuit node
+    pub fn borrow_mut(&self) -> RefMut<Net> {
+        self.from.find_net_mut(&self.ind).unwrap()
     }
 }
 
