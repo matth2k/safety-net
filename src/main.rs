@@ -19,16 +19,21 @@ fn main() {
     let input2 = netlist.add_input_logic("b".to_string());
 
     let fa = netlist
-        .add_gate(full_adder, "my_fa".to_string(), &[carry_in, input1, input2])
+        .add_gate(
+            full_adder,
+            "my_fa".to_string(),
+            &[carry_in.into(), input1.into(), input2.into()],
+        )
         .unwrap();
 
     // lets and the sum and cout together
-
+    let fa_outputs = fa.nets_tagged().collect::<Vec<_>>();
     let anded = netlist
-        .add_gate(and_gate, "my_and".to_string(), &[fa.clone(), fa])
+        .add_gate(and_gate, "my_and".to_string(), &fa_outputs)
         .unwrap();
 
     anded.expose_as_output().unwrap();
+    fa.expose_net_with_name(fa.get_net(0).clone()).unwrap();
 
     println!("{}", netlist);
 }

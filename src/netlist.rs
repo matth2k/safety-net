@@ -168,14 +168,6 @@ where
         self.index
     }
 
-    /// Get `self` as an operand relative to the owning module
-    fn get_as_operand(&self) -> Result<Operand, String> {
-        if self.get().get_outputs().len() > 1 {
-            return Err("Cannot get multi-output cell as a direct index".to_string());
-        }
-        Ok(Operand::DirectIndex(self.get_index()))
-    }
-
     /// Get the net that is driven by this object
     fn as_net(&self) -> &Net {
         match &self.object {
@@ -492,6 +484,17 @@ impl NetRef {
     pub fn find_net_mut(&self, net: &Net) -> Option<RefMut<Net>> {
         RefMut::filter_map(self.netref.borrow_mut(), |f| f.find_net_mut(net)).ok()
     }
+
+    /// Returns `true` if this circuit node has multiple outputs.
+    pub fn is_multi_output(&self) -> bool {
+        self.netref.borrow().get().get_outputs().len() > 1
+    }
+}
+
+impl From<NetRef> for TaggedNet {
+    fn from(val: NetRef) -> Self {
+        (val.clone().as_net().clone(), val)
+    }
 }
 
 /// A netlist data structure
@@ -540,20 +543,29 @@ impl Netlist {
         })
     }
 
+    /// Returns the index in [Operand] format of this [TaggedNet]
+    fn get_operand_of_tag(t: &TaggedNet) -> Operand {
+        let nr = &t.1;
+        let no_outputs = nr.clone().unwrap().borrow().get().get_outputs().len();
+        if no_outputs == 1 {
+            Operand::DirectIndex(nr.clone().unwrap().borrow().get_index())
+        } else {
+            let secondary = nr.clone().unwrap().borrow().find_net(&t.0).unwrap();
+            Operand::CellIndex(nr.clone().unwrap().borrow().get_index(), secondary)
+        }
+    }
+
     /// Use interior mutability to add an object to the netlist. Returns a mutable reference to the created object.
     fn insert_object(
         self: &Rc<Self>,
         object: Object<GatePrimitive>,
-        operands: &[NetRef],
+        operands: &[TaggedNet],
     ) -> Result<NetRef, String> {
         let index = self.objects.borrow().len();
         let weak = Rc::downgrade(self);
-        for operand in operands {
-            operand.clone().unwrap().borrow().get_as_operand()?;
-        }
         let operands = operands
             .iter()
-            .map(|net| Some(net.clone().unwrap().borrow().get_as_operand().unwrap()))
+            .map(|net| Some(Self::get_operand_of_tag(net)))
             .collect::<Vec<_>>();
         let owned_object = Rc::new(RefCell::new(OwnedObject {
             object,
@@ -582,7 +594,7 @@ impl Netlist {
         self: &Rc<Self>,
         inst_type: GatePrimitive,
         inst_name: String,
-        operands: &[NetRef],
+        operands: &[TaggedNet],
     ) -> Result<NetRef, String> {
         let nets = inst_type
             .get_output_ports()
