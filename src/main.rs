@@ -30,7 +30,7 @@ fn simple_example() -> Rc<Netlist> {
     // Make this AND gate an output
     instance.expose_as_output().unwrap();
 
-    netlist
+    netlist.reclaim().unwrap()
 }
 
 fn main() {
