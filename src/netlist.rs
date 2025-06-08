@@ -554,6 +554,15 @@ impl Netlist {
         })
     }
 
+    /// Attempts to reclaim the netlist, returning [Some] if successful.
+    pub fn reclaim(self: Rc<Self>) -> Option<Rc<Self>> {
+        if Rc::strong_count(&self) == 1 {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     /// Returns the index in [Operand] format of this [TaggedNet]
     fn get_operand_of_tag(t: &TaggedNet) -> Operand {
         let nr = &t.1;
