@@ -642,6 +642,14 @@ impl Netlist {
         self.insert_input_net(net)
     }
 
+    /// Inserts a four-state logic input port to the netlist
+    pub fn insert_input_escaped_logic_bus(self: &Rc<Self>, net: String, bw: usize) -> Vec<NetRef> {
+        Net::new_escaped_logic_bus(net, bw)
+            .into_iter()
+            .map(|n| self.insert_input_net(n))
+            .collect()
+    }
+
     /// Inserts a gate to the netlist
     pub fn insert_gate(
         self: &Rc<Self>,

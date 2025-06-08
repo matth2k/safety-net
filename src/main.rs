@@ -53,12 +53,8 @@ fn harder_example() -> Netlist {
     let bitwidth = 4;
 
     // Add the the inputs
-    let a_vec = (0..bitwidth)
-        .map(|i| netlist.insert_input_logic(format!("a_{}", i)))
-        .collect::<Vec<_>>();
-    let b_vec = (0..bitwidth)
-        .map(|i| netlist.insert_input_logic(format!("b_{}", i)))
-        .collect::<Vec<_>>();
+    let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
+    let b_vec = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
     let cin = netlist.insert_input_logic("cin".to_string());
 
     // Instantiate the full adders
@@ -93,8 +89,5 @@ fn harder_example() -> Netlist {
 
 fn main() {
     let netlist = harder_example();
-    // print!("{}", netlist);
-    for net in netlist.object_iter() {
-        println!("Net: {}", net);
-    }
+    print!("{}", netlist);
 }

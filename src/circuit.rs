@@ -130,6 +130,21 @@ impl Net {
         Self::new(Identifier::new(name), DataType::logic())
     }
 
+    /// Create a wire bus as escaped SystemVerilog signals
+    pub fn new_escaped_logic_bus(name: String, bw: usize) -> Vec<Self> {
+        let mut vec: Vec<Self> = Vec::with_capacity(bw);
+        for i in 0..bw {
+            vec.push(Self::new(
+                Identifier {
+                    name: format!("{}[{}]", name, i),
+                    id_type: IdentifierType::Escaped,
+                },
+                DataType::logic(),
+            ));
+        }
+        vec
+    }
+
     /// Returns the name of the net
     pub fn get_name(&self) -> &str {
         self.indentifier.get_name()
@@ -150,7 +165,7 @@ impl Net {
         &self.data_type
     }
 
-    /// Returns a net of the same type but with a different name
+    /// Returns a net of the same type but with a different [IdentifierType::Normal] name
     pub fn with_name(&self, name: String) -> Self {
         Self::new(Identifier::new(name), self.data_type.clone())
     }
