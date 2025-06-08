@@ -77,14 +77,12 @@ fn harder_example() -> Netlist {
 
         if i == bitwidth - 1 {
             // Last full adder, expose the carry out
-            instance.expose_net(&instance.get_net(1)).unwrap();
             instance.nets_mut().enumerate().for_each(|(j, mut n)| {
-                if j == 0 {
-                    n.set_name("sum".to_string());
-                } else {
+                if j == 1 {
                     n.set_name("cout".to_string());
                 }
             });
+            instance.expose_net(&instance.get_net(1)).unwrap();
         }
     }
 
