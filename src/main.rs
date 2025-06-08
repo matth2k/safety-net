@@ -60,8 +60,8 @@ fn harder_example() -> Netlist {
     let cin = netlist.insert_input_logic("cin".to_string());
 
     // Instantiate the full adders
-    let mut input_bus: Vec<TaggedNet> =
-        vec![cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
+    let mut input_bus: [TaggedNet; 3] =
+        [cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
 
     for i in 1..bitwidth {
         let instance = netlist
@@ -69,7 +69,7 @@ fn harder_example() -> Netlist {
             .unwrap();
 
         instance.expose_net(&instance.get_net(0)).unwrap();
-        input_bus = vec![
+        input_bus = [
             (instance.get_net(1).clone(), instance.clone()),
             a_vec[i].clone().into(),
             b_vec[i].clone().into(),
