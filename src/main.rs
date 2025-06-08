@@ -51,7 +51,7 @@ fn simple_example() -> Netlist {
 
 fn harder_example() -> Netlist {
     let netlist = Netlist::new("harder_example".to_string());
-    let bitwidth = 4;
+    let bitwidth = 8;
 
     // Add the the inputs
     let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
@@ -62,9 +62,9 @@ fn harder_example() -> Netlist {
     let mut input_bus: [TaggedNet; 3] =
         [cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
 
-    for i in 1..bitwidth {
+    for i in 0..bitwidth {
         let instance = netlist
-            .insert_gate(full_adder(), format!("fa_{}", i - 1), &input_bus)
+            .insert_gate(full_adder(), format!("fa_{}", i), &input_bus)
             .unwrap();
 
         instance.expose_net(&instance.get_net(0)).unwrap();
@@ -80,8 +80,8 @@ fn harder_example() -> Netlist {
         } else {
             input_bus = [
                 (instance.get_net(1).clone(), instance.clone()),
-                a_vec[i].clone().into(),
-                b_vec[i].clone().into(),
+                a_vec[i + 1].clone().into(),
+                b_vec[i + 1].clone().into(),
             ];
         }
     }
