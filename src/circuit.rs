@@ -234,4 +234,20 @@ where
             Object::Instance(_, _, instance) => Some(instance),
         }
     }
+
+    /// Returns all the output nets at this circuit node.
+    pub fn get_outputs(&self) -> &[Net] {
+        match self {
+            Object::Input(net) => std::slice::from_ref(net),
+            Object::Instance(nets, _, _) => nets,
+        }
+    }
+
+    /// Returns a mutable reference to all the output nets at this circuit node.
+    pub fn get_outputs_mut(&mut self) -> &mut [Net] {
+        match self {
+            Object::Input(net) => std::slice::from_mut(net),
+            Object::Instance(nets, _, _) => nets,
+        }
+    }
 }

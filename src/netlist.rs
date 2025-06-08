@@ -17,8 +17,6 @@ trait WeakIndex<Idx: ?Sized> {
     type Output: ?Sized;
     /// Indexes the collection weakly by the given index.
     fn index_weak(&self, index: &Idx) -> Rc<RefCell<Self::Output>>;
-    /// Gets a weak reference to the object at the given index.
-    fn get_weak(&self, index: &Idx) -> Option<Rc<RefCell<Self::Output>>>;
 }
 
 /// A primitive gate in a digital circuit, such as AND, OR, NOT, etc.
@@ -50,6 +48,17 @@ impl GatePrimitive {
     /// Creates a new gate primitive with four-state logic types
     pub fn new_logical(name: String, inputs: Vec<String>, output: String) -> Self {
         let outputs = vec![Net::new_logic(output)];
+        let inputs = inputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
+        Self {
+            name,
+            inputs,
+            outputs,
+        }
+    }
+
+    /// Creates a new gate primitive with four-state logic types with multiple outputs
+    pub fn new_logical_multi(name: String, inputs: Vec<String>, outputs: Vec<String>) -> Self {
+        let outputs = outputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         let inputs = inputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         Self {
             name,
@@ -103,17 +112,19 @@ where
     /// Get the operand as a weak index
     fn get_operand(&self, index: usize) -> Option<Rc<RefCell<Self>>> {
         self.operands[index].as_ref().map(|operand| match operand {
-            Operand::DirectIndex(idx) => self.owner.upgrade().unwrap().index_weak(idx),
-            _ => todo!("get_operand(): Handle other operand types"),
+            Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
+                self.owner.upgrade().unwrap().index_weak(idx)
+            }
         })
     }
 
-    /// Implement iterator to operands
+    /// Iterator to operands
     fn operands(&self) -> impl Iterator<Item = Option<Rc<RefCell<Self>>>> {
         self.operands.iter().map(|operand| {
             operand.as_ref().map(|operand| match operand {
-                Operand::DirectIndex(idx) => self.owner.upgrade().unwrap().index_weak(idx),
-                _ => todo!("get_operand(): Handle other operand types"),
+                Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
+                    self.owner.upgrade().unwrap().index_weak(idx)
+                }
             })
         })
     }
@@ -161,8 +172,34 @@ where
         }
     }
 
+    /// Get the net that is driven by this object at position `idx`
+    fn get_net(&self, idx: usize) -> &Net {
+        match &self.object {
+            Object::Input(net) => {
+                if idx != 0 {
+                    panic!("Invalid indexing on input");
+                }
+                net
+            }
+            Object::Instance(nets, _, _) => &nets[idx],
+        }
+    }
+
+    /// Get a mutable reference to the net that is driven by this object at position `idx`
+    fn get_net_mut(&mut self, idx: usize) -> &mut Net {
+        match &mut self.object {
+            Object::Input(net) => {
+                if idx != 0 {
+                    panic!("Invalid indexing on input");
+                }
+                net
+            }
+            Object::Instance(nets, _, _) => &mut nets[idx],
+        }
+    }
+
     /// Get the operand as a weak index
-    fn get_operand_as_net(&self, index: usize) -> Option<Net> {
+    fn get_operand_net(&self, index: usize) -> Option<Net> {
         let operand = &self.operands[index];
         match operand {
             Some(op) => match op {
@@ -175,7 +212,15 @@ where
                     .as_net()
                     .clone()
                     .into(),
-                _ => todo!("get_operand(): Handle other operand types"),
+                Operand::CellIndex(idx, j) => self
+                    .owner
+                    .upgrade()
+                    .unwrap()
+                    .index_weak(idx)
+                    .borrow()
+                    .get_net(*j)
+                    .clone()
+                    .into(),
             },
             None => None,
         }
@@ -211,6 +256,16 @@ impl NetRef {
     /// Returns a mutable borrow to the [Net] at this circuit node
     pub fn as_net_mut(&self) -> RefMut<Net> {
         RefMut::map(self.netref.borrow_mut(), |f| f.as_net_mut())
+    }
+
+    /// Returns a borrow to the output [Net] as position `idx`
+    pub fn get_net(&self, idx: usize) -> Ref<Net> {
+        Ref::map(self.netref.borrow(), |f| f.get_net(idx))
+    }
+
+    /// Returns a mutable borrow to the output [Net] as position `idx`
+    pub fn get_net_mut(&self, idx: usize) -> RefMut<Net> {
+        RefMut::map(self.netref.borrow_mut(), |f| f.get_net_mut(idx))
     }
 
     /// Returns the name of a circuit node
@@ -283,6 +338,16 @@ impl NetRef {
         self.netref.borrow().get_operand(index).map(NetRef::wrap)
     }
 
+    /// Returns the `index`th input to the circuit node
+    pub fn get_operand_net(&self, index: usize) -> Option<Net> {
+        self.netref.borrow().get_operand_net(index)
+    }
+
+    /// Returns a mutable reference to the net input at `index` for this circuit node.
+    pub fn get_operand_net_mut(&self, index: usize) -> Option<RefMut<Net>> {
+        todo!("get_operand_net_mut() not implemented yet")
+    }
+
     /// Returns the number of input ports for this circuit node.
     pub fn get_num_input_ports(&self) -> usize {
         if let Some(inst_type) = self.get_instance_type() {
@@ -318,6 +383,26 @@ impl NetRef {
             .collect();
         operands.into_iter()
     }
+
+    /// Returns an iterator to the output nets of this circuit node.
+    #[allow(clippy::unnecessary_to_owned)]
+    pub fn nets(&self) -> impl Iterator<Item = Net> {
+        self.netref
+            .borrow()
+            .get()
+            .get_outputs()
+            .to_vec()
+            .into_iter()
+    }
+
+    /// Returns an iterator to mutate the output nets of this circuit node.
+    pub fn nets_mut(&self) -> impl Iterator<Item = RefMut<Net>> {
+        let mut nets: Vec<RefMut<Net>> = Vec::new();
+        for i in 0..self.netref.borrow().get().get_outputs().len() {
+            nets.push(self.get_net_mut(i));
+        }
+        nets.into_iter()
+    }
 }
 
 /// A netlist data structure
@@ -336,10 +421,6 @@ impl WeakIndex<usize> for Netlist {
 
     fn index_weak(&self, index: &usize) -> Rc<RefCell<Self::Output>> {
         self.objects.borrow()[*index].clone()
-    }
-
-    fn get_weak(&self, index: &usize) -> Option<Rc<RefCell<Self::Output>>> {
-        self.objects.borrow().get(*index).cloned()
     }
 }
 
@@ -520,7 +601,7 @@ impl std::fmt::Display for Netlist {
                 for (idx, port) in inst_type.get_input_ports().iter().enumerate() {
                     let port_name = port.get_identifier().emit_name();
                     let operand = owned
-                        .get_operand_as_net(idx)
+                        .get_operand_net(idx)
                         .expect("All operands should be present");
                     writeln!(
                         f,
