@@ -530,20 +530,6 @@ impl WeakIndex<usize> for Netlist {
     }
 }
 
-impl Instantiable for Netlist {
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-
-    fn get_input_ports(&self) -> &[Net] {
-        todo!()
-    }
-
-    fn get_output_ports(&self) -> &[Net] {
-        todo!()
-    }
-}
-
 impl Netlist {
     /// Creates a new netlist with the given name
     pub fn new(name: String) -> Rc<Self> {
@@ -633,7 +619,7 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
-    pub fn expose_netref_named(self: &Rc<Self>, net: NetRef, name: String) -> NetRef {
+    pub fn expose_netref_named(&self, net: NetRef, name: String) -> NetRef {
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(
             Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
@@ -643,7 +629,7 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
-    pub fn expose_netref(self: &Rc<Self>, net: NetRef) -> Result<NetRef, String> {
+    pub fn expose_netref(&self, net: NetRef) -> Result<NetRef, String> {
         if net.is_an_input() {
             return Err("Cannot expose an input net as output without a new name".to_string());
         }
@@ -656,7 +642,7 @@ impl Netlist {
     }
 
     /// Get the circuit node with the given operand index.
-    fn lookup_netref(self: &Rc<Self>, operand: Operand) -> NetRef {
+    fn lookup_netref(&self, operand: Operand) -> NetRef {
         match operand {
             Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
                 NetRef::wrap(self.objects.borrow()[idx].clone())
@@ -665,7 +651,7 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
-    fn expose_net(self: &Rc<Self>, operand: Operand, net: Net) -> Result<(), String> {
+    fn expose_net(&self, operand: Operand, net: Net) -> Result<(), String> {
         let netref = self.lookup_netref(operand.clone());
         if netref.is_an_input() {
             return Err("Cannot expose an input net as output without a new name".to_string());
@@ -673,6 +659,34 @@ impl Netlist {
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(operand, net);
         Ok(())
+    }
+}
+
+impl Netlist {
+    /// Returns the name of the netlist module
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns a list of input nets
+    pub fn get_input_ports(&self) -> Vec<Net> {
+        self.objects
+            .borrow()
+            .iter()
+            .filter_map(|oref| {
+                let owned = oref.borrow();
+                if let Object::Input(net) = owned.get() {
+                    Some(net.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Returns a list of ouput nets
+    pub fn get_output_ports(&self) -> Vec<Net> {
+        self.outputs.borrow().values().cloned().collect::<Vec<_>>()
     }
 }
 
