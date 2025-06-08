@@ -26,7 +26,6 @@ fn simple_example() -> Netlist {
     let input2 = netlist.insert_input_logic("input2".to_string());
 
     // Instantiate an AND gate
-
     let instance = netlist
         .insert_gate(
             and_gate(),
@@ -78,7 +77,6 @@ fn harder_example() -> Netlist {
                 }
             });
             instance.expose_net(&instance.get_net(1)).unwrap();
-            instance.delete_uses().unwrap();
         } else {
             input_bus = [
                 (instance.get_net(1).clone(), instance.clone()),
