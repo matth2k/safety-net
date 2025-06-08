@@ -1,10 +1,18 @@
-use circuit::netlist::{GatePrimitive, Netlist};
+use circuit::netlist::{GatePrimitive, Netlist, TaggedNet};
 
 fn and_gate() -> GatePrimitive {
     GatePrimitive::new_logical(
         "AND".to_string(),
         vec!["A".to_string(), "B".to_string()],
         "Y".to_string(),
+    )
+}
+
+fn full_adder() -> GatePrimitive {
+    GatePrimitive::new_logical_multi(
+        "FA".to_string(),
+        vec!["CIN".to_string(), "A".to_string(), "B".to_string()],
+        vec!["S".to_string(), "COUT".to_string()],
     )
 }
 
@@ -31,7 +39,45 @@ fn simple_example() -> Netlist {
     netlist.reclaim().unwrap()
 }
 
+fn harder_example() -> Netlist {
+    let netlist = Netlist::new("harder_example".to_string());
+    let bitwidth = 4;
+
+    // Add the the inputs
+    let a_vec = (0..bitwidth)
+        .map(|i| netlist.insert_input_logic(format!("a_{}", i)))
+        .collect::<Vec<_>>();
+    let b_vec = (0..bitwidth)
+        .map(|i| netlist.insert_input_logic(format!("b_{}", i)))
+        .collect::<Vec<_>>();
+    let cin = netlist.insert_input_logic("cin".to_string());
+
+    // Instantiate the full adders
+    let mut input_bus: Vec<TaggedNet> =
+        vec![cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
+
+    for i in 1..bitwidth {
+        let instance = netlist
+            .insert_gate(full_adder(), format!("fa_{}", i - 1), &input_bus)
+            .unwrap();
+
+        instance.expose_net(&instance.get_net(0)).unwrap();
+        input_bus = vec![
+            (instance.get_net(1).clone(), instance.clone()),
+            a_vec[i].clone().into(),
+            b_vec[i].clone().into(),
+        ];
+
+        if i == bitwidth - 1 {
+            // Last full adder, expose the carry out
+            instance.expose_net(&instance.get_net(1)).unwrap();
+        }
+    }
+
+    netlist.reclaim().unwrap()
+}
+
 fn main() {
-    let netlist = simple_example();
+    let netlist = harder_example();
     print!("{}", netlist);
 }

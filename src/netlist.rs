@@ -508,6 +508,12 @@ impl From<NetRef> for TaggedNet {
     }
 }
 
+impl From<&NetRef> for TaggedNet {
+    fn from(val: &NetRef) -> Self {
+        (val.clone().as_net().clone(), val.clone())
+    }
+}
+
 /// A netlist data structure
 #[derive(Debug)]
 pub struct Netlist {
