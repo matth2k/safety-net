@@ -46,7 +46,7 @@ fn simple_example() -> Netlist {
     {
         n.set_name("renaming_for_fun".to_string());
     }
-    // input1.delete_uses().unwrap();
+
     netlist.reclaim().unwrap()
 }
 

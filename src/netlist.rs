@@ -755,19 +755,24 @@ impl Netlist {
         if Rc::strong_count(&unwrapped) > 3 {
             return Err("Cannot delete a netref that is still in use elsewhere".to_string());
         }
-        let old_tag: TaggedNet = netref.clone().into();
-        let old_index = Self::get_operand_of_tag(&old_tag);
+        let old_index = unwrapped.borrow().get_index();
         let objects = self.objects.borrow();
         for oref in objects.iter() {
             let operands = &mut oref.borrow_mut().operands;
             for operand in operands.iter_mut() {
                 if let Some(op) = operand {
-                    if *op == old_index {
-                        *operand = None;
+                    match op {
+                        Operand::DirectIndex(idx) | Operand::CellIndex(idx, _)
+                            if *idx == old_index =>
+                        {
+                            *operand = None;
+                        }
+                        _ => (),
                     }
                 }
             }
         }
+
         Ok(netref.unwrap().borrow().get().clone())
     }
 
@@ -797,6 +802,7 @@ impl Netlist {
                 }
             }
         }
+
         Ok(of.unwrap().borrow().get().clone())
     }
 }
