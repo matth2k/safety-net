@@ -763,7 +763,7 @@ impl<'a> NetIterator<'a> {
     }
 }
 
-impl<'a> Iterator for NetIterator<'a> {
+impl Iterator for NetIterator<'_> {
     type Item = Net;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -795,7 +795,7 @@ impl<'a> ObjectIterator<'a> {
     }
 }
 
-impl<'a> Iterator for ObjectIterator<'a> {
+impl Iterator for ObjectIterator<'_> {
     type Item = Object<GatePrimitive>;
 
     fn next(&mut self) -> Option<Self::Item> {

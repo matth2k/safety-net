@@ -1,5 +1,6 @@
 use circuit::netlist::{GatePrimitive, Netlist, TaggedNet};
 
+#[allow(dead_code)]
 fn and_gate() -> GatePrimitive {
     GatePrimitive::new_logical(
         "AND".to_string(),
@@ -16,6 +17,7 @@ fn full_adder() -> GatePrimitive {
     )
 }
 
+#[allow(dead_code)]
 fn simple_example() -> Netlist {
     let netlist = Netlist::new("simple_example".to_string());
 
@@ -90,4 +92,14 @@ fn harder_example() -> Netlist {
 fn main() {
     let netlist = harder_example();
     print!("{}", netlist);
+}
+
+#[test]
+fn test_simple_example() {
+    let netlist = simple_example();
+    assert_eq!(netlist.get_name(), "simple_example");
+    assert_eq!(netlist.get_input_ports().len(), 2);
+    assert_eq!(netlist.get_output_ports().len(), 1);
+    let objects: Vec<_> = netlist.object_iter().collect();
+    assert_eq!(objects.len(), 3); // 2 inputs + 1 gate
 }
