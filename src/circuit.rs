@@ -94,7 +94,17 @@ impl Identifier {
         match &self.id_type {
             IdentifierType::Normal => self.name.clone(),
             IdentifierType::BitSlice(index) => format!("{}[{}]", self.name, index),
-            IdentifierType::Escaped => format!("{} ", self.name),
+            IdentifierType::Escaped => format!("\\{} ", self.name),
+        }
+    }
+}
+
+impl std::fmt::Display for Identifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.id_type {
+            IdentifierType::Normal => write!(f, "{}", self.name),
+            IdentifierType::BitSlice(index) => write!(f, "{}[{}]", self.name, index),
+            IdentifierType::Escaped => write!(f, "\\{} ", self.name),
         }
     }
 }
@@ -146,8 +156,14 @@ impl Net {
     }
 }
 
+impl std::fmt::Display for Net {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.indentifier.fmt(f)
+    }
+}
+
 /// A trait for primitives in a digital circuit, such as gates or other components.
-pub trait Instantiable {
+pub trait Instantiable: std::fmt::Display + Clone {
     /// Returns the name of the primitive
     fn get_name(&self) -> &str;
 
@@ -177,7 +193,7 @@ pub trait Instantiable {
 }
 
 /// A tagged union for objects in a digital circuit, which can be either an input net or an instance of a module or primitive.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Object<I>
 where
     I: Instantiable,
@@ -248,6 +264,20 @@ where
         match self {
             Object::Input(net) => std::slice::from_mut(net),
             Object::Instance(nets, _, _) => nets,
+        }
+    }
+}
+
+impl<I> std::fmt::Display for Object<I>
+where
+    I: Instantiable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Object::Input(net) => write!(f, "Input({})", net),
+            Object::Instance(_nets, name, instance) => {
+                write!(f, "{}({})", instance.get_name(), name)
+            }
         }
     }
 }

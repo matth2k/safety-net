@@ -20,7 +20,7 @@ trait WeakIndex<Idx: ?Sized> {
 }
 
 /// A primitive gate in a digital circuit, such as AND, OR, NOT, etc.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GatePrimitive {
     /// The name of the primitive
     name: String,
@@ -28,6 +28,12 @@ pub struct GatePrimitive {
     inputs: Vec<Net>,
     /// Output ports, order matters
     outputs: Vec<Net>,
+}
+
+impl std::fmt::Display for GatePrimitive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 impl Instantiable for GatePrimitive {
@@ -728,6 +734,86 @@ impl Netlist {
     /// Returns a list of ouput nets
     pub fn get_output_ports(&self) -> Vec<Net> {
         self.outputs.borrow().values().cloned().collect::<Vec<_>>()
+    }
+}
+
+/// An iterator over the nets in a netlist
+pub struct NetIterator<'a> {
+    netlist: &'a Netlist,
+    index: usize,
+    subindex: usize,
+}
+
+impl<'a> NetIterator<'a> {
+    /// Creates a new iterator for the netlist
+    fn new(netlist: &'a Netlist) -> Self {
+        Self {
+            netlist,
+            index: 0,
+            subindex: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for NetIterator<'a> {
+    type Item = Net;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.index < self.netlist.objects.borrow().len() {
+            let objects = self.netlist.objects.borrow();
+            let object = objects[self.index].borrow();
+            if self.subindex < object.get().get_outputs().len() {
+                let net = object.get().get_outputs()[self.subindex].clone();
+                self.subindex += 1;
+                return Some(net);
+            }
+            self.subindex = 0;
+            self.index += 1;
+        }
+        None
+    }
+}
+
+/// An iterator over the nets in a netlist
+pub struct ObjectIterator<'a> {
+    netlist: &'a Netlist,
+    index: usize,
+}
+
+impl<'a> ObjectIterator<'a> {
+    /// Creates a new iterator for the netlist
+    fn new(netlist: &'a Netlist) -> Self {
+        Self { netlist, index: 0 }
+    }
+}
+
+impl<'a> Iterator for ObjectIterator<'a> {
+    type Item = Object<GatePrimitive>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.netlist.objects.borrow().len() {
+            let objects = self.netlist.objects.borrow();
+            let object = objects[self.index].borrow();
+            self.index += 1;
+            return Some(object.get().clone());
+        }
+        None
+    }
+}
+
+impl<'a> IntoIterator for &'a Netlist {
+    type Item = Net;
+    type IntoIter = NetIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        NetIterator::new(self)
+    }
+}
+
+impl Netlist {
+    /// Returns an iterator over the  circuit nodes in the netlist.
+    pub fn object_iter(&self) -> impl Iterator<Item = Object<GatePrimitive>> {
+        ObjectIterator::new(self)
     }
 }
 
