@@ -129,6 +129,30 @@ where
         })
     }
 
+    /// Iterator to operand nets
+    fn operand_nets(&self) -> impl Iterator<Item = Option<Net>> {
+        self.operands.iter().map(|operand| {
+            operand.as_ref().map(|operand| match operand {
+                Operand::DirectIndex(idx) => self
+                    .owner
+                    .upgrade()
+                    .unwrap()
+                    .index_weak(idx)
+                    .borrow()
+                    .as_net()
+                    .clone(),
+                Operand::CellIndex(idx, j) => self
+                    .owner
+                    .upgrade()
+                    .unwrap()
+                    .index_weak(idx)
+                    .borrow()
+                    .get_net(*j)
+                    .clone(),
+            })
+        })
+    }
+
     /// Get the underlying object
     fn get(&self) -> &Object<I> {
         &self.object
@@ -195,6 +219,28 @@ where
                 net
             }
             Object::Instance(nets, _, _) => &mut nets[idx],
+        }
+    }
+
+    /// Check if this object drives a specific net
+    fn drives_net(&self, net: &Net) -> bool {
+        match &self.object {
+            Object::Input(input_net) => input_net == net,
+            Object::Instance(nets, _, _) => nets.contains(net),
+        }
+    }
+
+    /// Attempt to find a mutable reference to a net within this object
+    fn find_net_mut(&mut self, net: &Net) -> Option<&mut Net> {
+        match &mut self.object {
+            Object::Input(input_net) => {
+                if input_net == net {
+                    Some(input_net)
+                } else {
+                    None
+                }
+            }
+            Object::Instance(nets, _, _) => nets.iter_mut().find(|n| *n == net),
         }
     }
 
@@ -343,11 +389,6 @@ impl NetRef {
         self.netref.borrow().get_operand_net(index)
     }
 
-    /// Returns a mutable reference to the net input at `index` for this circuit node.
-    pub fn get_operand_net_mut(&self, index: usize) -> Option<RefMut<Net>> {
-        todo!("get_operand_net_mut() not implemented yet")
-    }
-
     /// Returns the number of input ports for this circuit node.
     pub fn get_num_input_ports(&self) -> usize {
         if let Some(inst_type) = self.get_instance_type() {
@@ -384,6 +425,12 @@ impl NetRef {
         operands.into_iter()
     }
 
+    /// Returns an interator to the operands nets of this circuit node.
+    pub fn operand_nets(&self) -> impl Iterator<Item = Option<Net>> {
+        let vec: Vec<Option<Net>> = self.netref.borrow().operand_nets().collect();
+        vec.into_iter()
+    }
+
     /// Returns an iterator to the output nets of this circuit node.
     #[allow(clippy::unnecessary_to_owned)]
     pub fn nets(&self) -> impl Iterator<Item = Net> {
@@ -402,6 +449,16 @@ impl NetRef {
             nets.push(self.get_net_mut(i));
         }
         nets.into_iter()
+    }
+
+    /// Returns `true` if this circuit node drives the given net.
+    pub fn drives_net(&self, net: &Net) -> bool {
+        self.netref.borrow().drives_net(net)
+    }
+
+    /// Attempts to find a mutable reference to the `net`` within this circuit node.
+    pub fn find_net_mut(&self, net: &Net) -> Option<RefMut<Net>> {
+        RefMut::filter_map(self.netref.borrow_mut(), |f| f.find_net_mut(net)).ok()
     }
 }
 
@@ -645,7 +702,7 @@ impl std::fmt::Display for Netlist {
         for (driver, net) in outputs.iter() {
             let driver_net = match driver {
                 Operand::DirectIndex(idx) => self.index_weak(idx).borrow().as_net().clone(),
-                _ => todo!("add_as_output(): Handle other operand types"),
+                Operand::CellIndex(idx, j) => self.index_weak(idx).borrow().get_net(*j).clone(),
             };
             if *net != driver_net {
                 writeln!(
