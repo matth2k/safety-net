@@ -9,6 +9,7 @@ use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     rc::{Rc, Weak},
+    sync::{Arc, RwLock},
 };
 
 /// A trait for indexing into a collection of objects weakly.
@@ -20,7 +21,7 @@ trait WeakIndex<Idx: ?Sized> {
 }
 
 /// A primitive gate in a digital circuit, such as AND, OR, NOT, etc.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct GatePrimitive {
     /// The name of the primitive
     name: String,
@@ -104,7 +105,7 @@ enum Operand {
 }
 
 /// An object that has a reference to its owning netlist/module
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct OwnedObject<I, O>
 where
     I: Instantiable,
@@ -830,6 +831,12 @@ impl Netlist {
     }
 }
 
+impl Default for Netlist {
+    fn default() -> Self {
+        Rc::try_unwrap(Self::new("top".to_string())).unwrap()
+    }
+}
+
 impl Netlist {
     /// Returns the name of the netlist module
     pub fn get_name(&self) -> &str {
@@ -855,6 +862,51 @@ impl Netlist {
     /// Returns a list of ouput nets
     pub fn get_output_ports(&self) -> Vec<Net> {
         self.outputs.borrow().values().cloned().collect::<Vec<_>>()
+    }
+
+    /// Filter nets
+    pub fn filter_nets_threaded<F>(self, f: F, threads: usize) -> Vec<Net>
+    where
+        F: Fn(&Object<GatePrimitive>) -> bool + Send + Clone + 'static,
+    {
+        let objects = RefCell::take(&self.objects);
+        let objects: Vec<Object<_>> = objects
+            .into_iter()
+            .map(|rrc| RefCell::take(&Rc::try_unwrap(rrc).unwrap()).object)
+            .collect();
+        let nobjects = objects.len();
+        let objects = Arc::new(RwLock::new(objects));
+
+        let chunk_size = (nobjects + threads - 1) / threads;
+        let thread_handles = (0..threads)
+            .map(|i| {
+                let objects = Arc::clone(&objects);
+                let start = i * chunk_size;
+                let end = std::cmp::min(start + chunk_size, nobjects);
+                let f = f.clone();
+                std::thread::spawn(move || {
+                    let mut results: Vec<Net> = Vec::new();
+                    let objs = objects.read().unwrap();
+                    for j in start..end {
+                        let object = &objs[j];
+                        if f(object) {
+                            results.push(object.get_net_at(0).clone());
+                        }
+                    }
+                    results
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let mut results = Vec::new();
+        for handle in thread_handles {
+            if let Ok(res) = handle.join() {
+                results.extend(res);
+            } else {
+                panic!("Thread panicked while processing netlist objects");
+            }
+        }
+        results
     }
 }
 

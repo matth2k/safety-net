@@ -37,6 +37,12 @@ impl DataType {
     }
 }
 
+impl Default for DataType {
+    fn default() -> Self {
+        Self::FourState
+    }
+}
+
 /// The type of identifier labelling a circuit node
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IdentifierType {
@@ -109,8 +115,17 @@ impl std::fmt::Display for Identifier {
     }
 }
 
+impl Default for Identifier {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            id_type: IdentifierType::Normal,
+        }
+    }
+}
+
 /// A net in a circuit, which is identified with a name and data type.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Net {
     indentifier: Identifier,
     data_type: DataType,
@@ -178,7 +193,7 @@ impl std::fmt::Display for Net {
 }
 
 /// A trait for primitives in a digital circuit, such as gates or other components.
-pub trait Instantiable: std::fmt::Display + Clone {
+pub trait Instantiable: std::fmt::Display + Clone + Default {
     /// Returns the name of the primitive
     fn get_name(&self) -> &str;
 
@@ -280,6 +295,15 @@ where
             Object::Input(net) => std::slice::from_mut(net),
             Object::Instance(nets, _, _) => nets,
         }
+    }
+}
+
+impl<I> Default for Object<I>
+where
+    I: Instantiable,
+{
+    fn default() -> Self {
+        Self::Instance(Vec::new(), String::new(), I::default())
     }
 }
 

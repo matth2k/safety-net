@@ -51,7 +51,7 @@ fn simple_example() -> Netlist {
 
 fn harder_example() -> Netlist {
     let netlist = Netlist::new("harder_example".to_string());
-    let bitwidth = 4;
+    let bitwidth = 1000000;
 
     // Add the the inputs
     let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
@@ -91,7 +91,10 @@ fn harder_example() -> Netlist {
 
 fn main() {
     let netlist = harder_example();
-    print!("{}", netlist);
+    let nets = netlist.filter_nets_threaded(|o| o.get_net_at(0).get_name().contains("fa_2_"), 8);
+    for net in nets {
+        println!("Filtered net: {}", net.get_name());
+    }
 }
 
 #[test]
