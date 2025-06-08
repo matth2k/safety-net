@@ -537,6 +537,20 @@ impl MutBorrowReq {
     pub fn borrow_mut(&self) -> RefMut<Net> {
         self.from.find_net_mut(&self.ind).unwrap()
     }
+
+    /// Returns `true` if the circuit node is an input
+    pub fn is_an_input(&self) -> bool {
+        self.from.is_an_input()
+    }
+
+    /// Attempts to borrow the net mutably if the condition `f` is satisfied.
+    pub fn borrow_mut_if(&self, f: impl Fn(&NetRef) -> bool) -> Option<RefMut<Net>> {
+        if f(&self.from) {
+            Some(self.borrow_mut())
+        } else {
+            None
+        }
+    }
 }
 
 /// A netlist data structure

@@ -36,6 +36,15 @@ fn simple_example() -> Netlist {
     // Make this AND gate an output
     instance.expose_as_output().unwrap();
 
+    // This line won't change anything because it's clever
+    instance
+        .req_operand_net(0)
+        .unwrap()
+        .borrow_mut_if(|n| !n.is_an_input())
+        .map(|mut n| {
+            n.set_name("renaming_for_fun".to_string());
+        });
+
     netlist.reclaim().unwrap()
 }
 
