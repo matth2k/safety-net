@@ -31,7 +31,7 @@ fn simple_example() -> Netlist {
         .insert_gate(
             and_gate(),
             "my_and".to_string(),
-            &[input1.into(), input2.into()],
+            &[input1.clone().into(), input2.clone().into()],
         )
         .unwrap();
 
@@ -46,7 +46,7 @@ fn simple_example() -> Netlist {
     {
         n.set_name("renaming_for_fun".to_string());
     }
-
+    // input1.delete_uses().unwrap();
     netlist.reclaim().unwrap()
 }
 

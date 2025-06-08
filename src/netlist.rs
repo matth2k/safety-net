@@ -128,9 +128,11 @@ where
     /// Get the operand as a weak index
     fn get_operand(&self, index: usize) -> Option<Rc<RefCell<Self>>> {
         self.operands[index].as_ref().map(|operand| match operand {
-            Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
-                self.owner.upgrade().unwrap().index_weak(idx)
-            }
+            Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => self
+                .owner
+                .upgrade()
+                .expect("Object is unlinked from netlist")
+                .index_weak(idx),
         })
     }
 
@@ -138,9 +140,11 @@ where
     fn operands(&self) -> impl Iterator<Item = Option<Rc<RefCell<Self>>>> {
         self.operands.iter().map(|operand| {
             operand.as_ref().map(|operand| match operand {
-                Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
-                    self.owner.upgrade().unwrap().index_weak(idx)
-                }
+                Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => self
+                    .owner
+                    .upgrade()
+                    .expect("Object is unlinked from netlist")
+                    .index_weak(idx),
             })
         })
     }
@@ -152,7 +156,7 @@ where
                 Operand::DirectIndex(idx) => self
                     .owner
                     .upgrade()
-                    .unwrap()
+                    .expect("Object is unlinked from netlist")
                     .index_weak(idx)
                     .borrow()
                     .as_net()
@@ -160,7 +164,7 @@ where
                 Operand::CellIndex(idx, j) => self
                     .owner
                     .upgrade()
-                    .unwrap()
+                    .expect("Object is unlinked from netlist")
                     .index_weak(idx)
                     .borrow()
                     .get_net(*j)
@@ -275,7 +279,7 @@ where
                 Operand::DirectIndex(idx) => self
                     .owner
                     .upgrade()
-                    .unwrap()
+                    .expect("Object is unlinked from netlist")
                     .index_weak(idx)
                     .borrow()
                     .as_net()
@@ -284,7 +288,7 @@ where
                 Operand::CellIndex(idx, j) => self
                     .owner
                     .upgrade()
-                    .unwrap()
+                    .expect("Object is unlinked from netlist")
                     .index_weak(idx)
                     .borrow()
                     .get_net(*j)
@@ -392,19 +396,34 @@ impl NetRef {
 
     /// Exposes this circuit node as a top-level output in the netlist.
     pub fn expose_as_output(&self) -> Result<NetRef, String> {
-        let netlist = self.netref.borrow().owner.upgrade().unwrap();
+        let netlist = self
+            .netref
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("NetRef is unlinked from netlist");
         netlist.expose_netref(self.clone())
     }
 
     /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
     pub fn expose_with_name(&self, port: String) -> NetRef {
-        let netlist = self.netref.borrow().owner.upgrade().unwrap();
+        let netlist = self
+            .netref
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("NetRef is unlinked from netlist");
         netlist.expose_netref_named(self.clone(), port)
     }
 
     /// Exposes the `net` driven by this circuit node as a top-level output.
     pub fn expose_net(&self, net: &Net) -> Result<(), String> {
-        let netlist = self.netref.borrow().owner.upgrade().unwrap();
+        let netlist = self
+            .netref
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("NetRef is unlinked from netlist");
         let net_index = self.netref.borrow().find_net(net).ok_or(format!(
             "Net {} not found in circuit node",
             net.get_identifier().emit_name()
@@ -504,6 +523,17 @@ impl NetRef {
     /// Returns `true` if this circuit node has multiple outputs/nets.
     pub fn is_multi_output(&self) -> bool {
         self.netref.borrow().get().get_nets().len() > 1
+    }
+
+    /// Deletes the uses of this circuit node from the netlist.
+    pub fn delete_uses(self) -> Result<Object<GatePrimitive>, String> {
+        let netlist = self
+            .netref
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("NetRef is unlinked from netlist");
+        netlist.delete_net_uses(self)
     }
 }
 
@@ -707,6 +737,28 @@ impl Netlist {
         outputs.insert(operand, net);
         Ok(())
     }
+
+    /// Unlink a circuit node from the rest of the netlist. Return the object that was being stored.
+    pub fn delete_net_uses(&self, netref: NetRef) -> Result<Object<GatePrimitive>, String> {
+        let unwrapped = netref.clone().unwrap();
+        if Rc::strong_count(&unwrapped) > 3 {
+            return Err("Cannot delete a netref that is still in use elsewhere".to_string());
+        }
+        let old_tag: TaggedNet = netref.clone().into();
+        let old_index = Self::get_operand_of_tag(&old_tag);
+        let objects = self.objects.borrow();
+        for oref in objects.iter() {
+            let operands = &mut oref.borrow_mut().operands;
+            for operand in operands.iter_mut() {
+                if let Some(op) = operand {
+                    if *op == old_index {
+                        *operand = None;
+                    }
+                }
+            }
+        }
+        Ok(netref.unwrap().borrow().get().clone())
+    }
 }
 
 impl Netlist {
@@ -884,18 +936,21 @@ impl std::fmt::Display for Netlist {
                 let indent = " ".repeat(level);
                 for (idx, port) in inst_type.get_input_ports().iter().enumerate() {
                     let port_name = port.get_identifier().emit_name();
-                    let operand = owned.operands[idx].as_ref().unwrap();
-                    let operand = match operand {
-                        Operand::DirectIndex(idx) => objects[*idx].borrow().as_net().clone(),
-                        Operand::CellIndex(idx, j) => objects[*idx].borrow().get_net(*j).clone(),
-                    };
-                    writeln!(
-                        f,
-                        "{}.{}({}),",
-                        indent,
-                        port_name,
-                        operand.get_identifier().emit_name()
-                    )?;
+                    if let Some(operand) = owned.operands[idx].as_ref() {
+                        let operand = match operand {
+                            Operand::DirectIndex(idx) => objects[*idx].borrow().as_net().clone(),
+                            Operand::CellIndex(idx, j) => {
+                                objects[*idx].borrow().get_net(*j).clone()
+                            }
+                        };
+                        writeln!(
+                            f,
+                            "{}.{}({}),",
+                            indent,
+                            port_name,
+                            operand.get_identifier().emit_name()
+                        )?;
+                    }
                 }
 
                 for (idx, net) in nets.iter().enumerate() {
