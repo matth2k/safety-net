@@ -69,11 +69,6 @@ fn harder_example() -> Netlist {
             .unwrap();
 
         instance.expose_net(&instance.get_net(0)).unwrap();
-        input_bus = [
-            (instance.get_net(1).clone(), instance.clone()),
-            a_vec[i].clone().into(),
-            b_vec[i].clone().into(),
-        ];
 
         if i == bitwidth - 1 {
             // Last full adder, expose the carry out
@@ -83,6 +78,13 @@ fn harder_example() -> Netlist {
                 }
             });
             instance.expose_net(&instance.get_net(1)).unwrap();
+            instance.delete_uses().unwrap();
+        } else {
+            input_bus = [
+                (instance.get_net(1).clone(), instance.clone()),
+                a_vec[i].clone().into(),
+                b_vec[i].clone().into(),
+            ];
         }
     }
 

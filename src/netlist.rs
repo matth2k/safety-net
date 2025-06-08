@@ -773,6 +773,20 @@ impl Netlist {
             }
         }
 
+        let outputs: Vec<Operand> = self
+            .outputs
+            .borrow()
+            .keys()
+            .filter(|operand| match operand {
+                Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => *idx == old_index,
+            })
+            .cloned()
+            .collect();
+
+        for operand in outputs {
+            self.outputs.borrow_mut().remove(&operand);
+        }
+
         Ok(netref.unwrap().borrow().get().clone())
     }
 
@@ -801,6 +815,15 @@ impl Netlist {
                     }
                 }
             }
+        }
+
+        if self.outputs.borrow().contains_key(&new_index) {
+            self.outputs.borrow_mut().remove(&old_index);
+        } else {
+            self.outputs
+                .borrow_mut()
+                .insert(new_index, self.outputs.borrow()[&old_index].clone());
+            self.outputs.borrow_mut().remove(&old_index);
         }
 
         Ok(of.unwrap().borrow().get().clone())
