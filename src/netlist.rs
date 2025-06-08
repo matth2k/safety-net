@@ -541,12 +541,8 @@ impl Netlist {
     }
 
     /// Attempts to reclaim the netlist, returning [Some] if successful.
-    pub fn reclaim(self: Rc<Self>) -> Option<Rc<Self>> {
-        if Rc::strong_count(&self) == 1 {
-            Some(self)
-        } else {
-            None
-        }
+    pub fn reclaim(self: Rc<Self>) -> Option<Self> {
+        Rc::try_unwrap(self).ok()
     }
 
     /// Returns the index in [Operand] format of this [TaggedNet]
@@ -757,9 +753,11 @@ impl std::fmt::Display for Netlist {
                 let indent = " ".repeat(level);
                 for (idx, port) in inst_type.get_input_ports().iter().enumerate() {
                     let port_name = port.get_identifier().emit_name();
-                    let operand = owned
-                        .get_operand_net(idx)
-                        .expect("All operands should be present");
+                    let operand = owned.operands[idx].as_ref().unwrap();
+                    let operand = match operand {
+                        Operand::DirectIndex(idx) => objects[*idx].borrow().as_net().clone(),
+                        Operand::CellIndex(idx, j) => objects[*idx].borrow().get_net(*j).clone(),
+                    };
                     writeln!(
                         f,
                         "{}.{}({}),",

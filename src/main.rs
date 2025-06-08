@@ -10,7 +10,7 @@ fn and_gate() -> GatePrimitive {
     )
 }
 
-fn simple_example() -> Rc<Netlist> {
+fn simple_example() -> Netlist {
     let netlist = Netlist::new("simple_example".to_string());
 
     // Add the the two inputs
