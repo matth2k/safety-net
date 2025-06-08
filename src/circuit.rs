@@ -1,6 +1,6 @@
 /*!
 
-  TODO: circuit trait docs
+  Types for the constructs found within a digital circuit.
 
 */
 

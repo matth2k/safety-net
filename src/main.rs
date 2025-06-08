@@ -14,12 +14,12 @@ fn main() {
 
     let netlist = Netlist::new("top".to_string());
 
-    let carry_in = netlist.add_input_logic("c0".to_string());
-    let input1 = netlist.add_input_logic("a".to_string());
-    let input2 = netlist.add_input_logic("b".to_string());
+    let carry_in = netlist.insert_input_logic("c0".to_string());
+    let input1 = netlist.insert_input_logic("a".to_string());
+    let input2 = netlist.insert_input_logic("b".to_string());
 
     let fa = netlist
-        .add_gate(
+        .insert_gate(
             full_adder,
             "my_fa".to_string(),
             &[carry_in.into(), input1.into(), input2.into()],
@@ -29,11 +29,11 @@ fn main() {
     // lets and the sum and cout together
     let fa_outputs = fa.nets_tagged().collect::<Vec<_>>();
     let anded = netlist
-        .add_gate(and_gate, "my_and".to_string(), &fa_outputs)
+        .insert_gate(and_gate, "my_and".to_string(), &fa_outputs)
         .unwrap();
 
     anded.expose_as_output().unwrap();
-    fa.expose_net_with_name(fa.get_net(0).clone()).unwrap();
+    fa.expose_net(&fa.get_net(0)).unwrap();
 
     println!("{}", netlist);
 }

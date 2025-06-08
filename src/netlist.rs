@@ -1,6 +1,6 @@
 /*!
 
-  TODO: netlist docs
+  API for a netlist data structure.
 
 */
 
@@ -69,12 +69,22 @@ impl GatePrimitive {
 
     /// Returns the single output port of the gate
     pub fn get_single_output_port(&self) -> &Net {
-        self.outputs.first().expect("GatePrimitive has no outputs")
+        if self.outputs.len() > 1 {
+            panic!("Attempted to grab output port of a multi-output gate");
+        }
+        self.outputs
+            .first()
+            .expect("GatePrimitive is missing an output port")
     }
 
-    /// Updates the type of cell by name
-    pub fn change_gate_name(&mut self, new_name: String) {
+    /// Set the type of cell by name
+    pub fn set_gate_name(&mut self, new_name: String) {
         self.name = new_name;
+    }
+
+    /// Returns the name of the gate primitive
+    pub fn get_gate_name(&self) -> &str {
+        &self.name
     }
 }
 
@@ -174,9 +184,9 @@ where
             Object::Input(net) => net,
             Object::Instance(nets, _, _) => {
                 if nets.len() > 1 {
-                    panic!("Instance has more than one output net");
+                    panic!("Attempt to grab the net of a multi-output instance");
                 } else {
-                    nets.first().expect("Instance has no output net")
+                    nets.first().expect("Instance is missing a net to drive")
                 }
             }
         }
@@ -188,9 +198,10 @@ where
             Object::Input(net) => net,
             Object::Instance(nets, _, _) => {
                 if nets.len() > 1 {
-                    panic!("Instance has more than one output net");
+                    panic!("Attempt to grab the net of a multi-output instance");
                 } else {
-                    nets.first_mut().expect("Instance has no output net")
+                    nets.first_mut()
+                        .expect("Instance is missing a net to drive")
                 }
             }
         }
@@ -201,7 +212,7 @@ where
         match &self.object {
             Object::Input(net) => {
                 if idx != 0 {
-                    panic!("Invalid indexing on input");
+                    panic!("Nonzero index on an input object");
                 }
                 net
             }
@@ -214,7 +225,7 @@ where
         match &mut self.object {
             Object::Input(net) => {
                 if idx != 0 {
-                    panic!("Invalid indexing on input");
+                    panic!("Nonzero index on an input object");
                 }
                 net
             }
@@ -369,24 +380,24 @@ impl NetRef {
     pub fn set_instance_name(&self, name: String) {
         match self.netref.borrow_mut().get_mut() {
             Object::Instance(_, inst_name, _) => *inst_name = name,
-            _ => panic!("Cannot set instance name on a non-instance object"),
+            _ => panic!("Attempted to set instance name on a non-instance object"),
         }
     }
 
     /// Exposes this circuit node as a top-level output in the netlist.
     pub fn expose_as_output(&self) -> Result<NetRef, String> {
         let netlist = self.netref.borrow().owner.upgrade().unwrap();
-        netlist.expose_as_output(self.clone())
+        netlist.expose_netref(self.clone())
     }
 
     /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
     pub fn expose_with_name(&self, port: String) -> NetRef {
         let netlist = self.netref.borrow().owner.upgrade().unwrap();
-        netlist.add_as_output_with(self.clone(), self.clone().as_net().with_name(port))
+        netlist.expose_netref_named(self.clone(), port)
     }
 
-    /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
-    pub fn expose_net_with_name(&self, net: Net) -> Result<(), String> {
+    /// Exposes the `net` driven by this circuit node as a top-level output.
+    pub fn expose_net(&self, net: &Net) -> Result<(), String> {
         let netlist = self.netref.borrow().owner.upgrade().unwrap();
         let net_index = self.netref.borrow().find_net(&net).ok_or(format!(
             "Net {} not found in circuit node",
@@ -394,16 +405,16 @@ impl NetRef {
         ))?;
         netlist.expose_net(
             Operand::CellIndex(self.netref.borrow().get_index(), net_index),
-            net,
+            net.clone(),
         )
     }
 
-    /// Returns the `index`th input to the circuit node
+    /// Returns the circuit node of the `index`th input
     pub fn get_operand(&self, index: usize) -> Option<NetRef> {
         self.netref.borrow().get_operand(index).map(NetRef::wrap)
     }
 
-    /// Returns the `index`th input to the circuit node
+    /// Returns the net of the `index`th input
     pub fn get_operand_net(&self, index: usize) -> Option<Net> {
         self.netref.borrow().get_operand_net(index)
     }
@@ -433,7 +444,7 @@ impl NetRef {
         count_nones == 0
     }
 
-    /// Returns an iterator to the operands of this circuit node.
+    /// Returns an iterator to the operand circuit nodes.
     pub fn operands(&self) -> impl Iterator<Item = Option<NetRef>> {
         let operands: Vec<Option<NetRef>> = self
             .netref
@@ -444,7 +455,7 @@ impl NetRef {
         operands.into_iter()
     }
 
-    /// Returns an interator to the operands nets of this circuit node.
+    /// Returns an interator to the operands nets.
     pub fn operand_nets(&self) -> impl Iterator<Item = Option<Net>> {
         let vec: Vec<Option<Net>> = self.netref.borrow().operand_nets().collect();
         vec.into_iter()
@@ -480,7 +491,7 @@ impl NetRef {
         self.netref.borrow().find_net(net).is_some()
     }
 
-    /// Attempts to find a mutable reference to the `net`` within this circuit node.
+    /// Attempts to find a mutable reference to `net` within this circuit node.
     pub fn find_net_mut(&self, net: &Net) -> Option<RefMut<Net>> {
         RefMut::filter_map(self.netref.borrow_mut(), |f| f.find_net_mut(net)).ok()
     }
@@ -577,20 +588,20 @@ impl Netlist {
         Ok(NetRef::wrap(owned_object))
     }
 
-    /// Adds an input net to the netlist
-    pub fn insert_input(self: &Rc<Self>, net: Net) -> NetRef {
+    /// Inserts an input net to the netlist
+    pub fn insert_input_net(self: &Rc<Self>, net: Net) -> NetRef {
         let obj = Object::Input(net);
         self.insert_object(obj, &[]).unwrap()
     }
 
-    /// Add a four-state logic input port to the netlist
-    pub fn add_input_logic(self: &Rc<Self>, net: String) -> NetRef {
+    /// Inserts a four-state logic input port to the netlist
+    pub fn insert_input_logic(self: &Rc<Self>, net: String) -> NetRef {
         let net = Net::new_logic(net);
-        self.insert_input(net)
+        self.insert_input_net(net)
     }
 
-    /// Adds a gate to the netlist
-    pub fn add_gate(
+    /// Inserts a gate to the netlist
+    pub fn insert_gate(
         self: &Rc<Self>,
         inst_type: GatePrimitive,
         inst_name: String,
@@ -613,17 +624,17 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
-    pub fn add_as_output_with(self: &Rc<Self>, net: NetRef, port: Net) -> NetRef {
+    pub fn expose_netref_named(self: &Rc<Self>, net: NetRef, name: String) -> NetRef {
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(
             Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
-            port,
+            net.clone().unwrap().borrow().as_net().with_name(name),
         );
         net
     }
 
     /// Set an added object as a top-level output.
-    pub fn expose_as_output(self: &Rc<Self>, net: NetRef) -> Result<NetRef, String> {
+    pub fn expose_netref(self: &Rc<Self>, net: NetRef) -> Result<NetRef, String> {
         if net.is_an_input() {
             return Err("Cannot expose an input net as output without a new name".to_string());
         }
