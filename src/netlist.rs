@@ -399,7 +399,7 @@ impl NetRef {
     /// Exposes the `net` driven by this circuit node as a top-level output.
     pub fn expose_net(&self, net: &Net) -> Result<(), String> {
         let netlist = self.netref.borrow().owner.upgrade().unwrap();
-        let net_index = self.netref.borrow().find_net(&net).ok_or(format!(
+        let net_index = self.netref.borrow().find_net(net).ok_or(format!(
             "Net {} not found in circuit node",
             net.get_identifier().emit_name()
         ))?;

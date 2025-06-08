@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use circuit::netlist::{GatePrimitive, Netlist};
 
 fn and_gate() -> GatePrimitive {
