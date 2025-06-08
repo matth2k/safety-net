@@ -224,7 +224,7 @@ where
     I: Instantiable,
 {
     /// Returns the net driven by this object.
-    pub fn get_single_output(&self) -> &Net {
+    pub fn get_single_net(&self) -> &Net {
         match self {
             Object::Input(net) => net,
             Object::Instance(nets, _, _) => {
@@ -237,8 +237,8 @@ where
         }
     }
 
-    /// Returns the net driven by this object as index
-    pub fn get_output_at(&self, index: usize) -> &Net {
+    /// Returns the net driven by this object at the index
+    pub fn get_net_at(&self, index: usize) -> &Net {
         match self {
             Object::Input(net) => {
                 if index > 0 {
@@ -266,16 +266,16 @@ where
         }
     }
 
-    /// Returns all the output nets at this circuit node.
-    pub fn get_outputs(&self) -> &[Net] {
+    /// Returns all the nets driven at this circuit node.
+    pub fn get_nets(&self) -> &[Net] {
         match self {
             Object::Input(net) => std::slice::from_ref(net),
             Object::Instance(nets, _, _) => nets,
         }
     }
 
-    /// Returns a mutable reference to all the output nets at this circuit node.
-    pub fn get_outputs_mut(&mut self) -> &mut [Net] {
+    /// Returns a mutable reference to all the nets driven at this circuit node.
+    pub fn get_nets_mut(&mut self) -> &mut [Net] {
         match self {
             Object::Input(net) => std::slice::from_mut(net),
             Object::Instance(nets, _, _) => nets,

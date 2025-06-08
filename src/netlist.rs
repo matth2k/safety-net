@@ -477,12 +477,7 @@ impl NetRef {
     /// Returns an iterator to the output nets of this circuit node.
     #[allow(clippy::unnecessary_to_owned)]
     pub fn nets(&self) -> impl Iterator<Item = Net> {
-        self.netref
-            .borrow()
-            .get()
-            .get_outputs()
-            .to_vec()
-            .into_iter()
+        self.netref.borrow().get().get_nets().to_vec().into_iter()
     }
 
     /// Returns an iterator to the output nets of this circuit node, along with the circuit node itself.
@@ -492,11 +487,8 @@ impl NetRef {
 
     /// Returns an iterator to mutate the output nets of this circuit node.
     pub fn nets_mut(&self) -> impl Iterator<Item = RefMut<Net>> {
-        let mut nets: Vec<RefMut<Net>> = Vec::new();
-        for i in 0..self.netref.borrow().get().get_outputs().len() {
-            nets.push(self.get_net_mut(i));
-        }
-        nets.into_iter()
+        let nnets = self.netref.borrow().get().get_nets().len();
+        (0..nnets).map(|i| self.get_net_mut(i))
     }
 
     /// Returns `true` if this circuit node drives the given net.
@@ -509,9 +501,9 @@ impl NetRef {
         RefMut::filter_map(self.netref.borrow_mut(), |f| f.find_net_mut(net)).ok()
     }
 
-    /// Returns `true` if this circuit node has multiple outputs.
+    /// Returns `true` if this circuit node has multiple outputs/nets.
     pub fn is_multi_output(&self) -> bool {
-        self.netref.borrow().get().get_outputs().len() > 1
+        self.netref.borrow().get().get_nets().len() > 1
     }
 }
 
@@ -599,7 +591,7 @@ impl Netlist {
     /// Returns the index in [Operand] format of this [TaggedNet]
     fn get_operand_of_tag(t: &TaggedNet) -> Operand {
         let nr = &t.1;
-        let no_outputs = nr.clone().unwrap().borrow().get().get_outputs().len();
+        let no_outputs = nr.clone().unwrap().borrow().get().get_nets().len();
         if no_outputs == 1 {
             Operand::DirectIndex(nr.clone().unwrap().borrow().get_index())
         } else {
@@ -770,8 +762,8 @@ impl Iterator for NetIterator<'_> {
         while self.index < self.netlist.objects.borrow().len() {
             let objects = self.netlist.objects.borrow();
             let object = objects[self.index].borrow();
-            if self.subindex < object.get().get_outputs().len() {
-                let net = object.get().get_outputs()[self.subindex].clone();
+            if self.subindex < object.get().get_nets().len() {
+                let net = object.get().get_nets()[self.subindex].clone();
                 self.subindex += 1;
                 return Some(net);
             }
