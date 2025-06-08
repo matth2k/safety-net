@@ -29,11 +29,23 @@ fn main() {
     // lets and the sum and cout together
     let fa_outputs = fa.nets_tagged().collect::<Vec<_>>();
     let anded = netlist
-        .insert_gate(and_gate, "my_and".to_string(), &fa_outputs)
+        .insert_gate(
+            and_gate,
+            "my_and".to_string(),
+            &[fa_outputs[0].clone(), fa_outputs[0].clone()],
+        )
         .unwrap();
 
     anded.expose_as_output().unwrap();
     fa.expose_net(&fa.get_net(0)).unwrap();
+    fa.get_net_mut(0)
+        .set_name("my_fa_COUt_hijacked".to_string());
+    anded
+        .get_operand(0)
+        .unwrap()
+        .get_net_mut(0)
+        .set_name("hijacked_input_again".to_string());
+
 
     println!("{}", netlist);
 }

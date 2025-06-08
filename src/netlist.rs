@@ -295,7 +295,7 @@ type NetRefT = Rc<RefCell<OwnedObject<GatePrimitive, Netlist>>>;
 
 /// A helper struct to provide a more user-friendly interface
 /// to the interior mutability of the netlist
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct NetRef {
     netref: NetRefT,
 }
