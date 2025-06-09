@@ -324,12 +324,14 @@ impl NetRef {
         self.netref
     }
 
-    /// Returns a borrow to the [Net] at this circuit node
+    /// Returns a borrow to the [Net] at this circuit node.
+    /// Panics if the circuit node has multiple outputs.
     pub fn as_net(&self) -> Ref<Net> {
         Ref::map(self.netref.borrow(), |f| f.as_net())
     }
 
-    /// Returns a mutable borrow to the [Net] at this circuit node
+    /// Returns a mutable borrow to the [Net] at this circuit node.
+    /// Panics if the circuit node has multiple outputs.
     pub fn as_net_mut(&self) -> RefMut<Net> {
         RefMut::map(self.netref.borrow_mut(), |f| f.as_net_mut())
     }
@@ -344,12 +346,14 @@ impl NetRef {
         RefMut::map(self.netref.borrow_mut(), |f| f.get_net_mut(idx))
     }
 
-    /// Returns the name of a circuit node
+    /// Returns the name of the net at this circuit node.
+    /// Panics if the circuit node has multiple outputs.
     pub fn get_name(&self) -> String {
         self.as_net().get_name().to_string()
     }
 
-    /// Changes the name of the circuit node
+    /// Changes the name of the net at this circuit node.
+    /// Panics if the circuit node has multiple outputs.
     pub fn set_name(&self, name: String) {
         self.as_net_mut().set_name(name)
     }
@@ -390,6 +394,7 @@ impl NetRef {
     }
 
     /// Updates the name of the instance, if the circuit node is an instance.
+    /// Panics if the circuit node is not an instance.
     pub fn set_instance_name(&self, name: String) {
         match self.netref.borrow_mut().get_mut() {
             Object::Instance(_, inst_name, _) => *inst_name = name,
@@ -540,6 +545,7 @@ impl NetRef {
     }
 
     /// Replaces the uses of this circuit node in the netlist with another circuit node.
+    /// Panics if either `self` or `other` is a multi-output circuit node.
     pub fn replace_uses_with(self, other: &Self) -> Result<Object<GatePrimitive>, String> {
         let netlist = self
             .netref
@@ -794,6 +800,7 @@ impl Netlist {
     }
 
     /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
+    /// Panics if `of` and  `with` are not single-output nodes.
     pub fn replace_net_uses(
         &self,
         of: NetRef,
