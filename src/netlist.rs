@@ -4,7 +4,10 @@
 
 */
 
-use crate::circuit::{Instantiable, Net, Object};
+use crate::{
+    circuit::{Instantiable, Net, Object},
+    graph::Analysis,
+};
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
@@ -856,6 +859,11 @@ impl Netlist {
     pub fn get_output_ports(&self) -> Vec<Net> {
         self.outputs.borrow().values().cloned().collect::<Vec<_>>()
     }
+
+    /// Constructs an analysis of the netlist.
+    pub fn get_analysis<A: Analysis>(&self) -> A {
+        A::build(self)
+    }
 }
 
 /// An iterator over the nets in a netlist
@@ -922,6 +930,53 @@ impl Iterator for ObjectIterator<'_> {
     }
 }
 
+/// The [Net] connects as an input to [Object]
+pub type Connection = (Net, Object<GatePrimitive>);
+
+/// An iterator over the connections in a netlist
+pub struct ConnectionIterator<'a> {
+    netlist: &'a Netlist,
+    index: usize,
+    subindex: usize,
+}
+
+impl<'a> ConnectionIterator<'a> {
+    /// Creates a new iterator for the netlist
+    fn new(netlist: &'a Netlist) -> Self {
+        Self {
+            netlist,
+            index: 0,
+            subindex: 0,
+        }
+    }
+}
+
+impl Iterator for ConnectionIterator<'_> {
+    type Item = Connection;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.index < self.netlist.objects.borrow().len() {
+            let objects = self.netlist.objects.borrow();
+            let object = objects[self.index].borrow();
+            let noperands = object.operands.len();
+            while self.subindex < noperands {
+                if let Some(operand) = &object.operands[self.subindex] {
+                    let net = match operand {
+                        Operand::DirectIndex(idx) => objects[*idx].borrow().as_net().clone(),
+                        Operand::CellIndex(idx, j) => objects[*idx].borrow().get_net(*j).clone(),
+                    };
+                    self.subindex += 1;
+                    return Some((net, object.get().clone()));
+                }
+                self.subindex += 1;
+            }
+            self.subindex = 0;
+            self.index += 1;
+        }
+        None
+    }
+}
+
 impl<'a> IntoIterator for &'a Netlist {
     type Item = Net;
     type IntoIter = NetIterator<'a>;
@@ -933,8 +988,13 @@ impl<'a> IntoIterator for &'a Netlist {
 
 impl Netlist {
     /// Returns an iterator over the  circuit nodes in the netlist.
-    pub fn object_iter(&self) -> impl Iterator<Item = Object<GatePrimitive>> {
+    pub fn objects(&self) -> impl Iterator<Item = Object<GatePrimitive>> {
         ObjectIterator::new(self)
+    }
+
+    /// Returns an iterator over the wire connections in the netlist.
+    pub fn connections(&self) -> impl Iterator<Item = Connection> {
+        ConnectionIterator::new(self)
     }
 }
 

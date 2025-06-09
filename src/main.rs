@@ -91,7 +91,10 @@ fn harder_example() -> Netlist {
 
 fn main() {
     let netlist = harder_example();
-    print!("{}", netlist);
+    // print!("{}", netlist);
+    for connection in netlist.connections() {
+        println!("{} -> {}", connection.0, connection.1);
+    }
 }
 
 #[test]
@@ -100,6 +103,6 @@ fn test_simple_example() {
     assert_eq!(netlist.get_name(), "simple_example");
     assert_eq!(netlist.get_input_ports().len(), 2);
     assert_eq!(netlist.get_output_ports().len(), 1);
-    let objects: Vec<_> = netlist.object_iter().collect();
+    let objects: Vec<_> = netlist.objects().collect();
     assert_eq!(objects.len(), 3); // 2 inputs + 1 gate
 }

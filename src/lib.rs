@@ -9,4 +9,5 @@ TODO: overview, tutorial, testing, research papers
 */
 
 pub mod circuit;
+pub mod graph;
 pub mod netlist;
