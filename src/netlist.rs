@@ -337,23 +337,29 @@ where
 }
 
 /// This type exposes the interior mutability of elements in a netlist.
-type NetRefT = Rc<RefCell<OwnedObject<GatePrimitive, Netlist>>>;
+type NetRefT<I> = Rc<RefCell<OwnedObject<I, Netlist<I>>>>;
 
 /// A helper struct to provide a more user-friendly interface
 /// to the interior mutability of the netlist
 #[derive(Debug, Clone)]
-pub struct NetRef {
-    netref: NetRefT,
+pub struct NetRef<I>
+where
+    I: Instantiable,
+{
+    netref: NetRefT<I>,
 }
 
-impl NetRef {
+impl<I> NetRef<I>
+where
+    I: Instantiable,
+{
     /// Creates a new [NetRef] from a [NetRefT]
-    fn wrap(netref: NetRefT) -> Self {
+    fn wrap(netref: NetRefT<I>) -> Self {
         Self { netref }
     }
 
     /// Returns the underlying [NetRefT]
-    fn unwrap(self) -> NetRefT {
+    fn unwrap(self) -> NetRefT<I> {
         self.netref
     }
 
@@ -396,8 +402,8 @@ impl NetRef {
         matches!(self.netref.borrow().get(), Object::Input(_))
     }
 
-    /// Returns the [GatePrimitive] type of the instance, if this circuit node is an instance
-    pub fn get_instance_type(&self) -> Option<Ref<GatePrimitive>> {
+    /// Returns the [Instantiable] type of the instance, if this circuit node is an instance
+    pub fn get_instance_type(&self) -> Option<Ref<I>> {
         Ref::filter_map(self.netref.borrow(), |f| {
             match f.get().get_instance_type() {
                 Some(inst_type) => Some(inst_type),
@@ -407,8 +413,8 @@ impl NetRef {
         .ok()
     }
 
-    /// Returns the [GatePrimitive] type of the instance, if this circuit node is an instance
-    pub fn get_instance_type_mut(&self) -> Option<RefMut<GatePrimitive>> {
+    /// Returns the [Instantiable] type of the instance, if this circuit node is an instance
+    pub fn get_instance_type_mut(&self) -> Option<RefMut<I>> {
         RefMut::filter_map(self.netref.borrow_mut(), |f| {
             match f.get_mut().get_instance_type_mut() {
                 Some(inst_type) => Some(inst_type),
@@ -436,7 +442,7 @@ impl NetRef {
     }
 
     /// Exposes this circuit node as a top-level output in the netlist.
-    pub fn expose_as_output(&self) -> Result<NetRef, String> {
+    pub fn expose_as_output(&self) -> Result<Self, String> {
         let netlist = self
             .netref
             .borrow()
@@ -447,7 +453,7 @@ impl NetRef {
     }
 
     /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
-    pub fn expose_with_name(&self, port: String) -> NetRef {
+    pub fn expose_with_name(&self, port: String) -> Self {
         let netlist = self
             .netref
             .borrow()
@@ -476,7 +482,7 @@ impl NetRef {
     }
 
     /// Returns the circuit node of the `index`th input
-    pub fn get_operand(&self, index: usize) -> Option<NetRef> {
+    pub fn get_operand(&self, index: usize) -> Option<Self> {
         self.netref.borrow().get_operand(index).map(NetRef::wrap)
     }
 
@@ -487,7 +493,7 @@ impl NetRef {
 
     /// Returns a request to mutably borrow the operand net
     /// This requires another borrow in the form of [MutBorrowReq]
-    pub fn req_operand_net(&self, index: usize) -> Option<MutBorrowReq> {
+    pub fn req_operand_net(&self, index: usize) -> Option<MutBorrowReq<I>> {
         let net = self.get_operand_net(index)?;
         let operand = self.get_operand(index).unwrap();
         Some(MutBorrowReq::new(operand, net))
@@ -512,8 +518,8 @@ impl NetRef {
     }
 
     /// Returns an iterator to the operand circuit nodes.
-    pub fn operands(&self) -> impl Iterator<Item = Option<NetRef>> {
-        let operands: Vec<Option<NetRef>> = self
+    pub fn operands(&self) -> impl Iterator<Item = Option<Self>> {
+        let operands: Vec<Option<Self>> = self
             .netref
             .borrow()
             .operands()
@@ -535,7 +541,7 @@ impl NetRef {
     }
 
     /// Returns an iterator to the output nets of this circuit node, along with the circuit node itself.
-    pub fn nets_tagged(&self) -> impl Iterator<Item = TaggedNet> {
+    pub fn nets_tagged(&self) -> impl Iterator<Item = TaggedNet<I>> {
         self.nets().map(|net| (net, self.clone()))
     }
 
@@ -572,7 +578,7 @@ impl NetRef {
     }
 
     /// Deletes the uses of this circuit node from the netlist.
-    pub fn delete_uses(self) -> Result<Object<GatePrimitive>, String> {
+    pub fn delete_uses(self) -> Result<Object<I>, String> {
         let netlist = self
             .netref
             .borrow()
@@ -584,7 +590,7 @@ impl NetRef {
 
     /// Replaces the uses of this circuit node in the netlist with another circuit node.
     /// Panics if either `self` or `other` is a multi-output circuit node.
-    pub fn replace_uses_with(self, other: &Self) -> Result<Object<GatePrimitive>, String> {
+    pub fn replace_uses_with(self, other: &Self) -> Result<Object<I>, String> {
         let netlist = self
             .netref
             .borrow()
@@ -595,33 +601,45 @@ impl NetRef {
     }
 }
 
-impl std::fmt::Display for NetRef {
+impl<I> std::fmt::Display for NetRef<I>
+where
+    I: Instantiable,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.netref.borrow().object.fmt(f)
     }
 }
 
-impl From<NetRef> for TaggedNet {
-    fn from(val: NetRef) -> Self {
+impl<I> From<NetRef<I>> for TaggedNet<I>
+where
+    I: Instantiable,
+{
+    fn from(val: NetRef<I>) -> Self {
         (val.clone().as_net().clone(), val)
     }
 }
 
-impl From<&NetRef> for TaggedNet {
-    fn from(val: &NetRef) -> Self {
+impl<I> From<&NetRef<I>> for TaggedNet<I>
+where
+    I: Instantiable,
+{
+    fn from(val: &NetRef<I>) -> Self {
         (val.clone().as_net().clone(), val.clone())
     }
 }
 
 /// A helper-struct for returning operand net references
-pub struct MutBorrowReq {
-    from: NetRef,
+pub struct MutBorrowReq<I: Instantiable> {
+    from: NetRef<I>,
     ind: Net,
 }
 
-impl MutBorrowReq {
+impl<I> MutBorrowReq<I>
+where
+    I: Instantiable,
+{
     /// Creates a new mutable borrow request
-    fn new(from: NetRef, ind: Net) -> Self {
+    fn new(from: NetRef<I>, ind: Net) -> Self {
         Self { from, ind }
     }
 
@@ -636,7 +654,7 @@ impl MutBorrowReq {
     }
 
     /// Attempts to borrow the net mutably if the condition `f` is satisfied.
-    pub fn borrow_mut_if(&self, f: impl Fn(&NetRef) -> bool) -> Option<RefMut<Net>> {
+    pub fn borrow_mut_if(&self, f: impl Fn(&NetRef<I>) -> bool) -> Option<RefMut<Net>> {
         if f(&self.from) {
             Some(self.borrow_mut())
         } else {
@@ -647,27 +665,36 @@ impl MutBorrowReq {
 
 /// A netlist data structure
 #[derive(Debug)]
-pub struct Netlist {
+pub struct Netlist<I>
+where
+    I: Instantiable,
+{
     /// The name of the netlist
     name: String,
     /// The list of objects in the netlist, such as inputs, modules, and primitives
-    objects: RefCell<Vec<NetRefT>>,
+    objects: RefCell<Vec<NetRefT<I>>>,
     /// The list of operands that point to objects which are outputs
     outputs: RefCell<HashMap<Operand, Net>>,
 }
 
 /// A type alias for a net and its driving reference
-pub type TaggedNet = (Net, NetRef);
+pub type TaggedNet<I> = (Net, NetRef<I>);
 
-impl WeakIndex<usize> for Netlist {
-    type Output = OwnedObject<GatePrimitive, Self>;
+impl<I> WeakIndex<usize> for Netlist<I>
+where
+    I: Instantiable,
+{
+    type Output = OwnedObject<I, Self>;
 
     fn index_weak(&self, index: &usize) -> Rc<RefCell<Self::Output>> {
         self.objects.borrow()[*index].clone()
     }
 }
 
-impl Netlist {
+impl<I> Netlist<I>
+where
+    I: Instantiable,
+{
     /// Creates a new netlist with the given name
     pub fn new(name: String) -> Rc<Self> {
         Rc::new(Self {
@@ -683,7 +710,7 @@ impl Netlist {
     }
 
     /// Returns the index in [Operand] format of this [TaggedNet]
-    fn get_operand_of_tag(t: &TaggedNet) -> Operand {
+    fn get_operand_of_tag(t: &TaggedNet<I>) -> Operand {
         let nr = &t.1;
         let no_outputs = nr.clone().unwrap().borrow().get().get_nets().len();
         if no_outputs == 1 {
@@ -697,9 +724,9 @@ impl Netlist {
     /// Use interior mutability to add an object to the netlist. Returns a mutable reference to the created object.
     fn insert_object(
         self: &Rc<Self>,
-        object: Object<GatePrimitive>,
-        operands: &[TaggedNet],
-    ) -> Result<NetRef, String> {
+        object: Object<I>,
+        operands: &[TaggedNet<I>],
+    ) -> Result<NetRef<I>, String> {
         let index = self.objects.borrow().len();
         let weak = Rc::downgrade(self);
         let operands = operands
@@ -717,19 +744,23 @@ impl Netlist {
     }
 
     /// Inserts an input net to the netlist
-    pub fn insert_input_net(self: &Rc<Self>, net: Net) -> NetRef {
+    pub fn insert_input_net(self: &Rc<Self>, net: Net) -> NetRef<I> {
         let obj = Object::Input(net);
         self.insert_object(obj, &[]).unwrap()
     }
 
     /// Inserts a four-state logic input port to the netlist
-    pub fn insert_input_logic(self: &Rc<Self>, net: String) -> NetRef {
+    pub fn insert_input_logic(self: &Rc<Self>, net: String) -> NetRef<I> {
         let net = Net::new_logic(net);
         self.insert_input_net(net)
     }
 
     /// Inserts a four-state logic input port to the netlist
-    pub fn insert_input_escaped_logic_bus(self: &Rc<Self>, net: String, bw: usize) -> Vec<NetRef> {
+    pub fn insert_input_escaped_logic_bus(
+        self: &Rc<Self>,
+        net: String,
+        bw: usize,
+    ) -> Vec<NetRef<I>> {
         Net::new_escaped_logic_bus(net, bw)
             .into_iter()
             .map(|n| self.insert_input_net(n))
@@ -739,10 +770,10 @@ impl Netlist {
     /// Inserts a gate to the netlist
     pub fn insert_gate(
         self: &Rc<Self>,
-        inst_type: GatePrimitive,
+        inst_type: I,
         inst_name: String,
-        operands: &[TaggedNet],
-    ) -> Result<NetRef, String> {
+        operands: &[TaggedNet<I>],
+    ) -> Result<NetRef<I>, String> {
         let nets = inst_type
             .get_output_ports()
             .iter()
@@ -761,7 +792,7 @@ impl Netlist {
 
     /// Set an added object as a top-level output.
     /// Panics if `net`` is a multi-output node.
-    pub fn expose_netref_named(&self, net: NetRef, name: String) -> NetRef {
+    pub fn expose_netref_named(&self, net: NetRef<I>, name: String) -> NetRef<I> {
         if net.is_multi_output() {
             panic!("Cannot expose a multi-output net as output without addressing the specific net")
         }
@@ -774,7 +805,7 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
-    pub fn expose_netref(&self, net: NetRef) -> Result<NetRef, String> {
+    pub fn expose_netref(&self, net: NetRef<I>) -> Result<NetRef<I>, String> {
         if net.is_an_input() {
             return Err("Cannot expose an input net as output without a new name".to_string());
         }
@@ -793,7 +824,7 @@ impl Netlist {
     }
 
     /// Get the circuit node with the given operand index.
-    fn lookup_netref(&self, operand: Operand) -> NetRef {
+    fn lookup_netref(&self, operand: Operand) -> NetRef<I> {
         match operand {
             Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
                 NetRef::wrap(self.objects.borrow()[idx].clone())
@@ -813,7 +844,7 @@ impl Netlist {
     }
 
     /// Unlink a circuit node from the rest of the netlist. Return the object that was being stored.
-    pub fn delete_net_uses(&self, netref: NetRef) -> Result<Object<GatePrimitive>, String> {
+    pub fn delete_net_uses(&self, netref: NetRef<I>) -> Result<Object<I>, String> {
         let unwrapped = netref.clone().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
             return Err("Cannot delete a netref that is still in use elsewhere".to_string());
@@ -855,19 +886,15 @@ impl Netlist {
 
     /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
     /// Panics if `of` and  `with` are not single-output nodes.
-    pub fn replace_net_uses(
-        &self,
-        of: NetRef,
-        with: &NetRef,
-    ) -> Result<Object<GatePrimitive>, String> {
+    pub fn replace_net_uses(&self, of: NetRef<I>, with: &NetRef<I>) -> Result<Object<I>, String> {
         let unwrapped = of.clone().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
             return Err("Cannot delete a netref that is still in use elsewhere".to_string());
         }
 
-        let old_tag: TaggedNet = of.clone().into();
+        let old_tag: TaggedNet<I> = of.clone().into();
         let old_index = Self::get_operand_of_tag(&old_tag);
-        let new_tag: TaggedNet = with.clone().into();
+        let new_tag: TaggedNet<I> = with.clone().into();
         let new_index = Self::get_operand_of_tag(&new_tag);
         let objects = self.objects.borrow();
         for oref in objects.iter() {
@@ -894,7 +921,10 @@ impl Netlist {
     }
 }
 
-impl Netlist {
+impl<I> Netlist<I>
+where
+    I: Instantiable,
+{
     /// Returns the name of the netlist module
     pub fn get_name(&self) -> &str {
         &self.name
@@ -922,13 +952,13 @@ impl Netlist {
     }
 
     /// Constructs an analysis of the netlist.
-    pub fn get_analysis<'a, A: Analysis<'a>>(&'a self) -> Result<A, String> {
+    pub fn get_analysis<'a, A: Analysis<'a, I>>(&'a self) -> Result<A, String> {
         A::build(self)
     }
 
     /// Finds the first circuit node that drives the `net`. This operation is O(n).
     /// This should be unique provided the netlist is well-formed.
-    pub fn find_net(&self, net: &Net) -> Option<NetRef> {
+    pub fn find_net(&self, net: &Net) -> Option<NetRef<I>> {
         for obj in self.objects.borrow().iter() {
             let owned = obj.borrow();
             for driven in owned.get().get_nets() {
@@ -941,7 +971,7 @@ impl Netlist {
     }
 
     /// Returns a `NetRef` to the first circuit node
-    pub fn first(&self) -> Option<NetRef> {
+    pub fn first(&self) -> Option<NetRef<I>> {
         self.objects
             .borrow()
             .first()
@@ -949,7 +979,7 @@ impl Netlist {
     }
 
     /// Returns a `NetRef` to the last circuit node
-    pub fn last(&self) -> Option<NetRef> {
+    pub fn last(&self) -> Option<NetRef<I>> {
         self.objects
             .borrow()
             .last()
@@ -957,7 +987,7 @@ impl Netlist {
     }
 
     /// Returns the index of the output of `netref` which is driving a module output.
-    pub fn drives_an_output(&self, netref: NetRef) -> Option<usize> {
+    pub fn drives_an_output(&self, netref: NetRef<I>) -> Option<usize> {
         let my_index = netref.unwrap().borrow().get_index();
         for key in self.outputs.borrow().keys() {
             if key.root() == my_index {
@@ -971,7 +1001,7 @@ impl Netlist {
     pub fn clean(&self) -> Result<(), String> {
         let mut dead_objs = HashSet::new();
         {
-            let fan_out = self.get_analysis::<FanOutTable>().unwrap();
+            let fan_out = self.get_analysis::<FanOutTable<I>>().unwrap();
             for obj in self.objects() {
                 let mut is_dead = true;
                 for net in obj.nets() {
@@ -1026,15 +1056,18 @@ impl Netlist {
 }
 
 /// An iterator over the nets in a netlist
-pub struct NetIterator<'a> {
-    netlist: &'a Netlist,
+pub struct NetIterator<'a, I: Instantiable> {
+    netlist: &'a Netlist<I>,
     index: usize,
     subindex: usize,
 }
 
-impl<'a> NetIterator<'a> {
+impl<'a, I> NetIterator<'a, I>
+where
+    I: Instantiable,
+{
     /// Creates a new iterator for the netlist
-    fn new(netlist: &'a Netlist) -> Self {
+    fn new(netlist: &'a Netlist<I>) -> Self {
         Self {
             netlist,
             index: 0,
@@ -1043,7 +1076,10 @@ impl<'a> NetIterator<'a> {
     }
 }
 
-impl Iterator for NetIterator<'_> {
+impl<I> Iterator for NetIterator<'_, I>
+where
+    I: Instantiable,
+{
     type Item = Net;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1063,20 +1099,26 @@ impl Iterator for NetIterator<'_> {
 }
 
 /// An iterator over the nets in a netlist
-pub struct ObjectIterator<'a> {
-    netlist: &'a Netlist,
+pub struct ObjectIterator<'a, I: Instantiable> {
+    netlist: &'a Netlist<I>,
     index: usize,
 }
 
-impl<'a> ObjectIterator<'a> {
+impl<'a, I> ObjectIterator<'a, I>
+where
+    I: Instantiable,
+{
     /// Creates a new iterator for the netlist
-    fn new(netlist: &'a Netlist) -> Self {
+    fn new(netlist: &'a Netlist<I>) -> Self {
         Self { netlist, index: 0 }
     }
 }
 
-impl Iterator for ObjectIterator<'_> {
-    type Item = NetRef;
+impl<I> Iterator for ObjectIterator<'_, I>
+where
+    I: Instantiable,
+{
+    type Item = NetRef<I>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.netlist.objects.borrow().len() {
@@ -1090,18 +1132,21 @@ impl Iterator for ObjectIterator<'_> {
 }
 
 /// The [Net] connects as an input to [Object]
-pub type Connection = (Net, NetRef);
+pub type Connection<I> = (Net, NetRef<I>);
 
 /// An iterator over the connections in a netlist
-pub struct ConnectionIterator<'a> {
-    netlist: &'a Netlist,
+pub struct ConnectionIterator<'a, I: Instantiable> {
+    netlist: &'a Netlist<I>,
     index: usize,
     subindex: usize,
 }
 
-impl<'a> ConnectionIterator<'a> {
+impl<'a, I> ConnectionIterator<'a, I>
+where
+    I: Instantiable,
+{
     /// Creates a new iterator for the netlist
-    fn new(netlist: &'a Netlist) -> Self {
+    fn new(netlist: &'a Netlist<I>) -> Self {
         Self {
             netlist,
             index: 0,
@@ -1110,8 +1155,11 @@ impl<'a> ConnectionIterator<'a> {
     }
 }
 
-impl Iterator for ConnectionIterator<'_> {
-    type Item = Connection;
+impl<I> Iterator for ConnectionIterator<'_, I>
+where
+    I: Instantiable,
+{
+    type Item = Connection<I>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.index < self.netlist.objects.borrow().len() {
@@ -1136,28 +1184,37 @@ impl Iterator for ConnectionIterator<'_> {
     }
 }
 
-impl<'a> IntoIterator for &'a Netlist {
+impl<'a, I> IntoIterator for &'a Netlist<I>
+where
+    I: Instantiable,
+{
     type Item = Net;
-    type IntoIter = NetIterator<'a>;
+    type IntoIter = NetIterator<'a, I>;
 
     fn into_iter(self) -> Self::IntoIter {
         NetIterator::new(self)
     }
 }
 
-impl Netlist {
+impl<I> Netlist<I>
+where
+    I: Instantiable,
+{
     /// Returns an iterator over the  circuit nodes in the netlist.
-    pub fn objects(&self) -> impl Iterator<Item = NetRef> {
+    pub fn objects(&self) -> impl Iterator<Item = NetRef<I>> {
         ObjectIterator::new(self)
     }
 
     /// Returns an iterator over the wire connections in the netlist.
-    pub fn connections(&self) -> impl Iterator<Item = Connection> {
+    pub fn connections(&self) -> impl Iterator<Item = Connection<I>> {
         ConnectionIterator::new(self)
     }
 }
 
-impl std::fmt::Display for Netlist {
+impl<I> std::fmt::Display for Netlist<I>
+where
+    I: Instantiable,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Borrow everything first
         let objects = self.objects.borrow();

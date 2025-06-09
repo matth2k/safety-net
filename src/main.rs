@@ -21,7 +21,7 @@ fn full_adder() -> GatePrimitive {
 }
 
 #[allow(dead_code)]
-fn simple_example() -> Netlist {
+fn simple_example() -> Netlist<GatePrimitive> {
     let netlist = Netlist::new("simple_example".to_string());
 
     // Add the the two inputs
@@ -52,7 +52,7 @@ fn simple_example() -> Netlist {
     netlist.reclaim().unwrap()
 }
 
-fn harder_example() -> Netlist {
+fn harder_example() -> Netlist<GatePrimitive> {
     let netlist = Netlist::new("harder_example".to_string());
     let bitwidth = 8;
 
@@ -62,7 +62,7 @@ fn harder_example() -> Netlist {
     let cin = netlist.insert_input_logic("cin".to_string());
 
     // Instantiate the full adders
-    let mut input_bus: [TaggedNet; 3] =
+    let mut input_bus: [TaggedNet<GatePrimitive>; 3] =
         [cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
 
     for i in 0..bitwidth {
@@ -97,7 +97,7 @@ fn harder_example() -> Netlist {
 fn main() {
     let netlist = harder_example();
     // print!("{}", netlist);
-    let fo = netlist.get_analysis::<FanOutTable>().unwrap();
+    let fo = netlist.get_analysis::<FanOutTable<_>>().unwrap();
     for net in netlist.into_iter() {
         println!("Net: {}", net);
         for user in fo.get_users(&net) {
