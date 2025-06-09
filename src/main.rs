@@ -1,4 +1,7 @@
-use circuit::netlist::{GatePrimitive, Netlist, TaggedNet};
+use circuit::{
+    graph::FanOutTable,
+    netlist::{GatePrimitive, Netlist, TaggedNet},
+};
 
 #[allow(dead_code)]
 fn and_gate() -> GatePrimitive {
@@ -92,8 +95,12 @@ fn harder_example() -> Netlist {
 fn main() {
     let netlist = harder_example();
     // print!("{}", netlist);
-    for connection in netlist.connections() {
-        println!("{} -> {}", connection.0, connection.1);
+    let fo = netlist.get_analysis::<FanOutTable>().unwrap();
+    for net in netlist.into_iter() {
+        println!("Net: {}", net);
+        for user in fo.get_users(&net) {
+            println!("  User: {}", user.get_instance_name().unwrap());
+        }
     }
 }
 

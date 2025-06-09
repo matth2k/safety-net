@@ -861,7 +861,7 @@ impl Netlist {
     }
 
     /// Constructs an analysis of the netlist.
-    pub fn get_analysis<A: Analysis>(&self) -> A {
+    pub fn get_analysis<A: Analysis>(&self) -> Result<A, String> {
         A::build(self)
     }
 }
@@ -931,7 +931,7 @@ impl Iterator for ObjectIterator<'_> {
 }
 
 /// The [Net] connects as an input to [Object]
-pub type Connection = (Net, Object<GatePrimitive>);
+pub type Connection = (Net, NetRef);
 
 /// An iterator over the connections in a netlist
 pub struct ConnectionIterator<'a> {
@@ -966,7 +966,7 @@ impl Iterator for ConnectionIterator<'_> {
                         Operand::CellIndex(idx, j) => objects[*idx].borrow().get_net(*j).clone(),
                     };
                     self.subindex += 1;
-                    return Some((net, object.get().clone()));
+                    return Some((net, NetRef::wrap(objects[self.index].clone())));
                 }
                 self.subindex += 1;
             }
