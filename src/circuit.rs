@@ -197,12 +197,12 @@ pub trait Instantiable: std::fmt::Display + Clone {
     }
 
     /// Returns the output port at the given index.
-    fn get_output_port_at(&self, index: usize) -> &Net {
+    fn get_output_port(&self, index: usize) -> &Net {
         &self.get_output_ports()[index]
     }
 
     /// Returns the input port of the primitive at index `index`.
-    fn get_input_port_at(&self, index: usize) -> &Net {
+    fn get_input_port(&self, index: usize) -> &Net {
         &self.get_input_ports()[index]
     }
 }
@@ -238,7 +238,7 @@ where
     }
 
     /// Returns the net driven by this object at the index
-    pub fn get_net_at(&self, index: usize) -> &Net {
+    pub fn get_net(&self, index: usize) -> &Net {
         match self {
             Object::Input(net) => {
                 if index > 0 {

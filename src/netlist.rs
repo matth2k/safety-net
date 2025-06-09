@@ -122,6 +122,14 @@ impl Operand {
             Operand::CellIndex(idx, _) => *idx,
         }
     }
+
+    /// Returns the secondary index (the cell index)
+    fn secondary(&self) -> usize {
+        match self {
+            Operand::DirectIndex(_) => 0,
+            Operand::CellIndex(_, j) => *j,
+        }
+    }
 }
 
 /// An object that has a reference to its owning netlist/module
@@ -478,6 +486,7 @@ impl NetRef {
     }
 
     /// Returns a request to mutably borrow the operand net
+    /// This requires another borrow in the form of [MutBorrowReq]
     pub fn req_operand_net(&self, index: usize) -> Option<MutBorrowReq> {
         let net = self.get_operand_net(index)?;
         let operand = self.get_operand(index).unwrap();
@@ -499,14 +508,7 @@ impl NetRef {
             self.netref.borrow().operands.len(),
             self.get_num_input_ports()
         );
-        let count_nones = self
-            .netref
-            .borrow()
-            .operands
-            .iter()
-            .filter(|o| o.is_none())
-            .count();
-        count_nones == 0
+        self.netref.borrow().operands.iter().any(|o| o.is_none())
     }
 
     /// Returns an iterator to the operand circuit nodes.
@@ -546,6 +548,17 @@ impl NetRef {
     /// Returns `true` if this circuit node drives the given net.
     pub fn drives_net(&self, net: &Net) -> bool {
         self.netref.borrow().find_net(net).is_some()
+    }
+
+    /// Returns `true` if this circuit node drives an output net.
+    pub fn drives_an_output(&self) -> bool {
+        let netlist = self
+            .netref
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("NetRef is unlinked from netlist");
+        netlist.drives_an_output(self.clone()).is_some()
     }
 
     /// Attempts to find a mutable reference to `net` within this circuit node.
@@ -747,7 +760,11 @@ impl Netlist {
     }
 
     /// Set an added object as a top-level output.
+    /// Panics if `net`` is a multi-output node.
     pub fn expose_netref_named(&self, net: NetRef, name: String) -> NetRef {
+        if net.is_multi_output() {
+            panic!("Cannot expose a multi-output net as output without addressing the specific net")
+        }
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(
             Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
@@ -760,6 +777,12 @@ impl Netlist {
     pub fn expose_netref(&self, net: NetRef) -> Result<NetRef, String> {
         if net.is_an_input() {
             return Err("Cannot expose an input net as output without a new name".to_string());
+        }
+        if net.is_multi_output() {
+            return Err(
+                "Cannot expose a multi-output net as output without addressing the specific net"
+                    .to_string(),
+            );
         }
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(
@@ -899,8 +922,49 @@ impl Netlist {
     }
 
     /// Constructs an analysis of the netlist.
-    pub fn get_analysis<A: Analysis>(&self) -> Result<A, String> {
+    pub fn get_analysis<'a, A: Analysis<'a>>(&'a self) -> Result<A, String> {
         A::build(self)
+    }
+
+    /// Finds the first circuit node that drives the `net`. This operation is O(n).
+    /// This should be unique provided the netlist is well-formed.
+    pub fn find_net(&self, net: &Net) -> Option<NetRef> {
+        for obj in self.objects.borrow().iter() {
+            let owned = obj.borrow();
+            for driven in owned.get().get_nets() {
+                if driven == net {
+                    return Some(NetRef::wrap(obj.clone()));
+                }
+            }
+        }
+        None
+    }
+
+    /// Returns a `NetRef` to the first circuit node
+    pub fn first(&self) -> Option<NetRef> {
+        self.objects
+            .borrow()
+            .first()
+            .map(|nr| NetRef::wrap(nr.clone()))
+    }
+
+    /// Returns a `NetRef` to the last circuit node
+    pub fn last(&self) -> Option<NetRef> {
+        self.objects
+            .borrow()
+            .last()
+            .map(|nr| NetRef::wrap(nr.clone()))
+    }
+
+    /// Returns the index of the output of `netref` which is driving a module output.
+    pub fn drives_an_output(&self, netref: NetRef) -> Option<usize> {
+        let my_index = netref.unwrap().borrow().get_index();
+        for key in self.outputs.borrow().keys() {
+            if key.root() == my_index {
+                return Some(key.secondary());
+            }
+        }
+        None
     }
 
     /// Cleans up dead nodes in the netlist and returns a cleaned version
@@ -1178,10 +1242,7 @@ impl std::fmt::Display for Netlist {
                 }
 
                 for (idx, net) in nets.iter().enumerate() {
-                    let port_name = inst_type
-                        .get_output_port_at(idx)
-                        .get_identifier()
-                        .emit_name();
+                    let port_name = inst_type.get_output_port(idx).get_identifier().emit_name();
                     if idx == nets.len() - 1 {
                         writeln!(
                             f,
