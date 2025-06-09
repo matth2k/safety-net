@@ -1372,3 +1372,8 @@ fn test_delete_netlist() {
     let res = netlist.clean();
     assert!(res.is_ok());
 }
+
+/// A type alias for a netlist of gates
+pub type GateNetlist = Netlist<Gate>;
+/// A type alias to Gate circuit nodes
+pub type GateRef = NetRef<Gate>;
