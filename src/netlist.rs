@@ -917,14 +917,14 @@ impl<'a> ObjectIterator<'a> {
 }
 
 impl Iterator for ObjectIterator<'_> {
-    type Item = Object<GatePrimitive>;
+    type Item = NetRef;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.netlist.objects.borrow().len() {
             let objects = self.netlist.objects.borrow();
-            let object = objects[self.index].borrow();
+            let object = &objects[self.index];
             self.index += 1;
-            return Some(object.get().clone());
+            return Some(NetRef::wrap(object.clone()));
         }
         None
     }
@@ -988,7 +988,7 @@ impl<'a> IntoIterator for &'a Netlist {
 
 impl Netlist {
     /// Returns an iterator over the  circuit nodes in the netlist.
-    pub fn objects(&self) -> impl Iterator<Item = Object<GatePrimitive>> {
+    pub fn objects(&self) -> impl Iterator<Item = NetRef> {
         ObjectIterator::new(self)
     }
 
