@@ -24,7 +24,7 @@ trait WeakIndex<Idx: ?Sized> {
 
 /// A primitive gate in a digital circuit, such as AND, OR, NOT, etc.
 #[derive(Debug, Clone)]
-pub struct GatePrimitive {
+pub struct Gate {
     /// The name of the primitive
     name: String,
     /// Input ports, order matters
@@ -33,13 +33,13 @@ pub struct GatePrimitive {
     outputs: Vec<Net>,
 }
 
-impl std::fmt::Display for GatePrimitive {
+impl std::fmt::Display for Gate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
 
-impl Instantiable for GatePrimitive {
+impl Instantiable for Gate {
     fn get_name(&self) -> &str {
         &self.name
     }
@@ -53,7 +53,7 @@ impl Instantiable for GatePrimitive {
     }
 }
 
-impl GatePrimitive {
+impl Gate {
     /// Creates a new gate primitive with four-state logic types
     pub fn new_logical(name: String, inputs: Vec<String>, output: String) -> Self {
         let outputs = vec![Net::new_logic(output)];
@@ -83,7 +83,7 @@ impl GatePrimitive {
         }
         self.outputs
             .first()
-            .expect("GatePrimitive is missing an output port")
+            .expect("Gate is missing an output port")
     }
 
     /// Set the type of cell by name
@@ -1356,7 +1356,7 @@ fn test_delete_netlist() {
     // Instantiate an AND gate
     let instance = netlist
         .insert_gate(
-            GatePrimitive::new_logical(
+            Gate::new_logical(
                 "AND".to_string(),
                 vec!["A".to_string(), "B".to_string()],
                 "Y".to_string(),

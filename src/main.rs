@@ -1,19 +1,19 @@
 use circuit::{
     graph::FanOutTable,
-    netlist::{GatePrimitive, Netlist, TaggedNet},
+    netlist::{Gate, Netlist, TaggedNet},
 };
 
 #[allow(dead_code)]
-fn and_gate() -> GatePrimitive {
-    GatePrimitive::new_logical(
+fn and_gate() -> Gate {
+    Gate::new_logical(
         "AND".to_string(),
         vec!["A".to_string(), "B".to_string()],
         "Y".to_string(),
     )
 }
 
-fn full_adder() -> GatePrimitive {
-    GatePrimitive::new_logical_multi(
+fn full_adder() -> Gate {
+    Gate::new_logical_multi(
         "FA".to_string(),
         vec!["CIN".to_string(), "A".to_string(), "B".to_string()],
         vec!["S".to_string(), "COUT".to_string()],
@@ -21,7 +21,7 @@ fn full_adder() -> GatePrimitive {
 }
 
 #[allow(dead_code)]
-fn simple_example() -> Netlist<GatePrimitive> {
+fn simple_example() -> Netlist<Gate> {
     let netlist = Netlist::new("simple_example".to_string());
 
     // Add the the two inputs
@@ -52,7 +52,7 @@ fn simple_example() -> Netlist<GatePrimitive> {
     netlist.reclaim().unwrap()
 }
 
-fn harder_example() -> Netlist<GatePrimitive> {
+fn harder_example() -> Netlist<Gate> {
     let netlist = Netlist::new("harder_example".to_string());
     let bitwidth = 8;
 
@@ -62,7 +62,7 @@ fn harder_example() -> Netlist<GatePrimitive> {
     let cin = netlist.insert_input_logic("cin".to_string());
 
     // Instantiate the full adders
-    let mut input_bus: [TaggedNet<GatePrimitive>; 3] =
+    let mut input_bus: [TaggedNet<Gate>; 3] =
         [cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
 
     for i in 0..bitwidth {
