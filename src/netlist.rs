@@ -6,7 +6,7 @@
 
 use crate::{
     circuit::{Instantiable, Net, Object},
-    graph::Analysis,
+    graph::{Analysis, FanOutTable},
 };
 use std::{
     cell::{Ref, RefCell, RefMut},
@@ -106,6 +106,24 @@ enum Operand {
     CellIndex(usize, usize),
 }
 
+impl Operand {
+    /// Remap the node index of the operand to `x`.
+    fn remap(self, x: usize) -> Self {
+        match self {
+            Operand::DirectIndex(_idx) => Operand::DirectIndex(x),
+            Operand::CellIndex(_idx, j) => Operand::CellIndex(x, j),
+        }
+    }
+
+    /// Returns the circuit node index
+    fn root(&self) -> usize {
+        match self {
+            Operand::DirectIndex(idx) => *idx,
+            Operand::CellIndex(idx, _) => *idx,
+        }
+    }
+}
+
 /// An object that has a reference to its owning netlist/module
 #[derive(Debug)]
 struct OwnedObject<I, O>
@@ -128,6 +146,13 @@ where
     I: Instantiable,
     O: WeakIndex<usize, Output = Self>,
 {
+    /// Get an iterator to mutate the operand indices
+    fn inds_mut(&mut self) -> impl Iterator<Item = &mut Operand> {
+        self.operands
+            .iter_mut()
+            .filter_map(|operand| operand.as_mut())
+    }
+
     /// Get the operand as a weak index
     fn get_operand(&self, index: usize) -> Option<Rc<RefCell<Self>>> {
         self.operands[index].as_ref().map(|operand| match operand {
@@ -557,6 +582,12 @@ impl NetRef {
     }
 }
 
+impl std::fmt::Display for NetRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.netref.borrow().object.fmt(f)
+    }
+}
+
 impl From<NetRef> for TaggedNet {
     fn from(val: NetRef) -> Self {
         (val.clone().as_net().clone(), val)
@@ -871,6 +902,63 @@ impl Netlist {
     pub fn get_analysis<A: Analysis>(&self) -> Result<A, String> {
         A::build(self)
     }
+
+    /// Cleans up dead nodes in the netlist and returns a cleaned version
+    pub fn clean(&self) -> Result<(), String> {
+        let mut dead_objs = HashSet::new();
+        {
+            let fan_out = self.get_analysis::<FanOutTable>().unwrap();
+            for obj in self.objects() {
+                let mut is_dead = true;
+                for net in obj.nets() {
+                    if fan_out.has_uses(&net) {
+                        is_dead = false;
+                        break;
+                    }
+                }
+                // TODO(matth2k): What if the object is an output?
+                if is_dead && !obj.is_an_input() {
+                    dead_objs.insert(obj.unwrap().borrow().index);
+                }
+            }
+        }
+
+        let old_objects = self.objects.take();
+        let mut remap: HashMap<usize, usize> = HashMap::new();
+        for (old_index, obj) in old_objects.into_iter().enumerate() {
+            if dead_objs.contains(&old_index) {
+                if Rc::strong_count(&obj) > 2 {
+                    return Err(format!(
+                        "Cannot delete object {} as a NetRef still exists, or it is an output. SC = {}",
+                        obj.borrow().get(),
+                        Rc::strong_count(&obj)
+                    ));
+                }
+                continue;
+            }
+            let new_index = self.objects.borrow().len();
+            remap.insert(old_index, new_index);
+            obj.borrow_mut().index = new_index;
+            for operand in obj.borrow_mut().inds_mut() {
+                let root = operand.root();
+                // TODO(matth2k): What if nodes are not in topological order?
+                let root = *remap.get(&root).unwrap_or(&root);
+                *operand = operand.clone().remap(root);
+            }
+            self.objects.borrow_mut().push(obj);
+        }
+
+        let pairs: Vec<_> = self.outputs.take().into_iter().collect();
+        for (operand, net) in pairs {
+            let root = operand.root();
+            // TODO(matth2k): What if nodes are not in topological order?
+            let root = *remap.get(&root).unwrap_or(&root);
+            let new_operand = operand.clone().remap(root);
+            self.outputs.borrow_mut().insert(new_operand, net);
+        }
+
+        Ok(())
+    }
 }
 
 /// An iterator over the nets in a netlist
@@ -1137,4 +1225,32 @@ impl std::fmt::Display for Netlist {
 
         writeln!(f, "endmodule")
     }
+}
+
+#[test]
+fn test_delete_netlist() {
+    let netlist = Netlist::new("simple_example".to_string());
+
+    // Add the the two inputs
+    let input1 = netlist.insert_input_logic("input1".to_string());
+    let input2 = netlist.insert_input_logic("input2".to_string());
+
+    // Instantiate an AND gate
+    let instance = netlist
+        .insert_gate(
+            GatePrimitive::new_logical(
+                "AND".to_string(),
+                vec!["A".to_string(), "B".to_string()],
+                "Y".to_string(),
+            ),
+            "my_and".to_string(),
+            &[input1.clone().into(), input2.clone().into()],
+        )
+        .unwrap();
+
+    // Make this AND gate an output
+    instance.expose_as_output().unwrap();
+    instance.delete_uses().unwrap();
+    let res = netlist.clean();
+    assert!(res.is_ok());
 }

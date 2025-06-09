@@ -6,7 +6,7 @@
 
 use crate::circuit::Net;
 use crate::netlist::{NetRef, Netlist};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A common trait of analyses than can be performed on a netlist.
 pub trait Analysis
@@ -21,6 +21,8 @@ where
 pub struct FanOutTable {
     // Maps a net to the list of nets it drives
     fan_out: HashMap<Net, Vec<NetRef>>,
+    /// Contains nets which are outputs
+    is_an_output: HashSet<Net>,
 }
 
 impl FanOutTable {
@@ -30,6 +32,13 @@ impl FanOutTable {
             .get(net)
             .into_iter()
             .flat_map(|users| users.iter().cloned())
+    }
+
+    /// Returns `true` if the net has any used by any cells in the circuit
+    /// This does incude nets that are only used as outputs.
+    pub fn has_uses(&self, net: &Net) -> bool {
+        (self.fan_out.contains_key(net) && !self.fan_out.get(net).unwrap().is_empty())
+            || self.is_an_output.contains(net)
     }
 }
 
@@ -45,6 +54,14 @@ impl Analysis for FanOutTable {
             }
         }
 
-        Ok(FanOutTable { fan_out })
+        let mut is_an_output: HashSet<Net> = HashSet::new();
+        for output in netlist.get_output_ports() {
+            is_an_output.insert(output.clone());
+        }
+
+        Ok(FanOutTable {
+            fan_out,
+            is_an_output,
+        })
     }
 }

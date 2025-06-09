@@ -70,8 +70,6 @@ fn harder_example() -> Netlist {
             .insert_gate(full_adder(), format!("fa_{}", i), &input_bus)
             .unwrap();
 
-        instance.expose_net(&instance.get_net(0)).unwrap();
-
         if i == bitwidth - 1 {
             // Last full adder, expose the carry out
             instance.nets_mut().enumerate().for_each(|(j, mut n)| {
@@ -79,8 +77,11 @@ fn harder_example() -> Netlist {
                     n.set_name("cout".to_string());
                 }
             });
+            instance.expose_net(&instance.get_net(0)).unwrap();
             instance.expose_net(&instance.get_net(1)).unwrap();
+            // instance.delete_uses().unwrap();
         } else {
+            instance.expose_net(&instance.get_net(0)).unwrap();
             input_bus = [
                 (instance.get_net(1).clone(), instance.clone()),
                 a_vec[i + 1].clone().into(),
@@ -89,6 +90,7 @@ fn harder_example() -> Netlist {
         }
     }
 
+    // netlist.clean().unwrap();
     netlist.reclaim().unwrap()
 }
 
