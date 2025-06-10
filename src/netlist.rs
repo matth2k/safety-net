@@ -1251,7 +1251,7 @@ where
     }
 
     /// Returns a depth-first search iterator over the nodes in the netlist.
-    pub fn dfs(&self, from: NetRef<I>) -> DFSIterator<I> {
+    pub fn dfs(&self, from: NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
         DFSIterator::new(self, from)
     }
 }
