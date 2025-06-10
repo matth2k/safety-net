@@ -1200,6 +1200,7 @@ where
 pub struct DFSIterator<'a, I: Instantiable> {
     netlist: &'a Netlist<I>,
     stack: Vec<NetRef<I>>,
+    visited: HashSet<usize>,
 }
 
 impl<'a, I> DFSIterator<'a, I>
@@ -1211,6 +1212,7 @@ where
         Self {
             netlist,
             stack: vec![from],
+            visited: HashSet::new(),
         }
     }
 }
@@ -1224,6 +1226,10 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(item) = self.stack.pop() {
             let uw = item.clone().unwrap();
+            let index = uw.borrow().get_index();
+            if !self.visited.insert(index) {
+                return self.next();
+            }
             let operands = &uw.borrow().operands;
             for operand in operands.iter().flatten() {
                 self.stack
