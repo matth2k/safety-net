@@ -1,7 +1,4 @@
-use circuit::{
-    graph::FanOutTable,
-    netlist::{Gate, Netlist, TaggedNet},
-};
+use circuit::netlist::{Gate, Netlist, TaggedNet};
 
 #[allow(dead_code)]
 fn and_gate() -> Gate {
@@ -97,7 +94,7 @@ fn harder_example() -> Netlist<Gate> {
 fn main() {
     let netlist = harder_example();
     // print!("{}", netlist);
-    let fo = netlist.get_analysis::<FanOutTable<_>>().unwrap();
+    // let fo = netlist.get_analysis::<FanOutTable<_>>().unwrap();
     // for net in netlist.into_iter() {
     //     println!("Net: {}", net);
     //     for user in fo.get_users(&net) {
