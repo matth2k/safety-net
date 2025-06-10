@@ -8,7 +8,7 @@ TODO: overview, tutorial, testing, research papers
 
 */
 #![doc = "## Simple Example\n```"]
-#![doc = include_str!("./bin/example.rs")]
+#![doc = include_str!("../examples/simple.rs")]
 #![doc = "\n```"]
 
 pub mod circuit;
