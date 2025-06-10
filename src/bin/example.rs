@@ -25,6 +25,7 @@ fn main() {
         .unwrap();
 
     // Make this AND gate an output
+    a.replace_uses_with(&instance).unwrap();
     instance.expose_with_name("y".to_string());
 
     // Print the netlist

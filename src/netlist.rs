@@ -910,10 +910,8 @@ where
 
         if self.outputs.borrow().contains_key(&new_index) {
             self.outputs.borrow_mut().remove(&old_index);
-        } else {
-            self.outputs
-                .borrow_mut()
-                .insert(new_index, self.outputs.borrow()[&old_index].clone());
+        } else if let Some(v) = self.outputs.borrow().get(&old_index) {
+            self.outputs.borrow_mut().insert(new_index, v.clone());
             self.outputs.borrow_mut().remove(&old_index);
         }
 
