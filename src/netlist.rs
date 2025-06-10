@@ -1249,6 +1249,20 @@ where
         ObjectIterator::new(self)
     }
 
+    /// Returns an iterator over the circuit nodes that match the instance type.
+    pub fn matches<F>(&self, filter: F) -> impl Iterator<Item = NetRef<I>>
+    where
+        F: Fn(&I) -> bool,
+    {
+        self.objects().filter(move |f| {
+            if let Some(inst_type) = f.get_instance_type() {
+                filter(&inst_type)
+            } else {
+                false
+            }
+        })
+    }
+
     /// Returns an iterator to principal inputs in the netlist as references.
     pub fn inputs(&self) -> impl Iterator<Item = NetRef<I>> {
         self.objects().filter(|n| n.is_an_input())
