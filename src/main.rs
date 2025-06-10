@@ -101,7 +101,7 @@ fn main() {
     //         println!("  User: {}", user.get_instance_name().unwrap());
     //     }
     // }
-    for nr in netlist.dfs(netlist.last().unwrap()) {
+    for nr in netlist.outputs().flat_map(|n| netlist.dfs(n)) {
         println!("{}", nr);
     }
 }

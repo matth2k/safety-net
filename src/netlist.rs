@@ -1251,6 +1251,18 @@ where
         ObjectIterator::new(self)
     }
 
+    /// Returns an iterator to circuit nodes that drive an output in the netlist.
+    pub fn outputs(&self) -> impl Iterator<Item = NetRef<I>> {
+        let outputs: Vec<_> = self
+            .outputs
+            .borrow()
+            .keys()
+            .map(|k| self.index_weak(&k.root()))
+            .map(NetRef::wrap)
+            .collect();
+        outputs.into_iter()
+    }
+
     /// Returns an iterator over the wire connections in the netlist.
     pub fn connections(&self) -> impl Iterator<Item = Connection<I>> {
         ConnectionIterator::new(self)
