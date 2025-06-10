@@ -1240,6 +1240,18 @@ where
     }
 }
 
+/// Filter invariants of [Instantiable] in a netlist. Use it like you would `matches!`.
+/// Example: ```filter_nodes!(netlist, Gate::AND(_));```
+#[macro_export]
+macro_rules! filter_nodes {
+    ($netlist:ident, $pattern:pat $(if $guard:expr)? $(,)?) => {
+        $netlist.matches(|f| match f {
+            $pattern $(if $guard)? => true,
+            _ => false
+        })
+    };
+}
+
 impl<I> Netlist<I>
 where
     I: Instantiable,
