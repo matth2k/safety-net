@@ -98,11 +98,14 @@ fn main() {
     let netlist = harder_example();
     // print!("{}", netlist);
     let fo = netlist.get_analysis::<FanOutTable<_>>().unwrap();
-    for net in netlist.into_iter() {
-        println!("Net: {}", net);
-        for user in fo.get_users(&net) {
-            println!("  User: {}", user.get_instance_name().unwrap());
-        }
+    // for net in netlist.into_iter() {
+    //     println!("Net: {}", net);
+    //     for user in fo.get_users(&net) {
+    //         println!("  User: {}", user.get_instance_name().unwrap());
+    //     }
+    // }
+    for nr in netlist.dfs(netlist.last().unwrap()) {
+        println!("{}", nr);
     }
 }
 

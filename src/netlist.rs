@@ -1196,11 +1196,51 @@ where
     }
 }
 
+/// A depth-first iterator over the circuit nodes in a netlist
+pub struct DFSIterator<'a, I: Instantiable> {
+    netlist: &'a Netlist<I>,
+    stack: Vec<NetRef<I>>,
+}
+
+impl<'a, I> DFSIterator<'a, I>
+where
+    I: Instantiable,
+{
+    /// Creates a new iterator for the netlist starting at `from`.
+    fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
+        Self {
+            netlist,
+            stack: vec![from],
+        }
+    }
+}
+
+impl<I> Iterator for DFSIterator<'_, I>
+where
+    I: Instantiable,
+{
+    type Item = NetRef<I>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(item) = self.stack.pop() {
+            let uw = item.clone().unwrap();
+            let operands = &uw.borrow().operands;
+            for operand in operands.iter().flatten() {
+                self.stack
+                    .push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
+            }
+            return Some(item);
+        }
+
+        None
+    }
+}
+
 impl<I> Netlist<I>
 where
     I: Instantiable,
 {
-    /// Returns an iterator over the  circuit nodes in the netlist.
+    /// Returns an iterator over the circuit nodes in the netlist.
     pub fn objects(&self) -> impl Iterator<Item = NetRef<I>> {
         ObjectIterator::new(self)
     }
@@ -1208,6 +1248,11 @@ where
     /// Returns an iterator over the wire connections in the netlist.
     pub fn connections(&self) -> impl Iterator<Item = Connection<I>> {
         ConnectionIterator::new(self)
+    }
+
+    /// Returns a depth-first search iterator over the nodes in the netlist.
+    pub fn dfs(&self, from: NetRef<I>) -> DFSIterator<I> {
+        DFSIterator::new(self, from)
     }
 }
 
