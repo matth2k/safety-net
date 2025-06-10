@@ -1251,6 +1251,11 @@ where
         ObjectIterator::new(self)
     }
 
+    /// Returns an iterator to principal inputs in the netlist as references.
+    pub fn inputs(&self) -> impl Iterator<Item = NetRef<I>> {
+        self.objects().filter(|n| n.is_an_input())
+    }
+
     /// Returns an iterator to circuit nodes that drive an output in the netlist.
     pub fn outputs(&self) -> impl Iterator<Item = NetRef<I>> {
         let outputs: Vec<_> = self
