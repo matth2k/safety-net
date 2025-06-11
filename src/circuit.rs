@@ -5,7 +5,7 @@
 */
 
 /// Signals in a circuit can be binary, tri-state, or four-state.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum DataType {
     /// A logical 0 or 1
     TwoState,
@@ -160,6 +160,11 @@ impl Net {
         &self.indentifier
     }
 
+    /// Returns the full identifier to the net
+    pub fn take_identifier(self) -> Identifier {
+        self.indentifier
+    }
+
     /// Returns the data type of the net
     pub fn get_type(&self) -> &DataType {
         &self.data_type
@@ -167,7 +172,7 @@ impl Net {
 
     /// Returns a net of the same type but with a different [IdentifierType::Normal] name
     pub fn with_name(&self, name: String) -> Self {
-        Self::new(Identifier::new(name), self.data_type.clone())
+        Self::new(Identifier::new(name), self.data_type)
     }
 }
 

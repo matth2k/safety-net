@@ -1065,6 +1065,25 @@ where
         }
         Ok(())
     }
+
+    /// Returns `true` if all the nets are uniquely named
+    fn nets_unique(&self) -> bool {
+        let mut nets = HashSet::new();
+        for net in self.into_iter() {
+            if !nets.insert(net.take_identifier()) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Verifies that a netlist is well-formed.
+    pub fn verify(&self) -> Result<(), String> {
+        if !self.nets_unique() {
+            return Err("Netlist contains non-unique nets".to_string());
+        }
+        Ok(())
+    }
 }
 
 /// An iterator over the nets in a netlist

@@ -76,9 +76,9 @@ fn harder_example() -> Netlist<Gate> {
             });
             instance.expose_net(&instance.get_net(0)).unwrap();
             instance.expose_net(&instance.get_net(1)).unwrap();
-            instance.delete_uses().unwrap();
+            // instance.delete_uses().unwrap();
         } else {
-            // instance.expose_net(&instance.get_net(0)).unwrap();
+            instance.expose_net(&instance.get_net(0)).unwrap();
             input_bus = [
                 (instance.get_net(1).clone(), instance.clone()),
                 a_vec[i + 1].clone().into(),
