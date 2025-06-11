@@ -1129,8 +1129,8 @@ where
     }
 }
 
-/// The [Net] connects as an input to [Object]
-pub type Connection<I> = (Net, NetRef<I>);
+/// A type alias for a node that drives a net used by another node, in that order.
+pub type Connection<I> = (NetRef<I>, Net, NetRef<I>);
 
 /// An iterator over the connections in a netlist
 pub struct ConnectionIterator<'a, I: Instantiable> {
@@ -1166,12 +1166,22 @@ where
             let noperands = object.operands.len();
             while self.subindex < noperands {
                 if let Some(operand) = &object.operands[self.subindex] {
-                    let net = match operand {
-                        Operand::DirectIndex(idx) => objects[*idx].borrow().as_net().clone(),
-                        Operand::CellIndex(idx, j) => objects[*idx].borrow().get_net(*j).clone(),
+                    let (driver, net) = match operand {
+                        Operand::DirectIndex(idx) => (
+                            objects[*idx].clone(),
+                            objects[*idx].borrow().as_net().clone(),
+                        ),
+                        Operand::CellIndex(idx, j) => (
+                            objects[*idx].clone(),
+                            objects[*idx].borrow().get_net(*j).clone(),
+                        ),
                     };
                     self.subindex += 1;
-                    return Some((net, NetRef::wrap(objects[self.index].clone())));
+                    return Some((
+                        NetRef::wrap(driver),
+                        net,
+                        NetRef::wrap(objects[self.index].clone()),
+                    ));
                 }
                 self.subindex += 1;
             }

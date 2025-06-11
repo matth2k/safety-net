@@ -55,7 +55,7 @@ where
         let mut fan_out: HashMap<Net, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
 
-        for (net, nr) in netlist.connections() {
+        for (_, net, nr) in netlist.connections() {
             if fan_out.contains_key(&net) {
                 fan_out.get_mut(&net).unwrap().push(nr);
             } else {
