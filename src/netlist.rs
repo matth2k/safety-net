@@ -744,7 +744,7 @@ where
     }
 
     /// Inserts an input net to the netlist
-    pub fn insert_input_net(self: &Rc<Self>, net: Net) -> NetRef<I> {
+    pub fn insert_input(self: &Rc<Self>, net: Net) -> NetRef<I> {
         let obj = Object::Input(net);
         self.insert_object(obj, &[]).unwrap()
     }
@@ -752,7 +752,7 @@ where
     /// Inserts a four-state logic input port to the netlist
     pub fn insert_input_logic(self: &Rc<Self>, net: String) -> NetRef<I> {
         let net = Net::new_logic(net);
-        self.insert_input_net(net)
+        self.insert_input(net)
     }
 
     /// Inserts a four-state logic input port to the netlist
@@ -763,7 +763,7 @@ where
     ) -> Vec<NetRef<I>> {
         Net::new_escaped_logic_bus(net, bw)
             .into_iter()
-            .map(|n| self.insert_input_net(n))
+            .map(|n| self.insert_input(n))
             .collect()
     }
 

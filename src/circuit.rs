@@ -177,6 +177,12 @@ impl std::fmt::Display for Net {
     }
 }
 
+impl From<&str> for Net {
+    fn from(name: &str) -> Self {
+        Net::new_logic(name.to_string())
+    }
+}
+
 /// A trait for primitives in a digital circuit, such as gates or other components.
 pub trait Instantiable: std::fmt::Display + Clone {
     /// Returns the name of the primitive
