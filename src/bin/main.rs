@@ -76,9 +76,9 @@ fn harder_example() -> Netlist<Gate> {
             });
             instance.expose_net(&instance.get_net(0)).unwrap();
             instance.expose_net(&instance.get_net(1)).unwrap();
-            // instance.delete_uses().unwrap();
+            instance.delete_uses().unwrap();
         } else {
-            instance.expose_net(&instance.get_net(0)).unwrap();
+            // instance.expose_net(&instance.get_net(0)).unwrap();
             input_bus = [
                 (instance.get_net(1).clone(), instance.clone()),
                 a_vec[i + 1].clone().into(),
@@ -87,13 +87,13 @@ fn harder_example() -> Netlist<Gate> {
         }
     }
 
-    // netlist.clean().unwrap();
+    netlist.clean().unwrap();
     netlist.reclaim().unwrap()
 }
 
 fn main() {
     let netlist = harder_example();
-    // print!("{}", netlist);
+    print!("{}", netlist);
     // let fo = netlist.get_analysis::<FanOutTable<_>>().unwrap();
     // for net in netlist.into_iter() {
     //     println!("Net: {}", net);
@@ -101,9 +101,9 @@ fn main() {
     //         println!("  User: {}", user.get_instance_name().unwrap());
     //     }
     // }
-    for nr in netlist.outputs().flat_map(|n| netlist.dfs(n)) {
-        println!("{}", nr);
-    }
+    // for inst in netlist.objects() {
+    //     println!("{}", inst);
+    // }
 }
 
 #[test]

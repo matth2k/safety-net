@@ -995,24 +995,28 @@ where
         None
     }
 
-    /// Cleans up dead nodes in the netlist and returns a cleaned version
-    pub fn clean(&self) -> Result<(), String> {
+    /// Cleans unused nodes from the netlist, returning `Ok(true)` if the netlist changed.
+    pub fn clean_once(&self) -> Result<bool, String> {
         let mut dead_objs = HashSet::new();
         {
             let fan_out = self.get_analysis::<FanOutTable<I>>().unwrap();
             for obj in self.objects() {
                 let mut is_dead = true;
                 for net in obj.nets() {
+                    // This should account for outputs
                     if fan_out.has_uses(&net) {
                         is_dead = false;
                         break;
                     }
                 }
-                // TODO(matth2k): What if the object is an output?
                 if is_dead && !obj.is_an_input() {
                     dead_objs.insert(obj.unwrap().borrow().index);
                 }
             }
+        }
+
+        if dead_objs.is_empty() {
+            return Ok(false);
         }
 
         let old_objects = self.objects.take();
@@ -1031,24 +1035,34 @@ where
             let new_index = self.objects.borrow().len();
             remap.insert(old_index, new_index);
             obj.borrow_mut().index = new_index;
+            self.objects.borrow_mut().push(obj);
+        }
+
+        for obj in self.objects.borrow().iter() {
             for operand in obj.borrow_mut().inds_mut() {
                 let root = operand.root();
-                // TODO(matth2k): What if nodes are not in topological order?
                 let root = *remap.get(&root).unwrap_or(&root);
                 *operand = operand.clone().remap(root);
             }
-            self.objects.borrow_mut().push(obj);
         }
 
         let pairs: Vec<_> = self.outputs.take().into_iter().collect();
         for (operand, net) in pairs {
             let root = operand.root();
-            // TODO(matth2k): What if nodes are not in topological order?
             let root = *remap.get(&root).unwrap_or(&root);
             let new_operand = operand.clone().remap(root);
             self.outputs.borrow_mut().insert(new_operand, net);
         }
 
+        Ok(true)
+    }
+
+    /// Greedly removes unused nodes from the netlist, until it stops changing.
+    pub fn clean(&self) -> Result<(), String> {
+        let mut changed = true;
+        while changed {
+            changed = self.clean_once()?;
+        }
         Ok(())
     }
 }
