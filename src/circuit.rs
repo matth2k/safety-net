@@ -99,6 +99,15 @@ impl Identifier {
     }
 }
 
+impl From<&str> for Identifier {
+    fn from(name: &str) -> Self {
+        Identifier {
+            name: name.to_string(),
+            id_type: IdentifierType::Normal,
+        }
+    }
+}
+
 impl std::fmt::Display for Identifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.id_type {
@@ -146,13 +155,13 @@ impl Net {
     }
 
     /// Returns the name of the net
-    pub fn get_name(&self) -> &str {
-        self.indentifier.get_name()
+    pub fn get_name(&self) -> &Identifier {
+        &self.indentifier
     }
 
     /// Sets the name of the net
-    pub fn set_name(&mut self, name: String) {
-        self.indentifier = Identifier::new(name);
+    pub fn set_name(&mut self, name: Identifier) {
+        self.indentifier = name;
     }
 
     /// Returns the full identifier to the net
@@ -173,14 +182,6 @@ impl Net {
     /// Returns a net of the same type but with a different [IdentifierType::Normal] name
     pub fn with_name(&self, name: String) -> Self {
         Self::new(Identifier::new(name), self.data_type)
-    }
-}
-
-impl std::str::FromStr for Net {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Net::new_logic(s.to_string()))
     }
 }
 

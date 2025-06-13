@@ -46,7 +46,7 @@ fn harder_example() -> Netlist<Gate> {
 
         if i == bitwidth - 1 {
             // Last full adder, expose the carry out
-            fa.get_net_mut(1).set_name("cout".to_string());
+            fa.get_net_mut(1).set_name("cout".into());
             fa.expose_net(&fa.get_net(1)).unwrap();
         }
     }

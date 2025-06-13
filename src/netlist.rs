@@ -5,7 +5,7 @@
 */
 
 use crate::{
-    circuit::{Instantiable, Net, Object},
+    circuit::{Identifier, Instantiable, Net, Object},
     graph::{Analysis, FanOutTable},
 };
 use std::{
@@ -398,13 +398,13 @@ where
 
     /// Returns the name of the net at this circuit node.
     /// Panics if the circuit node has multiple outputs.
-    pub fn get_name(&self) -> String {
-        self.as_net().get_name().to_string()
+    pub fn get_name(&self) -> Identifier {
+        self.as_net().get_name().clone()
     }
 
     /// Changes the name of the net at this circuit node.
     /// Panics if the circuit node has multiple outputs.
-    pub fn set_name(&self, name: String) {
+    pub fn set_name(&self, name: Identifier) {
         self.as_net_mut().set_name(name)
     }
 
