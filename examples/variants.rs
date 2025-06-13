@@ -49,8 +49,8 @@ fn main() {
     let netlist = Netlist::new("example".to_string());
 
     // Add the the two inputs
-    let a = netlist.insert_input_logic("a".to_string());
-    let b = netlist.insert_input_logic("b".to_string());
+    let a = netlist.insert_input("a".into());
+    let b = netlist.insert_input("b".into());
 
     // Instantiate an AND gate
     let instance = netlist

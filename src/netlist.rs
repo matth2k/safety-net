@@ -929,12 +929,6 @@ where
     }
 
     /// Inserts a four-state logic input port to the netlist
-    pub fn insert_input_logic(self: &Rc<Self>, net: String) -> NetRef<I> {
-        let net = Net::new_logic(net);
-        self.insert_input(net)
-    }
-
-    /// Inserts a four-state logic input port to the netlist
     pub fn insert_input_escaped_logic_bus(
         self: &Rc<Self>,
         net: String,
@@ -1694,8 +1688,8 @@ fn test_delete_netlist() {
     let netlist = Netlist::new("simple_example".to_string());
 
     // Add the the two inputs
-    let input1 = netlist.insert_input_logic("input1".to_string());
-    let input2 = netlist.insert_input_logic("input2".to_string());
+    let input1 = netlist.insert_input("input1".into());
+    let input2 = netlist.insert_input("input2".into());
 
     // Instantiate an AND gate
     let instance = netlist

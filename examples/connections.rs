@@ -24,7 +24,7 @@ fn harder_example() -> Netlist<Gate> {
     // Add the the inputs
     let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
     let b_vec = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
-    let mut carry: DrivenNet<Gate> = netlist.insert_input_logic("cin".to_string()).into();
+    let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into()).into();
 
     for i in 0..bitwidth {
         // Instantiate a full adder for each bit

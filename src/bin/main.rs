@@ -22,8 +22,8 @@ fn simple_example() -> Netlist<Gate> {
     let netlist = Netlist::new("simple_example".to_string());
 
     // Add the the two inputs
-    let input1 = netlist.insert_input_logic("input1".to_string());
-    let input2 = netlist.insert_input_logic("input2".to_string());
+    let input1 = netlist.insert_input("input1".into());
+    let input2 = netlist.insert_input("input2".into());
 
     // Instantiate an AND gate
     let instance = netlist
@@ -56,7 +56,7 @@ fn harder_example() -> Netlist<Gate> {
     // Add the the inputs
     let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
     let b_vec = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
-    let cin = netlist.insert_input_logic("cin".to_string());
+    let cin = netlist.insert_input("cin".into());
 
     // Instantiate the full adders
     let mut input_bus: [DrivenNet<Gate>; 3] =

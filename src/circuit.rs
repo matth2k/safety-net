@@ -176,6 +176,14 @@ impl Net {
     }
 }
 
+impl std::str::FromStr for Net {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Net::new_logic(s.to_string()))
+    }
+}
+
 impl std::fmt::Display for Net {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.indentifier.fmt(f)
