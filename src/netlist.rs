@@ -163,24 +163,22 @@ where
 
     /// Get the operand as a weak index
     fn get_operand(&self, index: usize) -> Option<Rc<RefCell<Self>>> {
-        self.operands[index].as_ref().map(|operand| match operand {
-            Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => self
-                .owner
+        self.operands[index].as_ref().map(|operand| {
+            self.owner
                 .upgrade()
                 .expect("Object is unlinked from netlist")
-                .index_weak(idx),
+                .index_weak(&operand.root())
         })
     }
 
     /// Iterator to operands
     fn operands(&self) -> impl Iterator<Item = Option<Rc<RefCell<Self>>>> {
         self.operands.iter().map(|operand| {
-            operand.as_ref().map(|operand| match operand {
-                Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => self
-                    .owner
+            operand.as_ref().map(|operand| {
+                self.owner
                     .upgrade()
                     .expect("Object is unlinked from netlist")
-                    .index_weak(idx),
+                    .index_weak(&operand.root())
             })
         })
     }
@@ -388,6 +386,14 @@ where
     /// Returns a borrow to the output [Net] as position `idx`
     pub fn get_output(&self, idx: usize) -> DrivenNet<I> {
         DrivenNet::new(idx, self.clone())
+    }
+
+    /// Returns an abstraction around the input connection
+    pub fn get_input(&self, idx: usize) -> InputPort<I> {
+        if self.is_an_input() {
+            panic!("Principal inputs do not have inputs");
+        }
+        InputPort::new(idx, self.clone())
     }
 
     /// Returns the name of the net at this circuit node.
@@ -689,10 +695,79 @@ where
     outputs: RefCell<HashMap<Operand, Net>>,
 }
 
-/// A type alias for a net and its driving reference
+/// A type to represent the input port of a primitive
 pub struct InputPort<I: Instantiable> {
     pos: usize,
     netref: NetRef<I>,
+}
+
+impl<I> InputPort<I>
+where
+    I: Instantiable,
+{
+    fn new(pos: usize, netref: NetRef<I>) -> Self {
+        if pos >= netref.clone().unwrap().borrow().operands.len() {
+            panic!(
+                "Position {} out of bounds for netref with {} input nets",
+                pos,
+                netref.unwrap().borrow().get().get_nets().len()
+            );
+        }
+        Self { pos, netref }
+    }
+
+    /// Returns the net that is driving this input port
+    pub fn get_driver(&self) -> Option<DrivenNet<I>> {
+        if self.netref.is_an_input() {
+            panic!("Input port is not driven by a primitive");
+        }
+        if let Some(prev_operand) = self.netref.clone().unwrap().borrow().operands[self.pos].clone()
+        {
+            let netlist = self
+                .netref
+                .clone()
+                .unwrap()
+                .borrow()
+                .owner
+                .upgrade()
+                .expect("Input port is unlinked from netlist");
+            let driver_nr = netlist.index_weak(&prev_operand.root());
+            let nr = NetRef::wrap(driver_nr);
+            let pos = prev_operand.secondary();
+            Some(DrivenNet::new(pos, nr))
+        } else {
+            None
+        }
+    }
+
+    /// Disconnects an input port and returns the previous [DrivenNet] if it was connected.
+    pub fn disconnect(&self) -> Option<DrivenNet<I>> {
+        let val = self.get_driver();
+        self.netref.clone().unwrap().borrow_mut().operands[self.pos] = None;
+        val
+    }
+
+    /// Get the input port associated with this connection
+    pub fn get_port(&self) -> Net {
+        if self.netref.is_an_input() {
+            panic!("Net is not driven by a primitive");
+        }
+        self.netref
+            .get_instance_type()
+            .unwrap()
+            .get_input_port(self.pos)
+            .clone()
+    }
+
+    /// Connects this input port to a driven net.
+    pub fn connect(self, output: DrivenNet<I>) {
+        output.connect(self);
+    }
+
+    /// Return the underlying circuit node
+    pub fn unwrap(self) -> NetRef<I> {
+        self.netref
+    }
 }
 
 /// A type to represent a net that is being driven by a [Instantiable]
@@ -708,7 +783,7 @@ where
     fn new(pos: usize, netref: NetRef<I>) -> Self {
         if pos >= netref.clone().unwrap().borrow().get().get_nets().len() {
             panic!(
-                "Position {} out of bounds for netref with {} nets",
+                "Position {} out of bounds for netref with {} outputted nets",
                 pos,
                 netref.unwrap().borrow().get().get_nets().len()
             );
@@ -734,6 +809,11 @@ where
         self.netref.get_net_mut(self.pos)
     }
 
+    /// Returns `true` if this net is a principal input
+    pub fn is_an_input(&self) -> bool {
+        self.netref.is_an_input()
+    }
+
     /// Get the output port associated with this connection
     pub fn get_port(&self) -> Net {
         if self.netref.is_an_input() {
@@ -747,7 +827,7 @@ where
     }
 
     /// Connects the net driven by this output port to the given input port.
-    pub fn connect(&self, input: InputPort<I>) -> Result<(), String> {
+    pub fn connect(&self, input: InputPort<I>) {
         let operand = self.get_operand();
         let index = input.netref.unwrap().borrow().get_index();
         let netlist = self
@@ -760,7 +840,11 @@ where
             .expect("Output port is unlinked from netlist");
         let obj = netlist.index_weak(&index);
         obj.borrow_mut().operands[input.pos] = Some(operand.clone());
-        Ok(())
+    }
+
+    /// Return the underlying circuit node
+    pub fn unwrap(self) -> NetRef<I> {
+        self.netref
     }
 }
 
@@ -860,6 +944,31 @@ where
         }
         let obj = Object::Instance(nets, inst_name, inst_type);
         self.insert_object(obj, operands)
+    }
+
+    /// Use interior mutability to add an object to the netlist. Returns a mutable reference to the created object.
+    pub fn insert_gate_disconnected(
+        self: &Rc<Self>,
+        inst_type: I,
+        inst_name: String,
+    ) -> Result<NetRef<I>, String> {
+        let nets = inst_type
+            .get_output_ports()
+            .iter()
+            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_name())))
+            .collect::<Vec<_>>();
+        let object = Object::Instance(nets, inst_name, inst_type);
+        let index = self.objects.borrow().len();
+        let weak = Rc::downgrade(self);
+        let operands = vec![None; object.get_instance_type().unwrap().get_input_ports().len()];
+        let owned_object = Rc::new(RefCell::new(OwnedObject {
+            object,
+            owner: weak,
+            operands,
+            index,
+        }));
+        self.objects.borrow_mut().push(owned_object.clone());
+        Ok(NetRef::wrap(owned_object))
     }
 
     /// Set an added object as a top-level output.
