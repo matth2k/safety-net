@@ -385,6 +385,11 @@ where
         RefMut::map(self.netref.borrow_mut(), |f| f.get_net_mut(idx))
     }
 
+    /// Returns a borrow to the output [Net] as position `idx`
+    pub fn get_output(&self, idx: usize) -> DrivenNet<I> {
+        DrivenNet::new(idx, self.clone())
+    }
+
     /// Returns the name of the net at this circuit node.
     /// Panics if the circuit node has multiple outputs.
     pub fn get_name(&self) -> String {
@@ -540,9 +545,10 @@ where
         self.netref.borrow().get().get_nets().to_vec().into_iter()
     }
 
-    /// Returns an iterator to the output nets of this circuit node, along with the circuit node itself.
-    pub fn nets_tagged(&self) -> impl Iterator<Item = TaggedNet<I>> {
-        self.nets().map(|net| (net, self.clone()))
+    /// Returns an iterator to the output nets of this circuit node, along with port information.
+    pub fn outputs(&self) -> impl Iterator<Item = DrivenNet<I>> {
+        let len = self.netref.borrow().get().get_nets().len();
+        (0..len).map(move |i| DrivenNet::new(i, self.clone()))
     }
 
     /// Returns an iterator to mutate the output nets of this circuit node.
@@ -610,21 +616,27 @@ where
     }
 }
 
-impl<I> From<NetRef<I>> for TaggedNet<I>
+impl<I> From<NetRef<I>> for DrivenNet<I>
 where
     I: Instantiable,
 {
     fn from(val: NetRef<I>) -> Self {
-        (val.clone().as_net().clone(), val)
+        if val.is_multi_output() {
+            panic!("Cannot convert a multi-output netref to an output port");
+        }
+        DrivenNet::new(0, val)
     }
 }
 
-impl<I> From<&NetRef<I>> for TaggedNet<I>
+impl<I> From<&NetRef<I>> for DrivenNet<I>
 where
     I: Instantiable,
 {
     fn from(val: &NetRef<I>) -> Self {
-        (val.clone().as_net().clone(), val.clone())
+        if val.is_multi_output() {
+            panic!("Cannot convert a multi-output netref to an output port");
+        }
+        DrivenNet::new(0, val.clone())
     }
 }
 
@@ -678,7 +690,79 @@ where
 }
 
 /// A type alias for a net and its driving reference
-pub type TaggedNet<I> = (Net, NetRef<I>);
+pub struct InputPort<I: Instantiable> {
+    pos: usize,
+    netref: NetRef<I>,
+}
+
+/// A type to represent a net that is being driven by a [Instantiable]
+pub struct DrivenNet<I: Instantiable> {
+    pos: usize,
+    netref: NetRef<I>,
+}
+
+impl<I> DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn new(pos: usize, netref: NetRef<I>) -> Self {
+        if pos >= netref.clone().unwrap().borrow().get().get_nets().len() {
+            panic!(
+                "Position {} out of bounds for netref with {} nets",
+                pos,
+                netref.unwrap().borrow().get().get_nets().len()
+            );
+        }
+        Self { pos, netref }
+    }
+
+    fn get_operand(&self) -> Operand {
+        if self.netref.is_multi_output() {
+            Operand::CellIndex(self.netref.clone().unwrap().borrow().get_index(), self.pos)
+        } else {
+            Operand::DirectIndex(self.netref.clone().unwrap().borrow().get_index())
+        }
+    }
+
+    /// Borrow the net being driven
+    pub fn get_net(&self) -> Ref<Net> {
+        self.netref.get_net(self.pos)
+    }
+
+    /// Get a mutable reference to the net being driven
+    pub fn get_net_mut(&self) -> RefMut<Net> {
+        self.netref.get_net_mut(self.pos)
+    }
+
+    /// Get the output port associated with this connection
+    pub fn get_port(&self) -> Net {
+        if self.netref.is_an_input() {
+            panic!("Net is not driven by a primitive");
+        }
+        self.netref
+            .get_instance_type()
+            .unwrap()
+            .get_output_port(self.pos)
+            .clone()
+    }
+
+    /// Connects the net driven by this output port to the given input port.
+    pub fn connect(&self, input: InputPort<I>) -> Result<(), String> {
+        let operand = self.get_operand();
+        let index = input.netref.unwrap().borrow().get_index();
+        let netlist = self
+            .netref
+            .clone()
+            .unwrap()
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("Output port is unlinked from netlist");
+        let obj = netlist.index_weak(&index);
+        obj.borrow_mut().operands[input.pos] = Some(operand.clone());
+        Ok(())
+    }
+}
 
 impl<I> WeakIndex<usize> for Netlist<I>
 where
@@ -709,29 +793,17 @@ where
         Rc::try_unwrap(self).ok()
     }
 
-    /// Returns the index in [Operand] format of this [TaggedNet]
-    fn get_operand_of_tag(t: &TaggedNet<I>) -> Operand {
-        let nr = &t.1;
-        let no_outputs = nr.clone().unwrap().borrow().get().get_nets().len();
-        if no_outputs == 1 {
-            Operand::DirectIndex(nr.clone().unwrap().borrow().get_index())
-        } else {
-            let secondary = nr.clone().unwrap().borrow().find_net(&t.0).unwrap();
-            Operand::CellIndex(nr.clone().unwrap().borrow().get_index(), secondary)
-        }
-    }
-
     /// Use interior mutability to add an object to the netlist. Returns a mutable reference to the created object.
     fn insert_object(
         self: &Rc<Self>,
         object: Object<I>,
-        operands: &[TaggedNet<I>],
+        operands: &[DrivenNet<I>],
     ) -> Result<NetRef<I>, String> {
         let index = self.objects.borrow().len();
         let weak = Rc::downgrade(self);
         let operands = operands
             .iter()
-            .map(|net| Some(Self::get_operand_of_tag(net)))
+            .map(|net| Some(net.get_operand()))
             .collect::<Vec<_>>();
         let owned_object = Rc::new(RefCell::new(OwnedObject {
             object,
@@ -772,7 +844,7 @@ where
         self: &Rc<Self>,
         inst_type: I,
         inst_name: String,
-        operands: &[TaggedNet<I>],
+        operands: &[DrivenNet<I>],
     ) -> Result<NetRef<I>, String> {
         let nets = inst_type
             .get_output_ports()
@@ -892,10 +964,10 @@ where
             return Err("Cannot delete a netref that is still in use elsewhere".to_string());
         }
 
-        let old_tag: TaggedNet<I> = of.clone().into();
-        let old_index = Self::get_operand_of_tag(&old_tag);
-        let new_tag: TaggedNet<I> = with.clone().into();
-        let new_index = Self::get_operand_of_tag(&new_tag);
+        let old_tag: DrivenNet<I> = of.clone().into();
+        let old_index = old_tag.get_operand();
+        let new_tag: DrivenNet<I> = with.clone().into();
+        let new_index = new_tag.get_operand();
         let objects = self.objects.borrow();
         for oref in objects.iter() {
             let operands = &mut oref.borrow_mut().operands;

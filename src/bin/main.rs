@@ -1,4 +1,4 @@
-use circuit::netlist::{Gate, Netlist, TaggedNet};
+use circuit::netlist::{DrivenNet, Gate, Netlist};
 
 #[allow(dead_code)]
 fn and_gate() -> Gate {
@@ -59,7 +59,7 @@ fn harder_example() -> Netlist<Gate> {
     let cin = netlist.insert_input_logic("cin".to_string());
 
     // Instantiate the full adders
-    let mut input_bus: [TaggedNet<Gate>; 3] =
+    let mut input_bus: [DrivenNet<Gate>; 3] =
         [cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
 
     for i in 0..bitwidth {
@@ -80,7 +80,7 @@ fn harder_example() -> Netlist<Gate> {
         } else {
             instance.expose_net(&instance.get_net(0)).unwrap();
             input_bus = [
-                (instance.get_net(1).clone(), instance.clone()),
+                instance.get_output(1),
                 a_vec[i + 1].clone().into(),
                 b_vec[i + 1].clone().into(),
             ];
