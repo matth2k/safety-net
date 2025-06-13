@@ -161,8 +161,8 @@ where
             .filter_map(|operand| operand.as_mut())
     }
 
-    /// Get the operand as a weak index
-    fn get_operand(&self, index: usize) -> Option<Rc<RefCell<Self>>> {
+    /// Get the driver to input `index`
+    fn get_driver(&self, index: usize) -> Option<Rc<RefCell<Self>>> {
         self.operands[index].as_ref().map(|operand| {
             self.owner
                 .upgrade()
@@ -171,8 +171,8 @@ where
         })
     }
 
-    /// Iterator to operands
-    fn operands(&self) -> impl Iterator<Item = Option<Rc<RefCell<Self>>>> {
+    /// Iterator to driving objects
+    fn drivers(&self) -> impl Iterator<Item = Option<Rc<RefCell<Self>>>> {
         self.operands.iter().map(|operand| {
             operand.as_ref().map(|operand| {
                 self.owner
@@ -305,8 +305,8 @@ where
         }
     }
 
-    /// Get the operand as a weak index
-    fn get_operand_net(&self, index: usize) -> Option<Net> {
+    /// Get driving net using the weak reference
+    fn get_driver_net(&self, index: usize) -> Option<Net> {
         let operand = &self.operands[index];
         match operand {
             Some(op) => match op {
@@ -453,6 +453,7 @@ where
     }
 
     /// Exposes this circuit node as a top-level output in the netlist.
+    /// Panics if cell is a multi-output circuit node.
     pub fn expose_as_output(&self) -> Result<Self, String> {
         let netlist = self
             .netref
@@ -492,21 +493,21 @@ where
         )
     }
 
-    /// Returns the circuit node of the `index`th input
-    pub fn get_operand(&self, index: usize) -> Option<Self> {
-        self.netref.borrow().get_operand(index).map(NetRef::wrap)
+    /// Returns the circuit node that drives the `index`th input
+    pub fn get_driver(&self, index: usize) -> Option<Self> {
+        self.netref.borrow().get_driver(index).map(NetRef::wrap)
     }
 
-    /// Returns the net of the `index`th input
-    pub fn get_operand_net(&self, index: usize) -> Option<Net> {
-        self.netref.borrow().get_operand_net(index)
+    /// Returns the net that drives the `index`th input
+    pub fn get_driver_net(&self, index: usize) -> Option<Net> {
+        self.netref.borrow().get_driver_net(index)
     }
 
     /// Returns a request to mutably borrow the operand net
     /// This requires another borrow in the form of [MutBorrowReq]
-    pub fn req_operand_net(&self, index: usize) -> Option<MutBorrowReq<I>> {
-        let net = self.get_operand_net(index)?;
-        let operand = self.get_operand(index).unwrap();
+    pub fn req_driver_net(&self, index: usize) -> Option<MutBorrowReq<I>> {
+        let net = self.get_driver_net(index)?;
+        let operand = self.get_driver(index).unwrap();
         Some(MutBorrowReq::new(operand, net))
     }
 
@@ -528,15 +529,15 @@ where
         self.netref.borrow().operands.iter().any(|o| o.is_none())
     }
 
-    /// Returns an iterator to the operand circuit nodes.
-    pub fn operands(&self) -> impl Iterator<Item = Option<Self>> {
-        let operands: Vec<Option<Self>> = self
+    /// Returns an iterator to the driving circuit nodes.
+    pub fn drivers(&self) -> impl Iterator<Item = Option<Self>> {
+        let drivers: Vec<Option<Self>> = self
             .netref
             .borrow()
-            .operands()
+            .drivers()
             .map(|o| o.map(NetRef::wrap))
             .collect();
-        operands.into_iter()
+        drivers.into_iter()
     }
 
     /// Returns an interator to the operands nets.
@@ -549,6 +550,12 @@ where
     #[allow(clippy::unnecessary_to_owned)]
     pub fn nets(&self) -> impl Iterator<Item = Net> {
         self.netref.borrow().get().get_nets().to_vec().into_iter()
+    }
+
+    /// Returns an iterator to the output nets of this circuit node, along with port information.
+    pub fn inputs(&self) -> impl Iterator<Item = InputPort<I>> {
+        let len = self.netref.borrow().get().get_nets().len();
+        (0..len).map(move |i| InputPort::new(i, self.clone()))
     }
 
     /// Returns an iterator to the output nets of this circuit node, along with port information.
@@ -568,7 +575,7 @@ where
         self.netref.borrow().find_net(net).is_some()
     }
 
-    /// Returns `true` if this circuit node drives an output net.
+    /// Returns `true` if this circuit node drives a top-level output.
     pub fn drives_an_output(&self) -> bool {
         let netlist = self
             .netref
@@ -696,6 +703,7 @@ where
 }
 
 /// A type to represent the input port of a primitive
+#[derive(Debug, Clone)]
 pub struct InputPort<I: Instantiable> {
     pos: usize,
     netref: NetRef<I>,
@@ -771,6 +779,7 @@ where
 }
 
 /// A type to represent a net that is being driven by a [Instantiable]
+#[derive(Debug, Clone)]
 pub struct DrivenNet<I: Instantiable> {
     pos: usize,
     netref: NetRef<I>,

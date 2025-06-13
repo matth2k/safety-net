@@ -39,7 +39,7 @@ fn simple_example() -> Netlist<Gate> {
 
     // This line won't change anything because it's clever
     if let Some(mut n) = instance
-        .req_operand_net(0)
+        .req_driver_net(0)
         .unwrap()
         .borrow_mut_if(|n| !n.is_an_input())
     {
