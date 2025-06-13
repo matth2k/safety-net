@@ -1276,142 +1276,194 @@ where
     }
 }
 
-/// An iterator over the nets in a netlist
-pub struct NetIterator<'a, I: Instantiable> {
-    netlist: &'a Netlist<I>,
-    index: usize,
-    subindex: usize,
-}
-
-impl<'a, I> NetIterator<'a, I>
-where
-    I: Instantiable,
-{
-    /// Creates a new iterator for the netlist
-    fn new(netlist: &'a Netlist<I>) -> Self {
-        Self {
-            netlist,
-            index: 0,
-            subindex: 0,
-        }
-    }
-}
-
-impl<I> Iterator for NetIterator<'_, I>
-where
-    I: Instantiable,
-{
-    type Item = Net;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.index < self.netlist.objects.borrow().len() {
-            let objects = self.netlist.objects.borrow();
-            let object = objects[self.index].borrow();
-            if self.subindex < object.get().get_nets().len() {
-                let net = object.get().get_nets()[self.subindex].clone();
-                self.subindex += 1;
-                return Some(net);
-            }
-            self.subindex = 0;
-            self.index += 1;
-        }
-        None
-    }
-}
-
-/// An iterator over the nets in a netlist
-pub struct ObjectIterator<'a, I: Instantiable> {
-    netlist: &'a Netlist<I>,
-    index: usize,
-}
-
-impl<'a, I> ObjectIterator<'a, I>
-where
-    I: Instantiable,
-{
-    /// Creates a new iterator for the netlist
-    fn new(netlist: &'a Netlist<I>) -> Self {
-        Self { netlist, index: 0 }
-    }
-}
-
-impl<I> Iterator for ObjectIterator<'_, I>
-where
-    I: Instantiable,
-{
-    type Item = NetRef<I>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.netlist.objects.borrow().len() {
-            let objects = self.netlist.objects.borrow();
-            let object = &objects[self.index];
-            self.index += 1;
-            return Some(NetRef::wrap(object.clone()));
-        }
-        None
-    }
-}
-
 /// A type alias for a node that drives a net used by another node, in that order.
 pub type Connection<I> = (NetRef<I>, Net, NetRef<I>);
 
-/// An iterator over the connections in a netlist
-pub struct ConnectionIterator<'a, I: Instantiable> {
-    netlist: &'a Netlist<I>,
-    index: usize,
-    subindex: usize,
-}
+/// A collection of iterators for the netlist
+pub mod iter {
 
-impl<'a, I> ConnectionIterator<'a, I>
-where
-    I: Instantiable,
-{
-    /// Creates a new iterator for the netlist
-    fn new(netlist: &'a Netlist<I>) -> Self {
-        Self {
-            netlist,
-            index: 0,
-            subindex: 0,
+    use super::{Instantiable, Net, NetRef, Netlist, Operand, WeakIndex};
+    use std::collections::HashSet;
+    /// An iterator over the nets in a netlist
+    pub struct NetIterator<'a, I: Instantiable> {
+        netlist: &'a Netlist<I>,
+        index: usize,
+        subindex: usize,
+    }
+
+    impl<'a, I> NetIterator<'a, I>
+    where
+        I: Instantiable,
+    {
+        /// Creates a new iterator for the netlist
+        pub fn new(netlist: &'a Netlist<I>) -> Self {
+            Self {
+                netlist,
+                index: 0,
+                subindex: 0,
+            }
         }
     }
-}
 
-impl<I> Iterator for ConnectionIterator<'_, I>
-where
-    I: Instantiable,
-{
-    type Item = Connection<I>;
+    impl<I> Iterator for NetIterator<'_, I>
+    where
+        I: Instantiable,
+    {
+        type Item = Net;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.index < self.netlist.objects.borrow().len() {
-            let objects = self.netlist.objects.borrow();
-            let object = objects[self.index].borrow();
-            let noperands = object.operands.len();
-            while self.subindex < noperands {
-                if let Some(operand) = &object.operands[self.subindex] {
-                    let (driver, net) = match operand {
-                        Operand::DirectIndex(idx) => (
-                            objects[*idx].clone(),
-                            objects[*idx].borrow().as_net().clone(),
-                        ),
-                        Operand::CellIndex(idx, j) => (
-                            objects[*idx].clone(),
-                            objects[*idx].borrow().get_net(*j).clone(),
-                        ),
-                    };
+        fn next(&mut self) -> Option<Self::Item> {
+            while self.index < self.netlist.objects.borrow().len() {
+                let objects = self.netlist.objects.borrow();
+                let object = objects[self.index].borrow();
+                if self.subindex < object.get().get_nets().len() {
+                    let net = object.get().get_nets()[self.subindex].clone();
                     self.subindex += 1;
-                    return Some((
-                        NetRef::wrap(driver),
-                        net,
-                        NetRef::wrap(objects[self.index].clone()),
-                    ));
+                    return Some(net);
                 }
-                self.subindex += 1;
+                self.subindex = 0;
+                self.index += 1;
             }
-            self.subindex = 0;
-            self.index += 1;
+            None
         }
-        None
+    }
+
+    /// An iterator over the objects in a netlist
+    pub struct ObjectIterator<'a, I: Instantiable> {
+        netlist: &'a Netlist<I>,
+        index: usize,
+    }
+
+    impl<'a, I> ObjectIterator<'a, I>
+    where
+        I: Instantiable,
+    {
+        /// Creates a new  object iterator for the netlist
+        pub fn new(netlist: &'a Netlist<I>) -> Self {
+            Self { netlist, index: 0 }
+        }
+    }
+
+    impl<I> Iterator for ObjectIterator<'_, I>
+    where
+        I: Instantiable,
+    {
+        type Item = NetRef<I>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.index < self.netlist.objects.borrow().len() {
+                let objects = self.netlist.objects.borrow();
+                let object = &objects[self.index];
+                self.index += 1;
+                return Some(NetRef::wrap(object.clone()));
+            }
+            None
+        }
+    }
+
+    /// An iterator over the connections in a netlist
+    pub struct ConnectionIterator<'a, I: Instantiable> {
+        netlist: &'a Netlist<I>,
+        index: usize,
+        subindex: usize,
+    }
+
+    impl<'a, I> ConnectionIterator<'a, I>
+    where
+        I: Instantiable,
+    {
+        /// Create a new connection iterator for the netlist
+        pub fn new(netlist: &'a Netlist<I>) -> Self {
+            Self {
+                netlist,
+                index: 0,
+                subindex: 0,
+            }
+        }
+    }
+
+    impl<I> Iterator for ConnectionIterator<'_, I>
+    where
+        I: Instantiable,
+    {
+        type Item = super::Connection<I>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            while self.index < self.netlist.objects.borrow().len() {
+                let objects = self.netlist.objects.borrow();
+                let object = objects[self.index].borrow();
+                let noperands = object.operands.len();
+                while self.subindex < noperands {
+                    if let Some(operand) = &object.operands[self.subindex] {
+                        let (driver, net) = match operand {
+                            Operand::DirectIndex(idx) => (
+                                objects[*idx].clone(),
+                                objects[*idx].borrow().as_net().clone(),
+                            ),
+                            Operand::CellIndex(idx, j) => (
+                                objects[*idx].clone(),
+                                objects[*idx].borrow().get_net(*j).clone(),
+                            ),
+                        };
+                        self.subindex += 1;
+                        return Some((
+                            NetRef::wrap(driver),
+                            net,
+                            NetRef::wrap(objects[self.index].clone()),
+                        ));
+                    }
+                    self.subindex += 1;
+                }
+                self.subindex = 0;
+                self.index += 1;
+            }
+            None
+        }
+    }
+
+    /// A depth-first iterator over the circuit nodes in a netlist
+    pub struct DFSIterator<'a, I: Instantiable> {
+        netlist: &'a Netlist<I>,
+        stack: Vec<NetRef<I>>,
+        visited: HashSet<usize>,
+    }
+
+    impl<'a, I> DFSIterator<'a, I>
+    where
+        I: Instantiable,
+    {
+        /// Create a new DFS iterator for the netlist starting at `from`.
+        pub fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
+            Self {
+                netlist,
+                stack: vec![from],
+                visited: HashSet::new(),
+            }
+        }
+    }
+
+    impl<I> Iterator for DFSIterator<'_, I>
+    where
+        I: Instantiable,
+    {
+        type Item = NetRef<I>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(item) = self.stack.pop() {
+                let uw = item.clone().unwrap();
+                let index = uw.borrow().get_index();
+                if !self.visited.insert(index) {
+                    return self.next();
+                }
+                let operands = &uw.borrow().operands;
+                for operand in operands.iter().flatten() {
+                    self.stack
+                        .push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
+                }
+                return Some(item);
+            }
+
+            None
+        }
     }
 }
 
@@ -1420,56 +1472,10 @@ where
     I: Instantiable,
 {
     type Item = Net;
-    type IntoIter = NetIterator<'a, I>;
+    type IntoIter = iter::NetIterator<'a, I>;
 
     fn into_iter(self) -> Self::IntoIter {
-        NetIterator::new(self)
-    }
-}
-
-/// A depth-first iterator over the circuit nodes in a netlist
-pub struct DFSIterator<'a, I: Instantiable> {
-    netlist: &'a Netlist<I>,
-    stack: Vec<NetRef<I>>,
-    visited: HashSet<usize>,
-}
-
-impl<'a, I> DFSIterator<'a, I>
-where
-    I: Instantiable,
-{
-    /// Creates a new iterator for the netlist starting at `from`.
-    fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
-        Self {
-            netlist,
-            stack: vec![from],
-            visited: HashSet::new(),
-        }
-    }
-}
-
-impl<I> Iterator for DFSIterator<'_, I>
-where
-    I: Instantiable,
-{
-    type Item = NetRef<I>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.stack.pop() {
-            let uw = item.clone().unwrap();
-            let index = uw.borrow().get_index();
-            if !self.visited.insert(index) {
-                return self.next();
-            }
-            let operands = &uw.borrow().operands;
-            for operand in operands.iter().flatten() {
-                self.stack
-                    .push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
-            }
-            return Some(item);
-        }
-
-        None
+        iter::NetIterator::new(self)
     }
 }
 
@@ -1491,7 +1497,7 @@ where
 {
     /// Returns an iterator over the circuit nodes in the netlist.
     pub fn objects(&self) -> impl Iterator<Item = NetRef<I>> {
-        ObjectIterator::new(self)
+        iter::ObjectIterator::new(self)
     }
 
     /// Returns an iterator over the circuit nodes that match the instance type.
@@ -1527,12 +1533,12 @@ where
 
     /// Returns an iterator over the wire connections in the netlist.
     pub fn connections(&self) -> impl Iterator<Item = Connection<I>> {
-        ConnectionIterator::new(self)
+        iter::ConnectionIterator::new(self)
     }
 
     /// Returns a depth-first search iterator over the nodes in the netlist.
     pub fn dfs(&self, from: NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
-        DFSIterator::new(self, from)
+        iter::DFSIterator::new(self, from)
     }
 }
 
