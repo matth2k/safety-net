@@ -453,29 +453,32 @@ where
     }
 
     /// Exposes this circuit node as a top-level output in the netlist.
-    /// Panics if cell is a multi-output circuit node.
-    pub fn expose_as_output(&self) -> Result<Self, String> {
+    /// Panics if cell is a multi-output circuit node. Errors if circuit node is a principal input.
+    pub fn expose_as_output(self) -> Result<Self, String> {
         let netlist = self
             .netref
             .borrow()
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        netlist.expose_netref(self.clone())
+        netlist.expose_net(self.clone().into())?;
+        Ok(self)
     }
 
     /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
-    pub fn expose_with_name(&self, port: String) -> Self {
+    pub fn expose_with_name(self, name: String) -> Self {
         let netlist = self
             .netref
             .borrow()
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        netlist.expose_netref_named(self.clone(), port)
+        netlist.expose_net_with_name(self.clone().into(), name);
+        self
     }
 
     /// Exposes the `net` driven by this circuit node as a top-level output.
+    /// Errors if `net` is not driven by this circuit node.
     pub fn expose_net(&self, net: &Net) -> Result<(), String> {
         let netlist = self
             .netref
@@ -485,12 +488,11 @@ where
             .expect("NetRef is unlinked from netlist");
         let net_index = self.netref.borrow().find_net(net).ok_or(format!(
             "Net {} not found in circuit node",
-            net.get_identifier().emit_name()
+            net.get_identifier()
         ))?;
-        netlist.expose_net(
-            Operand::CellIndex(self.netref.borrow().get_index(), net_index),
-            net.clone(),
-        )
+        let dr = DrivenNet::new(net_index, self.clone());
+        netlist.expose_net(dr)?;
+        Ok(())
     }
 
     /// Returns the circuit node that drives the `index`th input
@@ -800,6 +802,7 @@ where
         Self { pos, netref }
     }
 
+    /// Returns the index that can address this net in the netlist.
     fn get_operand(&self) -> Operand {
         if self.netref.is_multi_output() {
             Operand::CellIndex(self.netref.clone().unwrap().borrow().get_index(), self.pos)
@@ -990,55 +993,22 @@ where
 
     /// Set an added object as a top-level output.
     /// Panics if `net`` is a multi-output node.
-    pub fn expose_netref_named(&self, net: NetRef<I>, name: String) -> NetRef<I> {
-        if net.is_multi_output() {
-            panic!("Cannot expose a multi-output net as output without addressing the specific net")
-        }
+    pub fn expose_net_with_name(&self, net: DrivenNet<I>, name: String) -> DrivenNet<I> {
         let mut outputs = self.outputs.borrow_mut();
-        outputs.insert(
-            Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
-            net.clone().unwrap().borrow().as_net().with_name(name),
-        );
+        outputs.insert(net.get_operand(), net.get_net().with_name(name));
         net
     }
 
     /// Set an added object as a top-level output.
-    pub fn expose_netref(&self, net: NetRef<I>) -> Result<NetRef<I>, String> {
+    pub fn expose_net(&self, net: DrivenNet<I>) -> Result<DrivenNet<I>, String> {
         if net.is_an_input() {
-            return Err("Cannot expose an input net as output without a new name".to_string());
-        }
-        if net.is_multi_output() {
             return Err(
-                "Cannot expose a multi-output net as output without addressing the specific net"
-                    .to_string(),
+                "Cannot expose an input net as output without a new name to bind to".to_string(),
             );
         }
         let mut outputs = self.outputs.borrow_mut();
-        outputs.insert(
-            Operand::DirectIndex(net.clone().unwrap().borrow().get_index()),
-            net.clone().unwrap().borrow().as_net().clone(),
-        );
+        outputs.insert(net.get_operand(), net.get_net().clone());
         Ok(net)
-    }
-
-    /// Get the circuit node with the given operand index.
-    fn lookup_netref(&self, operand: Operand) -> NetRef<I> {
-        match operand {
-            Operand::DirectIndex(idx) | Operand::CellIndex(idx, _) => {
-                NetRef::wrap(self.objects.borrow()[idx].clone())
-            }
-        }
-    }
-
-    /// Set an added object as a top-level output.
-    fn expose_net(&self, operand: Operand, net: Net) -> Result<(), String> {
-        let netref = self.lookup_netref(operand.clone());
-        if netref.is_an_input() {
-            return Err("Cannot expose an input net as output without a new name".to_string());
-        }
-        let mut outputs = self.outputs.borrow_mut();
-        outputs.insert(operand, net);
-        Ok(())
     }
 
     /// Unlink a circuit node from the rest of the netlist. Return the object that was being stored.
@@ -1705,7 +1675,7 @@ fn test_delete_netlist() {
         .unwrap();
 
     // Make this AND gate an output
-    instance.expose_as_output().unwrap();
+    let instance = instance.expose_as_output().unwrap();
     instance.delete_uses().unwrap();
     let res = netlist.clean();
     assert!(res.is_ok());

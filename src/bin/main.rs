@@ -35,7 +35,7 @@ fn simple_example() -> Netlist<Gate> {
         .unwrap();
 
     // Make this AND gate an output
-    instance.expose_as_output().unwrap();
+    let instance = instance.expose_as_output().unwrap();
 
     // This line won't change anything because it's clever
     if let Some(mut n) = instance
