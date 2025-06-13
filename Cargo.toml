@@ -5,3 +5,9 @@ edition = "2024"
 default-run = "main"
 
 [dependencies]
+petgraph = { version = "0.8.2", optional = true }
+
+[features]
+# default = [ ]
+default = [ "graph" ]
+graph = [ "petgraph" ]

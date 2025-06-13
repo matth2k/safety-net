@@ -413,6 +413,11 @@ where
         matches!(self.netref.borrow().get(), Object::Input(_))
     }
 
+    /// Returns a reference to the object at this node.
+    pub fn get_obj(&self) -> Ref<Object<I>> {
+        Ref::map(self.netref.borrow(), |f| f.get())
+    }
+
     /// Returns the [Instantiable] type of the instance, if this circuit node is an instance
     pub fn get_instance_type(&self) -> Option<Ref<I>> {
         Ref::filter_map(self.netref.borrow(), |f| f.get().get_instance_type()).ok()
@@ -771,6 +776,15 @@ where
     }
 }
 
+impl<I> std::fmt::Display for InputPort<I>
+where
+    I: Instantiable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.get_port().fmt(f)
+    }
+}
+
 /// Represent a net that is being driven by a [Instantiable]
 #[derive(Debug, Clone)]
 pub struct DrivenNet<I: Instantiable> {
@@ -862,6 +876,15 @@ where
     /// Return the underlying circuit node
     pub fn unwrap(self) -> NetRef<I> {
         self.netref
+    }
+}
+
+impl<I> std::fmt::Display for DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.get_net().fmt(f)
     }
 }
 
@@ -1230,10 +1253,27 @@ where
         true
     }
 
+    /// Returns `true` if all the nets are uniquely named
+    fn insts_unique(&self) -> bool {
+        let mut insts = HashSet::new();
+        for inst in self.objects() {
+            if let Some(name) = inst.get_instance_name() {
+                if !insts.insert(name) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     /// Verifies that a netlist is well-formed.
     pub fn verify(&self) -> Result<(), String> {
         if !self.nets_unique() {
             return Err("Netlist contains non-unique nets".to_string());
+        }
+
+        if !self.insts_unique() {
+            return Err("Netlist contains non-unique instances".to_string());
         }
         Ok(())
     }
@@ -1254,8 +1294,8 @@ where
     }
 
     /// Return the driver of the connection
-    pub fn src(&self) -> &DrivenNet<I> {
-        &self.driver
+    pub fn src(&self) -> DrivenNet<I> {
+        self.driver.clone()
     }
 
     /// Return the net along the connection
@@ -1264,8 +1304,8 @@ where
     }
 
     /// Returns the input port of the connection
-    pub fn target(&self) -> &InputPort<I> {
-        &self.input
+    pub fn target(&self) -> InputPort<I> {
+        self.input.clone()
     }
 }
 

@@ -4,8 +4,10 @@
 
 */
 
-use crate::circuit::{Instantiable, Net};
+use crate::circuit::{Instantiable, Net, Object};
 use crate::netlist::{NetRef, Netlist};
+#[cfg(feature = "graph")]
+use petgraph::graph::DiGraph;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 
@@ -58,12 +60,9 @@ where
 
         for c in netlist.connections() {
             if let Entry::Vacant(e) = fan_out.entry(c.net()) {
-                e.insert(vec![c.target().clone().unwrap()]);
+                e.insert(vec![c.target().unwrap()]);
             } else {
-                fan_out
-                    .get_mut(&c.net())
-                    .unwrap()
-                    .push(c.target().clone().unwrap());
+                fan_out.get_mut(&c.net()).unwrap().push(c.target().unwrap());
             }
         }
 
@@ -79,6 +78,53 @@ where
             _netlist: netlist,
             fan_out,
             is_an_output,
+        })
+    }
+}
+
+/// Returns a petgraph representation of the netlist as a directed multi-graph with type [DiGraph<Object, NetLabel>].
+pub struct MultiDiGraph<'a, I: Instantiable> {
+    _netlist: &'a Netlist<I>,
+    graph: DiGraph<Object<I>, Net>,
+}
+
+impl<I> MultiDiGraph<'_, I>
+where
+    I: Instantiable,
+{
+    /// Return a reference to the graph constructed by this analysis
+    pub fn get_graph(&self) -> &DiGraph<Object<I>, Net> {
+        &self.graph
+    }
+}
+
+impl<'a, I> Analysis<'a, I> for MultiDiGraph<'a, I>
+where
+    I: Instantiable,
+{
+    fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
+        // If we verify, we can hash by name
+        netlist.verify()?;
+        let mut mapping = HashMap::new();
+        let mut graph = DiGraph::new();
+
+        for obj in netlist.objects() {
+            let id = graph.add_node(obj.get_obj().clone());
+            mapping.insert(obj.to_string(), id);
+        }
+
+        for connection in netlist.connections() {
+            let source = connection.src().unwrap().get_obj().to_string();
+            let target = connection.target().unwrap().get_obj().to_string();
+            let s_id = mapping[&source];
+            let t_id = mapping[&target];
+            let net = connection.net();
+            graph.add_edge(s_id, t_id, net);
+        }
+
+        Ok(Self {
+            _netlist: netlist,
+            graph,
         })
     }
 }
