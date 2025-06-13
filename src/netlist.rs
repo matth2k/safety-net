@@ -337,7 +337,7 @@ where
 /// This type exposes the interior mutability of elements in a netlist.
 type NetRefT<I> = Rc<RefCell<OwnedObject<I, Netlist<I>>>>;
 
-/// A helper struct to provide a more user-friendly interface
+/// Provides an idiomatic interface
 /// to the interior mutability of the netlist
 #[derive(Debug, Clone)]
 pub struct NetRef<I>
@@ -653,7 +653,7 @@ where
     }
 }
 
-/// A helper-struct for returning operand net references
+/// Facilitates mutable borrows to driver nets
 pub struct MutBorrowReq<I: Instantiable> {
     from: NetRef<I>,
     ind: Net,
@@ -702,7 +702,7 @@ where
     outputs: RefCell<HashMap<Operand, Net>>,
 }
 
-/// A type to represent the input port of a primitive
+/// Represent the input port of a primitive
 #[derive(Debug, Clone)]
 pub struct InputPort<I: Instantiable> {
     pos: usize,
@@ -778,7 +778,7 @@ where
     }
 }
 
-/// A type to represent a net that is being driven by a [Instantiable]
+/// Represent a net that is being driven by a [Instantiable]
 #[derive(Debug, Clone)]
 pub struct DrivenNet<I: Instantiable> {
     pos: usize,
@@ -1160,12 +1160,11 @@ where
 
     /// Finds the first circuit node that drives the `net`. This operation is O(n).
     /// This should be unique provided the netlist is well-formed.
-    pub fn find_net(&self, net: &Net) -> Option<NetRef<I>> {
-        for obj in self.objects.borrow().iter() {
-            let owned = obj.borrow();
-            for driven in owned.get().get_nets() {
-                if driven == net {
-                    return Some(NetRef::wrap(obj.clone()));
+    pub fn find_net(&self, net: &Net) -> Option<DrivenNet<I>> {
+        for obj in self.objects() {
+            for o in obj.outputs() {
+                if *o.get_net() == *net {
+                    return Some(o);
                 }
             }
         }
