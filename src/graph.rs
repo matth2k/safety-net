@@ -68,8 +68,10 @@ where
         }
 
         for nr in netlist.objects() {
-            if let Some(idx) = netlist.drives_an_output(nr.clone()) {
-                is_an_output.insert(nr.get_net(idx).clone());
+            for o in nr.outputs() {
+                if o.is_top_level_output() {
+                    is_an_output.insert(o.get_net().clone());
+                }
             }
         }
 

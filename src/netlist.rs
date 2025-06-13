@@ -583,7 +583,7 @@ where
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        netlist.drives_an_output(self.clone()).is_some()
+        netlist.drives_an_output(self.clone())
     }
 
     /// Attempts to find a mutable reference to `net` within this circuit node.
@@ -849,6 +849,20 @@ where
             .expect("Output port is unlinked from netlist");
         let obj = netlist.index_weak(&index);
         obj.borrow_mut().operands[input.pos] = Some(operand.clone());
+    }
+
+    /// Returns `true` if this net is a top-level output in the netlist.
+    pub fn is_top_level_output(&self) -> bool {
+        let netlist = self
+            .netref
+            .clone()
+            .unwrap()
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("DrivenNet is unlinked from netlist");
+        let outputs = netlist.outputs.borrow();
+        outputs.contains_key(&self.get_operand())
     }
 
     /// Return the underlying circuit node
@@ -1174,15 +1188,15 @@ where
             .map(|nr| NetRef::wrap(nr.clone()))
     }
 
-    /// Returns the index of the output of `netref` which is driving a module output.
-    pub fn drives_an_output(&self, netref: NetRef<I>) -> Option<usize> {
+    /// Returns `true` if an output of `netref` which is driving a module output.
+    pub fn drives_an_output(&self, netref: NetRef<I>) -> bool {
         let my_index = netref.unwrap().borrow().get_index();
         for key in self.outputs.borrow().keys() {
             if key.root() == my_index {
-                return Some(key.secondary());
+                return true;
             }
         }
-        None
+        false
     }
 
     /// Cleans unused nodes from the netlist, returning `Ok(true)` if the netlist changed.
