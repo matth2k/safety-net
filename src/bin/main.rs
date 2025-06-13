@@ -94,13 +94,15 @@ fn harder_example() -> Netlist<Gate> {
 fn main() {
     let netlist = harder_example();
     print!("{}", netlist);
-    // let fo = netlist.get_analysis::<FanOutTable<_>>().unwrap();
-    // for net in netlist.into_iter() {
-    //     println!("Net: {}", net);
-    //     for user in fo.get_users(&net) {
-    //         println!("  User: {}", user.get_instance_name().unwrap());
-    //     }
-    // }
+    let fo = netlist
+        .get_analysis::<circuit::graph::FanOutTable<_>>()
+        .unwrap();
+    for net in netlist.into_iter() {
+        println!("Net: {}", net);
+        for user in fo.get_users(&net) {
+            println!("  User: {}", user.get_instance_name().unwrap());
+        }
+    }
     // for inst in netlist.objects() {
     //     println!("{}", inst);
     // }
@@ -110,7 +112,7 @@ fn main() {
 fn test_simple_example() {
     let netlist = simple_example();
     assert_eq!(netlist.get_name(), "simple_example");
-    assert_eq!(netlist.get_input_ports().len(), 2);
+    assert_eq!(netlist.get_input_ports().count(), 2);
     assert_eq!(netlist.get_output_ports().len(), 1);
     let objects: Vec<_> = netlist.objects().collect();
     assert_eq!(objects.len(), 3); // 2 inputs + 1 gate

@@ -6,6 +6,7 @@
 
 use crate::circuit::{Instantiable, Net};
 use crate::netlist::{NetRef, Netlist};
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 
 /// A common trait of analyses than can be performed on a netlist.
@@ -55,11 +56,14 @@ where
         let mut fan_out: HashMap<Net, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
 
-        for (_, net, nr) in netlist.connections() {
-            if fan_out.contains_key(&net) {
-                fan_out.get_mut(&net).unwrap().push(nr);
+        for c in netlist.connections() {
+            if let Entry::Vacant(e) = fan_out.entry(c.net()) {
+                e.insert(vec![c.target().clone().unwrap()]);
             } else {
-                fan_out.insert(net.clone(), vec![nr]);
+                fan_out
+                    .get_mut(&c.net())
+                    .unwrap()
+                    .push(c.target().clone().unwrap());
             }
         }
 
@@ -67,12 +71,8 @@ where
             is_an_output.insert(output.clone());
         }
 
-        for nr in netlist.objects() {
-            for o in nr.outputs() {
-                if o.is_top_level_output() {
-                    is_an_output.insert(o.get_net().clone());
-                }
-            }
+        for o in netlist.outputs() {
+            is_an_output.insert(o.get_net().clone());
         }
 
         Ok(FanOutTable {

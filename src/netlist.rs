@@ -1096,23 +1096,18 @@ where
         &self.name
     }
 
-    /// Returns a list of input nets
-    pub fn get_input_ports(&self) -> Vec<Net> {
-        self.objects
-            .borrow()
-            .iter()
-            .filter_map(|oref| {
-                let owned = oref.borrow();
-                if let Object::Input(net) = owned.get() {
-                    Some(net.clone())
-                } else {
-                    None
-                }
-            })
-            .collect()
+    /// Iterates over the input ports of the netlist.
+    pub fn get_input_ports(&self) -> impl Iterator<Item = Net> {
+        self.objects().filter_map(|oref| {
+            if oref.is_an_input() {
+                Some(oref.as_net().clone())
+            } else {
+                None
+            }
+        })
     }
 
-    /// Returns a list of ouput nets
+    /// Returns a list of output nets
     pub fn get_output_ports(&self) -> Vec<Net> {
         self.outputs.borrow().values().cloned().collect::<Vec<_>>()
     }
@@ -1253,13 +1248,42 @@ where
     }
 }
 
-/// A type alias for a node that drives a net used by another node, in that order.
-pub type Connection<I> = (NetRef<I>, Net, NetRef<I>);
+/// Represent a driven net alongside its connection to an input port
+pub struct Connection<I: Instantiable> {
+    driver: DrivenNet<I>,
+    input: InputPort<I>,
+}
+
+impl<I> Connection<I>
+where
+    I: Instantiable,
+{
+    fn new(driver: DrivenNet<I>, input: InputPort<I>) -> Self {
+        Self { driver, input }
+    }
+
+    /// Return the driver of the connection
+    pub fn src(&self) -> &DrivenNet<I> {
+        &self.driver
+    }
+
+    /// Return the net along the connection
+    pub fn net(&self) -> Net {
+        self.driver.get_net().clone()
+    }
+
+    /// Returns the input port of the connection
+    pub fn target(&self) -> &InputPort<I> {
+        &self.input
+    }
+}
 
 /// A collection of iterators for the netlist
 pub mod iter {
 
-    use super::{Instantiable, Net, NetRef, Netlist, Operand, WeakIndex};
+    use super::{
+        Connection, DrivenNet, InputPort, Instantiable, Net, NetRef, Netlist, Operand, WeakIndex,
+    };
     use std::collections::HashSet;
     /// An iterator over the nets in a netlist
     pub struct NetIterator<'a, I: Instantiable> {
@@ -1371,22 +1395,20 @@ pub mod iter {
                 let noperands = object.operands.len();
                 while self.subindex < noperands {
                     if let Some(operand) = &object.operands[self.subindex] {
-                        let (driver, net) = match operand {
-                            Operand::DirectIndex(idx) => (
-                                objects[*idx].clone(),
-                                objects[*idx].borrow().as_net().clone(),
-                            ),
-                            Operand::CellIndex(idx, j) => (
-                                objects[*idx].clone(),
-                                objects[*idx].borrow().get_net(*j).clone(),
-                            ),
+                        let driver = match operand {
+                            Operand::DirectIndex(idx) => {
+                                DrivenNet::new(0, NetRef::wrap(objects[*idx].clone()))
+                            }
+                            Operand::CellIndex(idx, j) => {
+                                DrivenNet::new(*j, NetRef::wrap(objects[*idx].clone()))
+                            }
                         };
-                        self.subindex += 1;
-                        return Some((
-                            NetRef::wrap(driver),
-                            net,
+                        let input = InputPort::new(
+                            self.subindex,
                             NetRef::wrap(objects[self.index].clone()),
-                        ));
+                        );
+                        self.subindex += 1;
+                        return Some(Connection::new(driver, input));
                     }
                     self.subindex += 1;
                 }
@@ -1492,20 +1514,19 @@ where
     }
 
     /// Returns an iterator to principal inputs in the netlist as references.
-    pub fn inputs(&self) -> impl Iterator<Item = NetRef<I>> {
-        self.objects().filter(|n| n.is_an_input())
+    pub fn inputs(&self) -> impl Iterator<Item = DrivenNet<I>> {
+        self.objects()
+            .filter(|n| n.is_an_input())
+            .map(|n| DrivenNet::new(0, n))
     }
 
     /// Returns an iterator to circuit nodes that drive an output in the netlist.
-    pub fn outputs(&self) -> impl Iterator<Item = NetRef<I>> {
-        let outputs: Vec<_> = self
-            .outputs
+    pub fn outputs(&self) -> Vec<DrivenNet<I>> {
+        self.outputs
             .borrow()
             .keys()
-            .map(|k| self.index_weak(&k.root()))
-            .map(NetRef::wrap)
-            .collect();
-        outputs.into_iter()
+            .map(|k| DrivenNet::new(k.secondary(), NetRef::wrap(self.index_weak(&k.root()))))
+            .collect()
     }
 
     /// Returns an iterator over the wire connections in the netlist.
