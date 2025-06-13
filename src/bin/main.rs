@@ -43,7 +43,7 @@ fn simple_example() -> Netlist<Gate> {
         .unwrap()
         .borrow_mut_if(|n| !n.is_an_input())
     {
-        n.set_name("renaming_for_fun".into());
+        n.set_identifier("renaming_for_fun".into());
     }
 
     netlist.reclaim().unwrap()
@@ -71,7 +71,7 @@ fn harder_example() -> Netlist<Gate> {
             // Last full adder, expose the carry out
             instance.nets_mut().enumerate().for_each(|(j, mut n)| {
                 if j == 1 {
-                    n.set_name("cout".into());
+                    n.set_identifier("cout".into());
                 }
             });
             instance.expose_net(&instance.get_net(0)).unwrap();

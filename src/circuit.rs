@@ -154,14 +154,9 @@ impl Net {
         vec
     }
 
-    /// Returns the name of the net
-    pub fn get_name(&self) -> &Identifier {
-        &self.indentifier
-    }
-
-    /// Sets the name of the net
-    pub fn set_name(&mut self, name: Identifier) {
-        self.indentifier = name;
+    /// Sets the identifier of the net
+    pub fn set_identifier(&mut self, identifier: Identifier) {
+        self.indentifier = identifier;
     }
 
     /// Returns the full identifier to the net

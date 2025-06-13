@@ -398,14 +398,14 @@ where
 
     /// Returns the name of the net at this circuit node.
     /// Panics if the circuit node has multiple outputs.
-    pub fn get_name(&self) -> Identifier {
-        self.as_net().get_name().clone()
+    pub fn get_identifier(&self) -> Identifier {
+        self.as_net().get_identifier().clone()
     }
 
-    /// Changes the name of the net at this circuit node.
+    /// Changes the identifier of the net at this circuit node.
     /// Panics if the circuit node has multiple outputs.
-    pub fn set_name(&self, name: Identifier) {
-        self.as_net_mut().set_name(name)
+    pub fn set_identifier(&self, identifier: Identifier) {
+        self.as_net_mut().set_identifier(identifier)
     }
 
     /// Returns `true` if this circuit node is a principal input
@@ -950,7 +950,7 @@ where
         let nets = inst_type
             .get_output_ports()
             .iter()
-            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_name())))
+            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier())))
             .collect::<Vec<_>>();
         if operands.len() != inst_type.get_input_ports().len() {
             return Err(format!(
@@ -972,7 +972,7 @@ where
         let nets = inst_type
             .get_output_ports()
             .iter()
-            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_name())))
+            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier())))
             .collect::<Vec<_>>();
         let object = Object::Instance(nets, inst_name, inst_type);
         let index = self.objects.borrow().len();
