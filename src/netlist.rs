@@ -415,22 +415,13 @@ where
 
     /// Returns the [Instantiable] type of the instance, if this circuit node is an instance
     pub fn get_instance_type(&self) -> Option<Ref<I>> {
-        Ref::filter_map(self.netref.borrow(), |f| {
-            match f.get().get_instance_type() {
-                Some(inst_type) => Some(inst_type),
-                None => None,
-            }
-        })
-        .ok()
+        Ref::filter_map(self.netref.borrow(), |f| f.get().get_instance_type()).ok()
     }
 
     /// Returns the [Instantiable] type of the instance, if this circuit node is an instance
     pub fn get_instance_type_mut(&self) -> Option<RefMut<I>> {
         RefMut::filter_map(self.netref.borrow_mut(), |f| {
-            match f.get_mut().get_instance_type_mut() {
-                Some(inst_type) => Some(inst_type),
-                None => None,
-            }
+            f.get_mut().get_instance_type_mut()
         })
         .ok()
     }
@@ -578,7 +569,7 @@ where
     }
 
     /// Returns `true` if this circuit node drives a top-level output.
-    pub fn drives_an_output(&self) -> bool {
+    pub fn drives_an_top_output(&self) -> bool {
         let netlist = self
             .netref
             .borrow()
