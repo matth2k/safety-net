@@ -183,8 +183,8 @@ where
         })
     }
 
-    /// Iterator to operand nets
-    fn operand_nets(&self) -> impl Iterator<Item = Option<Net>> {
+    /// Iterator to driving nets
+    fn driver_nets(&self) -> impl Iterator<Item = Option<Net>> {
         self.operands.iter().map(|operand| {
             operand.as_ref().map(|operand| match operand {
                 Operand::DirectIndex(idx) => self
@@ -540,9 +540,9 @@ where
         drivers.into_iter()
     }
 
-    /// Returns an interator to the operands nets.
-    pub fn operand_nets(&self) -> impl Iterator<Item = Option<Net>> {
-        let vec: Vec<Option<Net>> = self.netref.borrow().operand_nets().collect();
+    /// Returns an interator to the driving nets.
+    pub fn driver_nets(&self) -> impl Iterator<Item = Option<Net>> {
+        let vec: Vec<Option<Net>> = self.netref.borrow().driver_nets().collect();
         vec.into_iter()
     }
 
