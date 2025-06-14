@@ -81,7 +81,7 @@ where
     }
 }
 
-/// Another union type for creating a pet graph. A pseudo node is for any other user-programmable nodes we want.
+/// An enum to provide pseudo-nodes for any misc user-programmable behavior.
 #[cfg(feature = "graph")]
 #[derive(Debug, Clone)]
 pub enum Node<I: Instantiable, T: Clone + std::fmt::Debug + std::fmt::Display> {
@@ -105,11 +105,11 @@ where
     }
 }
 
-/// Another union type for creating a pet graph. A pseudo edge is for any other user-programmable connections we want.
+/// An enum to provide pseudo-edges for any misc user-programmable behavior.
 #[cfg(feature = "graph")]
 #[derive(Debug, Clone)]
 pub enum Edge<I: Instantiable, T: Clone + std::fmt::Debug + std::fmt::Display> {
-    /// A 'real' circuit node
+    /// A 'real' circuit connection
     Connection(Connection<I>),
     /// Any other user-programmable node
     Pseudo(T),
