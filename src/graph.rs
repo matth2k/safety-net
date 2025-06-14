@@ -4,7 +4,9 @@
 
 */
 
-use crate::circuit::{Instantiable, Net, Object};
+#[cfg(feature = "graph")]
+use crate::circuit::Object;
+use crate::circuit::{Instantiable, Net};
 use crate::netlist::{NetRef, Netlist};
 #[cfg(feature = "graph")]
 use petgraph::graph::DiGraph;
@@ -80,6 +82,7 @@ where
 }
 
 /// Another union type for creating a pet graph. A pseudo node is for any other user-programmable nodes we want.
+#[cfg(feature = "graph")]
 #[derive(Debug, Clone)]
 pub enum Node<I: Instantiable, T: Clone + std::fmt::Debug + std::fmt::Display> {
     /// A 'real' circuit node
@@ -88,6 +91,7 @@ pub enum Node<I: Instantiable, T: Clone + std::fmt::Debug + std::fmt::Display> {
     Pseudo(T),
 }
 
+#[cfg(feature = "graph")]
 impl<I, T> std::fmt::Display for Node<I, T>
 where
     I: Instantiable,
@@ -102,11 +106,13 @@ where
 }
 
 /// Returns a petgraph representation of the netlist as a directed multi-graph with type [DiGraph<Object, NetLabel>].
+#[cfg(feature = "graph")]
 pub struct MultiDiGraph<'a, I: Instantiable> {
     _netlist: &'a Netlist<I>,
     graph: DiGraph<Node<I, String>, Net>,
 }
 
+#[cfg(feature = "graph")]
 impl<I> MultiDiGraph<'_, I>
 where
     I: Instantiable,
@@ -117,6 +123,7 @@ where
     }
 }
 
+#[cfg(feature = "graph")]
 impl<'a, I> Analysis<'a, I> for MultiDiGraph<'a, I>
 where
     I: Instantiable,

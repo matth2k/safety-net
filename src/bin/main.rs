@@ -93,7 +93,7 @@ fn harder_example() -> Netlist<Gate> {
 
 fn main() {
     let netlist = harder_example();
-    // print!("{}", netlist);
+    print!("{}", netlist);
     // let fo = netlist
     //     .get_analysis::<circuit::graph::FanOutTable<_>>()
     //     .unwrap();
@@ -106,11 +106,11 @@ fn main() {
     // for inst in netlist.objects() {
     //     println!("{}", inst);
     // }
-    let pg = netlist
-        .get_analysis::<circuit::graph::MultiDiGraph<_>>()
-        .unwrap();
-    let graph = pg.get_graph();
-    println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
+    // let pg = netlist
+    //     .get_analysis::<circuit::graph::MultiDiGraph<_>>()
+    //     .unwrap();
+    // let graph = pg.get_graph();
+    // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
 }
 
 #[test]
