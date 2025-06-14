@@ -66,12 +66,9 @@ where
             }
         }
 
-        for output in netlist.get_output_ports() {
-            is_an_output.insert(output.clone());
-        }
-
-        for o in netlist.outputs() {
+        for (o, n) in netlist.outputs() {
             is_an_output.insert(o.get_net().clone());
+            is_an_output.insert(n);
         }
 
         Ok(FanOutTable {
@@ -82,10 +79,32 @@ where
     }
 }
 
+/// Another union type for creating a pet graph. A pseudo node is for any other user-programmable nodes we want.
+#[derive(Debug, Clone)]
+pub enum Node<I: Instantiable, T: Clone + std::fmt::Debug + std::fmt::Display> {
+    /// A 'real' circuit node
+    Object(Object<I>),
+    /// Any other user-programmable node
+    Pseudo(T),
+}
+
+impl<I, T> std::fmt::Display for Node<I, T>
+where
+    I: Instantiable,
+    T: Clone + std::fmt::Debug + std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Object(obj) => obj.fmt(f),
+            Node::Pseudo(t) => std::fmt::Display::fmt(t, f),
+        }
+    }
+}
+
 /// Returns a petgraph representation of the netlist as a directed multi-graph with type [DiGraph<Object, NetLabel>].
 pub struct MultiDiGraph<'a, I: Instantiable> {
     _netlist: &'a Netlist<I>,
-    graph: DiGraph<Object<I>, Net>,
+    graph: DiGraph<Node<I, String>, Net>,
 }
 
 impl<I> MultiDiGraph<'_, I>
@@ -93,7 +112,7 @@ where
     I: Instantiable,
 {
     /// Return a reference to the graph constructed by this analysis
-    pub fn get_graph(&self) -> &DiGraph<Object<I>, Net> {
+    pub fn get_graph(&self) -> &DiGraph<Node<I, String>, Net> {
         &self.graph
     }
 }
@@ -109,7 +128,7 @@ where
         let mut graph = DiGraph::new();
 
         for obj in netlist.objects() {
-            let id = graph.add_node(obj.get_obj().clone());
+            let id = graph.add_node(Node::Object(obj.get_obj().clone()));
             mapping.insert(obj.to_string(), id);
         }
 
@@ -120,6 +139,13 @@ where
             let t_id = mapping[&target];
             let net = connection.net();
             graph.add_edge(s_id, t_id, net);
+        }
+
+        // Finally, add the output connections
+        for (o, n) in netlist.outputs() {
+            let s_id = mapping[&o.clone().unwrap().get_obj().to_string()];
+            let t_id = graph.add_node(Node::Pseudo(format!("Output({})", n)));
+            graph.add_edge(s_id, t_id, o.get_net().clone());
         }
 
         Ok(Self {

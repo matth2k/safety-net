@@ -1552,11 +1552,16 @@ where
     }
 
     /// Returns an iterator to circuit nodes that drive an output in the netlist.
-    pub fn outputs(&self) -> Vec<DrivenNet<I>> {
+    pub fn outputs(&self) -> Vec<(DrivenNet<I>, Net)> {
         self.outputs
             .borrow()
-            .keys()
-            .map(|k| DrivenNet::new(k.secondary(), NetRef::wrap(self.index_weak(&k.root()))))
+            .iter()
+            .map(|(k, n)| {
+                (
+                    DrivenNet::new(k.secondary(), NetRef::wrap(self.index_weak(&k.root()))),
+                    n.clone(),
+                )
+            })
             .collect()
     }
 
