@@ -110,6 +110,12 @@ fn main() {
         .get_analysis::<circuit::graph::MultiDiGraph<_>>()
         .unwrap();
     let graph = pg.get_graph();
+    for c in graph.edge_references() {
+        let w = c.weight();
+        if let circuit::graph::Edge::Connection(c) = w {
+            c.src().get_net_mut().set_identifier("lolled".into());
+        }
+    }
     println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
 }
 

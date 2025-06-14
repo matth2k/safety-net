@@ -4,8 +4,6 @@
 
 */
 
-#[cfg(feature = "graph")]
-use crate::circuit::Object;
 use crate::circuit::{Instantiable, Net};
 #[cfg(feature = "graph")]
 use crate::netlist::Connection;
@@ -88,7 +86,7 @@ where
 #[derive(Debug, Clone)]
 pub enum Node<I: Instantiable, T: Clone + std::fmt::Debug + std::fmt::Display> {
     /// A 'real' circuit node
-    Object(Object<I>),
+    NetRef(NetRef<I>),
     /// Any other user-programmable node
     Pseudo(T),
 }
@@ -101,7 +99,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Object(obj) => obj.fmt(f),
+            Node::NetRef(nr) => nr.fmt(f),
             Node::Pseudo(t) => std::fmt::Display::fmt(t, f),
         }
     }
@@ -161,7 +159,7 @@ where
         let mut graph = DiGraph::new();
 
         for obj in netlist.objects() {
-            let id = graph.add_node(Node::Object(obj.get_obj().clone()));
+            let id = graph.add_node(Node::NetRef(obj.clone()));
             mapping.insert(obj.to_string(), id);
         }
 
