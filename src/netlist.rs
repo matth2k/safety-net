@@ -1029,7 +1029,7 @@ where
     pub fn delete_net_uses(&self, netref: NetRef<I>) -> Result<Object<I>, String> {
         let unwrapped = netref.clone().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
-            return Err("Cannot delete a netref that is still in use elsewhere".to_string());
+            return Err("Cannot delete. References still exist on this node".to_string());
         }
         let old_index = unwrapped.borrow().get_index();
         let objects = self.objects.borrow();
@@ -1071,7 +1071,7 @@ where
     pub fn replace_net_uses(&self, of: NetRef<I>, with: &NetRef<I>) -> Result<Object<I>, String> {
         let unwrapped = of.clone().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
-            return Err("Cannot delete a netref that is still in use elsewhere".to_string());
+            return Err("Cannot replace. References still exist on this node".to_string());
         }
 
         let old_tag: DrivenNet<I> = of.clone().into();
