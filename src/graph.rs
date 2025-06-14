@@ -7,6 +7,8 @@
 #[cfg(feature = "graph")]
 use crate::circuit::Object;
 use crate::circuit::{Instantiable, Net};
+#[cfg(feature = "graph")]
+use crate::netlist::Connection;
 use crate::netlist::{NetRef, Netlist};
 #[cfg(feature = "graph")]
 use petgraph::graph::DiGraph;
@@ -105,11 +107,35 @@ where
     }
 }
 
+/// Another union type for creating a pet graph. A pseudo edge is for any other user-programmable connections we want.
+#[cfg(feature = "graph")]
+#[derive(Debug, Clone)]
+pub enum Edge<I: Instantiable, T: Clone + std::fmt::Debug + std::fmt::Display> {
+    /// A 'real' circuit node
+    Connection(Connection<I>),
+    /// Any other user-programmable node
+    Pseudo(T),
+}
+
+#[cfg(feature = "graph")]
+impl<I, T> std::fmt::Display for Edge<I, T>
+where
+    I: Instantiable,
+    T: Clone + std::fmt::Debug + std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Edge::Connection(c) => c.fmt(f),
+            Edge::Pseudo(t) => std::fmt::Display::fmt(t, f),
+        }
+    }
+}
+
 /// Returns a petgraph representation of the netlist as a directed multi-graph with type [DiGraph<Object, NetLabel>].
 #[cfg(feature = "graph")]
 pub struct MultiDiGraph<'a, I: Instantiable> {
     _netlist: &'a Netlist<I>,
-    graph: DiGraph<Node<I, String>, Net>,
+    graph: DiGraph<Node<I, String>, Edge<I, Net>>,
 }
 
 #[cfg(feature = "graph")]
@@ -118,7 +144,7 @@ where
     I: Instantiable,
 {
     /// Return a reference to the graph constructed by this analysis
-    pub fn get_graph(&self) -> &DiGraph<Node<I, String>, Net> {
+    pub fn get_graph(&self) -> &DiGraph<Node<I, String>, Edge<I, Net>> {
         &self.graph
     }
 }
@@ -144,15 +170,14 @@ where
             let target = connection.target().unwrap().get_obj().to_string();
             let s_id = mapping[&source];
             let t_id = mapping[&target];
-            let net = connection.net();
-            graph.add_edge(s_id, t_id, net);
+            graph.add_edge(s_id, t_id, Edge::Connection(connection));
         }
 
         // Finally, add the output connections
         for (o, n) in netlist.outputs() {
             let s_id = mapping[&o.clone().unwrap().get_obj().to_string()];
             let t_id = graph.add_node(Node::Pseudo(format!("Output({})", n)));
-            graph.add_edge(s_id, t_id, o.get_net().clone());
+            graph.add_edge(s_id, t_id, Edge::Pseudo(o.get_net().clone()));
         }
 
         Ok(Self {

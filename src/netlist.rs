@@ -1280,6 +1280,7 @@ where
 }
 
 /// Represent a driven net alongside its connection to an input port
+#[derive(Debug, Clone)]
 pub struct Connection<I: Instantiable> {
     driver: DrivenNet<I>,
     input: InputPort<I>,
@@ -1306,6 +1307,15 @@ where
     /// Returns the input port of the connection
     pub fn target(&self) -> InputPort<I> {
         self.input.clone()
+    }
+}
+
+impl<I> std::fmt::Display for Connection<I>
+where
+    I: Instantiable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.net().fmt(f)
     }
 }
 
