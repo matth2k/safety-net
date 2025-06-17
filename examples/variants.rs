@@ -1,12 +1,12 @@
 use circuit::{
-    circuit::{Instantiable, Net},
+    circuit::{Identifier, Instantiable, Net},
     filter_nodes,
     netlist::Netlist,
 };
 
 #[derive(Debug, Clone)]
 enum Gate {
-    And(Vec<Net>, Net),
+    And(Identifier, Vec<Net>, Net),
 }
 
 impl std::fmt::Display for Gate {
@@ -16,27 +16,28 @@ impl std::fmt::Display for Gate {
 }
 
 impl Instantiable for Gate {
-    fn get_name(&self) -> &str {
+    fn get_name(&self) -> &Identifier {
         match self {
-            Gate::And(_, _) => "AND",
+            Gate::And(id, _, _) => &id,
         }
     }
 
     fn get_input_ports(&self) -> &[Net] {
         match self {
-            Gate::And(inputs, _) => inputs,
+            Gate::And(_, inputs, _) => inputs,
         }
     }
 
     fn get_output_ports(&self) -> &[Net] {
         match self {
-            Gate::And(_, output) => std::slice::from_ref(output),
+            Gate::And(_, _, output) => std::slice::from_ref(output),
         }
     }
 }
 
 fn and_gate() -> Gate {
     Gate::And(
+        "AND".into(),
         vec![
             Net::new_logic("A".to_string()),
             Net::new_logic("B".to_string()),
@@ -62,7 +63,7 @@ fn main() {
 
     // Print the netlist
     println!("{}", netlist);
-    for node in filter_nodes!(netlist, Gate::And(_, _)) {
+    for node in filter_nodes!(netlist, Gate::And(_, _, _)) {
         println!("Found AND gate: {}", node);
     }
 }

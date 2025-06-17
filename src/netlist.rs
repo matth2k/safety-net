@@ -26,7 +26,7 @@ trait WeakIndex<Idx: ?Sized> {
 #[derive(Debug, Clone)]
 pub struct Gate {
     /// The name of the primitive
-    name: String,
+    name: Identifier,
     /// Input ports, order matters
     inputs: Vec<Net>,
     /// Output ports, order matters
@@ -40,7 +40,7 @@ impl std::fmt::Display for Gate {
 }
 
 impl Instantiable for Gate {
-    fn get_name(&self) -> &str {
+    fn get_name(&self) -> &Identifier {
         &self.name
     }
 
@@ -55,7 +55,7 @@ impl Instantiable for Gate {
 
 impl Gate {
     /// Creates a new gate primitive with four-state logic types
-    pub fn new_logical(name: String, inputs: Vec<String>, output: String) -> Self {
+    pub fn new_logical(name: Identifier, inputs: Vec<String>, output: String) -> Self {
         let outputs = vec![Net::new_logic(output)];
         let inputs = inputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         Self {
@@ -66,7 +66,7 @@ impl Gate {
     }
 
     /// Creates a new gate primitive with four-state logic types with multiple outputs
-    pub fn new_logical_multi(name: String, inputs: Vec<String>, outputs: Vec<String>) -> Self {
+    pub fn new_logical_multi(name: Identifier, inputs: Vec<String>, outputs: Vec<String>) -> Self {
         let outputs = outputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         let inputs = inputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         Self {
@@ -87,12 +87,12 @@ impl Gate {
     }
 
     /// Set the type of cell by name
-    pub fn set_gate_name(&mut self, new_name: String) {
+    pub fn set_gate_name(&mut self, new_name: Identifier) {
         self.name = new_name;
     }
 
     /// Returns the name of the gate primitive
-    pub fn get_gate_name(&self) -> &str {
+    pub fn get_gate_name(&self) -> &Identifier {
         &self.name
     }
 }
@@ -1732,7 +1732,7 @@ fn test_delete_netlist() {
     let instance = netlist
         .insert_gate(
             Gate::new_logical(
-                "AND".to_string(),
+                "AND".into(),
                 vec!["A".to_string(), "B".to_string()],
                 "Y".to_string(),
             ),

@@ -60,7 +60,24 @@ pub struct Identifier {
 impl Identifier {
     /// Creates a new identifier with the given name
     pub fn new(name: String) -> Self {
-        Self {
+        if let Some(root) = name.strip_prefix('\\') {
+            return Identifier {
+                name: root.to_string(),
+                id_type: IdentifierType::Escaped,
+            };
+        }
+
+        // Certainly not an exhaustive list.
+        // TODO(matth2k): Implement isEscaped()
+        let esc_chars = ['[', ']', ' ', '\\', '(', ')', ',', '+', '-'];
+        if name.chars().any(|c| esc_chars.contains(&c)) {
+            return Identifier {
+                name,
+                id_type: IdentifierType::Escaped,
+            };
+        }
+
+        Identifier {
             name,
             id_type: IdentifierType::Normal,
         }
@@ -101,10 +118,13 @@ impl Identifier {
 
 impl From<&str> for Identifier {
     fn from(name: &str) -> Self {
-        Identifier {
-            name: name.to_string(),
-            id_type: IdentifierType::Normal,
-        }
+        Identifier::new(name.to_string())
+    }
+}
+
+impl From<String> for Identifier {
+    fn from(name: String) -> Self {
+        Identifier::new(name)
     }
 }
 
@@ -195,7 +215,7 @@ impl From<&str> for Net {
 /// A trait for primitives in a digital circuit, such as gates or other components.
 pub trait Instantiable: std::fmt::Display + Clone {
     /// Returns the name of the primitive
-    fn get_name(&self) -> &str;
+    fn get_name(&self) -> &Identifier;
 
     /// Returns the input ports of the primitive
     fn get_input_ports(&self) -> &[Net];

@@ -11,6 +11,7 @@ TODO: overview, tutorial, testing, research papers
 #![doc = include_str!("../examples/simple.rs")]
 #![doc = "\n```"]
 
+pub mod attribute;
 pub mod circuit;
 pub mod graph;
 pub mod netlist;

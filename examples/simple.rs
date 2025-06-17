@@ -2,7 +2,7 @@ use circuit::netlist::{Gate, Netlist};
 
 fn and_gate() -> Gate {
     Gate::new_logical(
-        "AND".to_string(),
+        "AND".into(),
         vec!["A".to_string(), "B".to_string()],
         "Y".to_string(),
     )
