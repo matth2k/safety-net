@@ -11,8 +11,8 @@ pub type AttributeKey = String;
 /// A Verilog attribute can be assigned a string value: bitvec = (* dont_touch = true *)
 pub type AttributeValue = Option<String>;
 
-/// A dedicated type to parameters to instantiables
-pub enum ParameterType {
+/// A dedicated type to parameters for instantiables
+pub enum Parameter {
     /// An integer parameter
     Integer(i32),
     /// A floating-point parameter

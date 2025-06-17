@@ -51,6 +51,10 @@ impl Instantiable for Gate {
     fn get_output_ports(&self) -> &[Net] {
         &self.outputs
     }
+
+    fn has_parameter(&self, _id: &Identifier) -> bool {
+        false
+    }
 }
 
 impl Gate {

@@ -223,6 +223,9 @@ pub trait Instantiable: std::fmt::Display + Clone {
     /// Returns the output ports of the primitive
     fn get_output_ports(&self) -> &[Net];
 
+    /// Returns `true` if the type intakes a parameter with this name.
+    fn has_parameter(&self, id: &Identifier) -> bool;
+
     /// Returns the single output port of the primitive.
     fn get_single_output_port(&self) -> &Net {
         if self.get_output_ports().len() > 1 {

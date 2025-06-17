@@ -33,6 +33,10 @@ impl Instantiable for Gate {
             Gate::And(_, _, output) => std::slice::from_ref(output),
         }
     }
+
+    fn has_parameter(&self, _id: &Identifier) -> bool {
+        false
+    }
 }
 
 fn and_gate() -> Gate {
