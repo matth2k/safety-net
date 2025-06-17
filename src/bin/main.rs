@@ -29,7 +29,7 @@ fn simple_example() -> Netlist<Gate> {
     let instance = netlist
         .insert_gate(
             and_gate(),
-            "my_and".to_string(),
+            "my_and".into(),
             &[input1.clone().into(), input2.clone().into()],
         )
         .unwrap();
@@ -64,7 +64,7 @@ fn harder_example() -> Netlist<Gate> {
 
     for i in 0..bitwidth {
         let instance = netlist
-            .insert_gate(full_adder(), format!("fa_{}", i), &input_bus)
+            .insert_gate(full_adder(), format!("fa_{}", i).into(), &input_bus)
             .unwrap();
 
         if i == bitwidth - 1 {

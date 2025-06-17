@@ -29,7 +29,7 @@ fn harder_example() -> Netlist<Gate> {
     for i in 0..bitwidth {
         // Instantiate a full adder for each bit
         let fa = netlist
-            .insert_gate_disconnected(full_adder(), format!("fa_{}", i))
+            .insert_gate_disconnected(full_adder(), format!("fa_{}", i).into())
             .unwrap();
 
         // Connect A_i and B_i

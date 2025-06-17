@@ -432,7 +432,7 @@ where
     }
 
     /// Returns a copy of the name of the instance, if the circuit node is a instance.
-    pub fn get_instance_name(&self) -> Option<String> {
+    pub fn get_instance_name(&self) -> Option<Identifier> {
         match self.netref.borrow().get() {
             Object::Instance(_, inst_name, _) => Some(inst_name.clone()),
             _ => None,
@@ -441,7 +441,7 @@ where
 
     /// Updates the name of the instance, if the circuit node is an instance.
     /// Panics if the circuit node is not an instance.
-    pub fn set_instance_name(&self, name: String) {
+    pub fn set_instance_name(&self, name: Identifier) {
         match self.netref.borrow_mut().get_mut() {
             Object::Instance(_, inst_name, _) => *inst_name = name,
             _ => panic!("Attempted to set instance name on a non-instance object"),
@@ -961,7 +961,7 @@ where
     pub fn insert_gate(
         self: &Rc<Self>,
         inst_type: I,
-        inst_name: String,
+        inst_name: Identifier,
         operands: &[DrivenNet<I>],
     ) -> Result<NetRef<I>, String> {
         let nets = inst_type
@@ -984,7 +984,7 @@ where
     pub fn insert_gate_disconnected(
         self: &Rc<Self>,
         inst_type: I,
-        inst_name: String,
+        inst_name: Identifier,
     ) -> Result<NetRef<I>, String> {
         let nets = inst_type
             .get_output_ports()
@@ -1736,7 +1736,7 @@ fn test_delete_netlist() {
                 vec!["A".to_string(), "B".to_string()],
                 "Y".to_string(),
             ),
-            "my_and".to_string(),
+            "my_and".into(),
             &[input1.clone().into(), input2.clone().into()],
         )
         .unwrap();

@@ -55,7 +55,7 @@ fn main() {
 
     // Instantiate an AND gate
     let instance = netlist
-        .insert_gate(and_gate(), "inst_0".to_string(), &[a.into(), b.into()])
+        .insert_gate(and_gate(), "inst_0".into(), &[a.into(), b.into()])
         .unwrap();
 
     // Make this AND gate an output

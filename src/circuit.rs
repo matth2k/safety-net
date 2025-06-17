@@ -251,7 +251,7 @@ where
     /// A principal input to the circuit
     Input(Net),
     /// An instance of a module or primitive
-    Instance(Vec<Net>, String, I),
+    Instance(Vec<Net>, Identifier, I),
 }
 
 impl<I> Object<I>
