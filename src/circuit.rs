@@ -4,6 +4,8 @@
 
 */
 
+use crate::attribute::Parameter;
+
 /// Signals in a circuit can be binary, tri-state, or four-state.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum DataType {
@@ -225,6 +227,12 @@ pub trait Instantiable: std::fmt::Display + Clone {
 
     /// Returns `true` if the type intakes a parameter with this name.
     fn has_parameter(&self, id: &Identifier) -> bool;
+
+    /// Returns the parameter value for the given key, if it exists.
+    fn get_parameter(&self, id: &Identifier) -> Option<Parameter>;
+
+    /// Returns an iterator over the parameters of the primitive.
+    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)>;
 
     /// Returns the single output port of the primitive.
     fn get_single_output_port(&self) -> &Net {

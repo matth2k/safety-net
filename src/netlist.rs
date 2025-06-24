@@ -5,6 +5,7 @@
 */
 
 use crate::{
+    attribute::Parameter,
     circuit::{Identifier, Instantiable, Net, Object},
     graph::{Analysis, FanOutTable},
 };
@@ -54,6 +55,14 @@ impl Instantiable for Gate {
 
     fn has_parameter(&self, _id: &Identifier) -> bool {
         false
+    }
+
+    fn get_parameter(&self, _id: &Identifier) -> Option<Parameter> {
+        None
+    }
+
+    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
+        std::iter::empty()
     }
 }
 
