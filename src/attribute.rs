@@ -26,7 +26,15 @@ impl std::fmt::Display for Parameter {
         match self {
             Parameter::Integer(i) => write!(f, "{}", i),
             Parameter::Real(_r) => todo!(),
-            Parameter::BitVec(_bv) => todo!(),
+            Parameter::BitVec(bv) => write!(
+                f,
+                "{}'b{}",
+                bv.len(),
+                bv.iter()
+                    .rev()
+                    .map(|b| if *b { '1' } else { '0' })
+                    .collect::<String>()
+            ),
         }
     }
 }

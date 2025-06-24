@@ -143,7 +143,7 @@ impl std::fmt::Display for Identifier {
 /// A net in a circuit, which is identified with a name and data type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Net {
-    indentifier: Identifier,
+    identifier: Identifier,
     data_type: DataType,
 }
 
@@ -151,7 +151,7 @@ impl Net {
     /// Creates a new net with the given identifier and data type
     pub fn new(identifier: Identifier, data_type: DataType) -> Self {
         Self {
-            indentifier: identifier,
+            identifier,
             data_type,
         }
     }
@@ -178,17 +178,17 @@ impl Net {
 
     /// Sets the identifier of the net
     pub fn set_identifier(&mut self, identifier: Identifier) {
-        self.indentifier = identifier;
+        self.identifier = identifier;
     }
 
     /// Returns the full identifier to the net
     pub fn get_identifier(&self) -> &Identifier {
-        &self.indentifier
+        &self.identifier
     }
 
     /// Returns the full identifier to the net
     pub fn take_identifier(self) -> Identifier {
-        self.indentifier
+        self.identifier
     }
 
     /// Returns the data type of the net
@@ -204,7 +204,7 @@ impl Net {
 
 impl std::fmt::Display for Net {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.indentifier.fmt(f)
+        self.identifier.fmt(f)
     }
 }
 
@@ -215,7 +215,7 @@ impl From<&str> for Net {
 }
 
 /// A trait for primitives in a digital circuit, such as gates or other components.
-pub trait Instantiable: std::fmt::Display + Clone {
+pub trait Instantiable: Clone {
     /// Returns the name of the primitive
     fn get_name(&self) -> &Identifier;
 

@@ -34,12 +34,6 @@ pub struct Gate {
     outputs: Vec<Net>,
 }
 
-impl std::fmt::Display for Gate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
-
 impl Instantiable for Gate {
     fn get_name(&self) -> &Identifier {
         &self.name
@@ -1669,8 +1663,13 @@ where
                     writeln!(f, "#(")?;
                     let level = 4;
                     let indent = " ".repeat(level);
-                    for (k, v) in inst_type.parameters() {
-                        writeln!(f, "{}.{}({}),", indent, k, v)?;
+                    let params: Vec<_> = inst_type.parameters().collect();
+                    for (i, (k, v)) in params.iter().enumerate() {
+                        if i == params.len() - 1 {
+                            writeln!(f, "{}.{}({})", indent, k, v)?;
+                        } else {
+                            writeln!(f, "{}.{}({}),", indent, k, v)?;
+                        }
                     }
                     let level = 2;
                     let indent = " ".repeat(level);
