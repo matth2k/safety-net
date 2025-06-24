@@ -1275,6 +1275,10 @@ where
 
     /// Verifies that a netlist is well-formed.
     pub fn verify(&self) -> Result<(), String> {
+        if self.outputs.borrow().is_empty() {
+            return Err("Netlist has no outputs".to_string());
+        }
+
         if !self.nets_unique() {
             return Err("Netlist contains non-unique nets".to_string());
         }
