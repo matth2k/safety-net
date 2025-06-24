@@ -1,7 +1,6 @@
 use circuit::netlist::GateNetlist;
 
 #[test]
-
 fn inputs_w_same_name() {
     let netlist = GateNetlist::new("inputs_w_same_name".to_string());
     let a = netlist.insert_input("a".into());

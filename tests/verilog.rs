@@ -1,7 +1,6 @@
 use circuit::netlist::GateNetlist;
 
 #[test]
-
 fn min_module() {
     let netlist = GateNetlist::new("min_module".to_string());
     let a = netlist.insert_input("a".into());
