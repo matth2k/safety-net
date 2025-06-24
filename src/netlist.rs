@@ -1664,7 +1664,19 @@ where
             let owned = oref.borrow();
             let obj = owned.get();
             if let Object::Instance(nets, inst_name, inst_type) = obj {
-                writeln!(f, "{}{} {} (", indent, inst_type.get_name(), inst_name)?;
+                write!(f, "{}{} ", indent, inst_type.get_name())?;
+                if inst_type.is_parameterized() {
+                    writeln!(f, "#(")?;
+                    let level = 4;
+                    let indent = " ".repeat(level);
+                    for (k, v) in inst_type.parameters() {
+                        writeln!(f, "{}.{}({}),", indent, k, v)?;
+                    }
+                    let level = 2;
+                    let indent = " ".repeat(level);
+                    write!(f, "{}) ", indent)?;
+                }
+                writeln!(f, "{} (", inst_name.emit_name())?;
                 let level = 4;
                 let indent = " ".repeat(level);
                 for (idx, port) in inst_type.get_input_ports().iter().enumerate() {

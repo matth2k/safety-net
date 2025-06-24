@@ -93,7 +93,7 @@ fn harder_example() -> Netlist<Gate> {
 
 fn main() {
     let netlist = harder_example();
-    // print!("{}", netlist);
+    print!("{}", netlist);
     // let fo = netlist
     //     .get_analysis::<circuit::graph::FanOutTable<_>>()
     //     .unwrap();
@@ -116,7 +116,7 @@ fn main() {
             c.src().get_net_mut().set_identifier("lolled".into());
         }
     }
-    println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
+    // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
 }
 
 #[test]

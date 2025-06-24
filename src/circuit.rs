@@ -234,6 +234,11 @@ pub trait Instantiable: std::fmt::Display + Clone {
     /// Returns an iterator over the parameters of the primitive.
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)>;
 
+    /// Returns `true` if the primitive is parameterized (has at least one parameter).
+    fn is_parameterized(&self) -> bool {
+        self.parameters().next().is_some()
+    }
+
     /// Returns the single output port of the primitive.
     fn get_single_output_port(&self) -> &Net {
         if self.get_output_ports().len() > 1 {

@@ -20,3 +20,13 @@ pub enum Parameter {
     /// A bit vector parameter, like for a truth table
     BitVec(BitVec),
 }
+
+impl std::fmt::Display for Parameter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Parameter::Integer(i) => write!(f, "{}", i),
+            Parameter::Real(_r) => todo!(),
+            Parameter::BitVec(_bv) => todo!(),
+        }
+    }
+}
