@@ -58,3 +58,4 @@ However, you may want to use another library that leverages a denser representat
 Then, open it up and take a look:
 
 ![Ripple-carry adder](doc/adder.svg)
+
