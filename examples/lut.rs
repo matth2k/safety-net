@@ -6,18 +6,18 @@ use circuit::{
 };
 
 #[derive(Debug, Clone)]
-struct LUT {
+struct Lut {
     lookup_table: BitVec,
     id: Identifier,
     inputs: Vec<Net>,
     output: Net,
 }
 
-impl LUT {
+impl Lut {
     fn new(k: usize, lookup_table: usize) -> Self {
         let mut bv: BitVec<usize, _> = BitVec::from_element(lookup_table);
         bv.truncate(1 << k);
-        LUT {
+        Lut {
             lookup_table: bv,
             id: Identifier::new(format!("LUT{}", k)),
             inputs: (0..k).map(|i| Net::new_logic(format!("I{}", i))).collect(),
@@ -30,7 +30,7 @@ impl LUT {
     }
 }
 
-impl Instantiable for LUT {
+impl Instantiable for Lut {
     fn get_name(&self) -> &Identifier {
         &self.id
     }
@@ -44,7 +44,7 @@ impl Instantiable for LUT {
     }
 
     fn has_parameter(&self, id: &Identifier) -> bool {
-        return *id == Identifier::new("INIT".to_string());
+        *id == Identifier::new("INIT".to_string())
     }
 
     fn get_parameter(&self, id: &Identifier) -> Option<Parameter> {
@@ -72,7 +72,7 @@ fn main() {
 
     // Instantiate an NAND gate
     let instance = netlist
-        .insert_gate(LUT::new(2, 7), "inst_0".into(), &[a.into(), b.into()])
+        .insert_gate(Lut::new(2, 7), "inst_0".into(), &[a.into(), b.into()])
         .unwrap();
 
     // Let's make it an AND gate by inverting the lookup table
