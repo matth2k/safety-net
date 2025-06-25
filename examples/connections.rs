@@ -1,3 +1,4 @@
+use circuit::graph::MultiDiGraph;
 use circuit::netlist::{DrivenNet, Gate, Netlist};
 
 fn full_adder() -> Gate {
@@ -47,8 +48,6 @@ fn ripple_adder() -> Netlist<Gate> {
 
 #[cfg(feature = "graph")]
 fn main() {
-    use circuit::graph::MultiDiGraph;
-
     let netlist = ripple_adder();
     eprintln!("{}", netlist);
     let analysis = netlist.get_analysis::<MultiDiGraph<_>>().unwrap();
