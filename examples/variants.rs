@@ -13,7 +13,7 @@ enum Gate {
 impl Instantiable for Gate {
     fn get_name(&self) -> &Identifier {
         match self {
-            Gate::And(id, _, _) => &id,
+            Gate::And(id, _, _) => id,
         }
     }
 
