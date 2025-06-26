@@ -350,8 +350,8 @@ where
         self.attributes.insert(k, None);
     }
 
-    fn insert_attribute(&mut self, k: AttributeKey, v: AttributeValue) -> Option<AttributeValue> {
-        self.attributes.insert(k, v)
+    fn insert_attribute(&mut self, k: AttributeKey, v: String) -> Option<AttributeValue> {
+        self.attributes.insert(k, Some(v))
     }
 
     fn attributes(&self) -> impl Iterator<Item = Attribute> {
@@ -653,7 +653,7 @@ where
     }
 
     /// Insert an attribute on this node with a value
-    pub fn insert_attribute(&self, k: AttributeKey, v: AttributeValue) -> Option<AttributeValue> {
+    pub fn insert_attribute(&self, k: AttributeKey, v: String) -> Option<AttributeValue> {
         self.netref.borrow_mut().insert_attribute(k, v)
     }
 
@@ -1703,6 +1703,14 @@ where
             let owned = oref.borrow();
             let obj = owned.get();
             if let Object::Instance(nets, inst_name, inst_type) = obj {
+                for (k, v) in owned.attributes.iter() {
+                    if let Some(value) = v {
+                        writeln!(f, "{}(* {} = \"{}\" *)", indent, k, value)?;
+                    } else {
+                        writeln!(f, "{}(* {} *)", indent, k)?;
+                    }
+                }
+
                 write!(f, "{}{} ", indent, inst_type.get_name())?;
                 if inst_type.is_parameterized() {
                     writeln!(f, "#(")?;
