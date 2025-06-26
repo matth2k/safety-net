@@ -5,6 +5,12 @@
 */
 
 use bitvec::vec::BitVec;
+use std::collections::{HashMap, HashSet};
+
+use crate::{
+    circuit::{Identifier, Instantiable},
+    netlist::{NetRef, Netlist},
+};
 
 /// A Verilog attribute assigned to a net or gate in the netlist: (* dont_touch *)
 pub type AttributeKey = String;
@@ -78,4 +84,77 @@ impl std::fmt::Display for Parameter {
             ),
         }
     }
+}
+
+/// Filter nodes/nets in the netlist by some attribute, like "dont_touch"
+pub struct AttributeFilter<'a, I: Instantiable> {
+    // A reference to the underlying netlist
+    _netlist: &'a Netlist<I>,
+    // The keys to filter by
+    keys: Vec<AttributeKey>,
+    // The set of identifiers that have this attribute
+    set: HashSet<Identifier>,
+    /// The mapping of netrefs that have this attribute
+    map: HashMap<Identifier, NetRef<I>>,
+}
+
+impl<'a, I> AttributeFilter<'a, I>
+where
+    I: Instantiable,
+{
+    /// Create a new filter for the netlist
+    fn new(netlist: &'a Netlist<I>, keys: Vec<AttributeKey>) -> Self {
+        let mut set = HashSet::new();
+        let mut map = HashMap::new();
+        for nr in netlist.objects() {
+            for attr in nr.attributes() {
+                if keys.contains(attr.key()) {
+                    if let Some(inst) = nr.get_instance_name() {
+                        set.insert(inst.clone());
+                        map.insert(inst.clone(), nr.clone());
+                    }
+                    for net in nr.nets() {
+                        set.insert(net.get_identifier().clone());
+                    }
+                }
+            }
+        }
+        Self {
+            _netlist: netlist,
+            keys,
+            set,
+            map,
+        }
+    }
+
+    /// Check if an identifier has one of the attributes
+    pub fn has(&self, id: &Identifier) -> bool {
+        self.set.contains(id)
+    }
+
+    /// Return a slice to the keys that were used for filtering
+    pub fn keys(&self) -> &[AttributeKey] {
+        &self.keys
+    }
+}
+
+impl<'a, I> IntoIterator for AttributeFilter<'a, I>
+where
+    I: Instantiable,
+{
+    type Item = NetRef<I>;
+
+    type IntoIter = std::collections::hash_map::IntoValues<Identifier, NetRef<I>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.map.into_values()
+    }
+}
+
+/// Returns a filtering of nodes and nets that are marked as 'dont_touch'
+pub fn dont_touch_filter<'a, I>(netlist: &'a Netlist<I>) -> AttributeFilter<'a, I>
+where
+    I: Instantiable,
+{
+    AttributeFilter::new(netlist, vec!["dont_touch".to_string()])
 }
