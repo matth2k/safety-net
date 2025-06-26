@@ -5,7 +5,7 @@
 */
 
 use crate::{
-    attribute::Parameter,
+    attribute::{Attribute, AttributeKey, AttributeValue, Parameter},
     circuit::{Identifier, Instantiable, Net, Object},
     graph::{Analysis, FanOutTable},
 };
@@ -152,6 +152,8 @@ where
     owner: Weak<O>,
     /// The list of operands for the object
     operands: Vec<Option<Operand>>,
+    /// A collection of attributes for the object
+    attributes: HashMap<AttributeKey, AttributeValue>,
     /// The index of the object within the netlist/module
     index: usize,
 }
@@ -338,6 +340,22 @@ where
             },
             None => None,
         }
+    }
+
+    fn clear_attribute(&mut self, k: &AttributeKey) -> Option<AttributeValue> {
+        self.attributes.remove(k)
+    }
+
+    fn set_attribute(&mut self, k: AttributeKey) {
+        self.attributes.insert(k, None);
+    }
+
+    fn insert_attribute(&mut self, k: AttributeKey, v: AttributeValue) -> Option<AttributeValue> {
+        self.attributes.insert(k, v)
+    }
+
+    fn attributes(&self) -> impl Iterator<Item = Attribute> {
+        Attribute::from_pairs(self.attributes.clone().into_iter())
     }
 }
 
@@ -622,6 +640,27 @@ where
             .upgrade()
             .expect("NetRef is unlinked from netlist");
         netlist.replace_net_uses(self, other)
+    }
+
+    /// Clears the attribute with the given key on this circuit node.
+    pub fn clear_attribute(&self, k: &AttributeKey) -> Option<AttributeValue> {
+        self.netref.borrow_mut().clear_attribute(k)
+    }
+
+    /// Set an attribute without a value
+    pub fn set_attribute(&self, k: AttributeKey) {
+        self.netref.borrow_mut().set_attribute(k);
+    }
+
+    /// Insert an attribute on this node with a value
+    pub fn insert_attribute(&self, k: AttributeKey, v: AttributeValue) -> Option<AttributeValue> {
+        self.netref.borrow_mut().insert_attribute(k, v)
+    }
+
+    /// Returns an iterator to the attributes at this circuit node
+    pub fn attributes(&self) -> impl Iterator<Item = Attribute> {
+        let v: Vec<_> = self.netref.borrow().attributes().collect();
+        v.into_iter()
     }
 }
 
@@ -940,6 +979,7 @@ where
             object,
             owner: weak,
             operands,
+            attributes: HashMap::new(),
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
@@ -1006,6 +1046,7 @@ where
             object,
             owner: weak,
             operands,
+            attributes: HashMap::new(),
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
