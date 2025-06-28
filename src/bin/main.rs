@@ -102,6 +102,15 @@ fn main() {
         .get_analysis::<circuit::graph::SimpleCombDepth<_>>()
         .unwrap();
     println!("Logic levels: {}", logic_levels.get_max_depth());
+    for n in netlist.objects() {
+        for n in n.nets() {
+            println!(
+                "{}: {}",
+                n.get_identifier(),
+                logic_levels.get_comb_depth(&n).unwrap()
+            );
+        }
+    }
     // let fo = netlist
     //     .get_analysis::<circuit::graph::FanOutTable<_>>()
     //     .unwrap();

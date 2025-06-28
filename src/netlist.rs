@@ -315,6 +315,10 @@ where
     }
 
     /// Get driving net using the weak reference
+    ///
+    /// # Panics
+    ///
+    /// Panics if the reference to the netlist is lost.
     fn get_driver_net(&self, index: usize) -> Option<Net> {
         let operand = &self.operands[index];
         match operand {
@@ -387,12 +391,18 @@ where
     }
 
     /// Returns a borrow to the [Net] at this circuit node.
+    ///
+    /// # Panics
+    ///
     /// Panics if the circuit node has multiple outputs.
     pub fn as_net(&self) -> Ref<Net> {
         Ref::map(self.netref.borrow(), |f| f.as_net())
     }
 
     /// Returns a mutable borrow to the [Net] at this circuit node.
+    ///
+    /// # Panics
+    ///
     /// Panics if the circuit node has multiple outputs.
     pub fn as_net_mut(&self) -> RefMut<Net> {
         RefMut::map(self.netref.borrow_mut(), |f| f.as_net_mut())
@@ -422,12 +432,18 @@ where
     }
 
     /// Returns the name of the net at this circuit node.
+    ///
+    /// # Panics
+    ///
     /// Panics if the circuit node has multiple outputs.
     pub fn get_identifier(&self) -> Identifier {
         self.as_net().get_identifier().clone()
     }
 
     /// Changes the identifier of the net at this circuit node.
+    ///
+    /// # Panics
+    ///
     /// Panics if the circuit node has multiple outputs.
     pub fn set_identifier(&self, identifier: Identifier) {
         self.as_net_mut().set_identifier(identifier)
@@ -465,7 +481,10 @@ where
     }
 
     /// Updates the name of the instance, if the circuit node is an instance.
-    /// Panics if the circuit node is not an instance.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the circuit node is a principal input.
     pub fn set_instance_name(&self, name: Identifier) {
         match self.netref.borrow_mut().get_mut() {
             Object::Instance(_, inst_name, _) => *inst_name = name,
@@ -474,7 +493,12 @@ where
     }
 
     /// Exposes this circuit node as a top-level output in the netlist.
-    /// Panics if cell is a multi-output circuit node. Errors if circuit node is a principal input.
+    /// Returns an error if the circuit node is a principal input.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cell is a multi-output circuit node.
+    /// Panics if the reference to the netlist is lost.
     pub fn expose_as_output(self) -> Result<Self, String> {
         let netlist = self
             .netref
@@ -487,6 +511,11 @@ where
     }
 
     /// Exposes this circuit node as a top-level output in the netlist with a specific port name.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the cell is a multi-output circuit node.
+    /// Panics if the reference to the netlist is lost.
     pub fn expose_with_name(self, name: String) -> Self {
         let netlist = self
             .netref
@@ -500,6 +529,9 @@ where
 
     /// Exposes the `net` driven by this circuit node as a top-level output.
     /// Errors if `net` is not driven by this circuit node.
+    ///
+    /// # Panics
+    /// Panics if the reference to the netlist is lost.
     pub fn expose_net(&self, net: &Net) -> Result<(), String> {
         let netlist = self
             .netref
@@ -522,12 +554,20 @@ where
     }
 
     /// Returns the net that drives the `index`th input
+    ///
+    /// # Panics
+    ///
+    /// Panics if the reference to the netlist is lost.
     pub fn get_driver_net(&self, index: usize) -> Option<Net> {
         self.netref.borrow().get_driver_net(index)
     }
 
     /// Returns a request to mutably borrow the operand net
     /// This requires another borrow in the form of [MutBorrowReq]
+    ///
+    /// # Panics
+    ///
+    /// Panics if the reference to the netlist is lost.
     pub fn req_driver_net(&self, index: usize) -> Option<MutBorrowReq<I>> {
         let net = self.get_driver_net(index)?;
         let operand = self.get_driver(index).unwrap();
@@ -599,6 +639,9 @@ where
     }
 
     /// Returns `true` if this circuit node drives a top-level output.
+    ///
+    /// # Panics
+    /// Panics if the weak reference to the netlist is lost.
     pub fn drives_an_top_output(&self) -> bool {
         let netlist = self
             .netref
@@ -620,6 +663,10 @@ where
     }
 
     /// Deletes the uses of this circuit node from the netlist.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the reference to the netlist is lost.
     pub fn delete_uses(self) -> Result<Object<I>, String> {
         let netlist = self
             .netref
@@ -631,7 +678,11 @@ where
     }
 
     /// Replaces the uses of this circuit node in the netlist with another circuit node.
+    ///
+    /// # Panics
+    ///
     /// Panics if either `self` or `other` is a multi-output circuit node.
+    /// Panics if the weak reference to the netlist is lost.
     pub fn replace_uses_with(self, other: &Self) -> Result<Object<I>, String> {
         let netlist = self
             .netref
