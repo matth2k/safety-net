@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use circuit::netlist::{DrivenNet, Gate, Netlist};
 
 #[allow(dead_code)]
@@ -51,7 +49,7 @@ fn simple_example() -> Netlist<Gate> {
     netlist.reclaim().unwrap()
 }
 
-fn harder_example() -> Rc<Netlist<Gate>> {
+fn harder_example() -> Netlist<Gate> {
     let netlist = Netlist::new("harder_example".to_string());
     let bitwidth = 9;
 
@@ -90,8 +88,7 @@ fn harder_example() -> Rc<Netlist<Gate>> {
     }
 
     netlist.clean().unwrap();
-    // netlist.reclaim().unwrap()
-    netlist
+    netlist.reclaim().unwrap()
 }
 
 fn main() {

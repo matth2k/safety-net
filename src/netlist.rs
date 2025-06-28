@@ -1104,6 +1104,21 @@ where
         Ok(NetRef::wrap(owned_object))
     }
 
+    /// Returns the driving net at input position `index` for `netref`
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds
+    pub fn get_driver_net(&self, netref: NetRef<I>, index: usize) -> Option<Net> {
+        let op = netref.unwrap().borrow().operands[index].clone()?;
+        Some(
+            self.index_weak(&op.root())
+                .borrow()
+                .get_net(op.secondary())
+                .clone(),
+        )
+    }
+
     /// Set an added object as a top-level output.
     /// Panics if `net`` is a multi-output node.
     pub fn expose_net_with_name(&self, net: DrivenNet<I>, name: String) -> DrivenNet<I> {
