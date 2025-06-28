@@ -1545,7 +1545,7 @@ pub mod iter {
         }
 
         /// Consumes the iterator to detect cycles in the netlist.
-        pub fn detect_cycles(&mut self) -> bool {
+        pub fn detect_cycles(mut self) -> bool {
             if self.cycles {
                 return true;
             }
