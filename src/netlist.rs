@@ -1517,6 +1517,7 @@ pub mod iter {
         netlist: &'a Netlist<I>,
         stack: Vec<NetRef<I>>,
         visited: HashSet<usize>,
+        cycles: bool,
     }
 
     impl<'a, I> DFSIterator<'a, I>
@@ -1529,7 +1530,33 @@ pub mod iter {
                 netlist,
                 stack: vec![from],
                 visited: HashSet::new(),
+                cycles: false,
             }
+        }
+    }
+
+    impl<I> DFSIterator<'_, I>
+    where
+        I: Instantiable,
+    {
+        /// Check if the DFS traversal has encountered a cycle yet.
+        pub fn check_cycles(&self) -> bool {
+            self.cycles
+        }
+
+        /// Consumes the iterator to detect cycles in the netlist.
+        pub fn detect_cycles(&mut self) -> bool {
+            if self.cycles {
+                return true;
+            }
+
+            while let Some(_) = self.next() {
+                if self.cycles {
+                    return true;
+                }
+            }
+
+            self.cycles
         }
     }
 
@@ -1544,6 +1571,7 @@ pub mod iter {
                 let uw = item.clone().unwrap();
                 let index = uw.borrow().get_index();
                 if !self.visited.insert(index) {
+                    self.cycles = true;
                     return self.next();
                 }
                 let operands = &uw.borrow().operands;
