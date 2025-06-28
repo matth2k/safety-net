@@ -1579,6 +1579,20 @@ pub mod iter {
     }
 
     /// A depth-first iterator over the circuit nodes in a netlist
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::netlist::iter::DFSIterator;
+    ///
+    /// let mut nodes = Vec::new();
+    /// let mut dfs = DFSIterator::new(netlist, netlist.last().unwrap());
+    /// while let Some(n) = dfs.next() {
+    ///     if dfs.check_cycles() {
+    ///         return Err("Cycle detected in the netlist".to_string());
+    ///     }
+    ///     nodes.push(n);
+    /// }
+    /// ```
     pub struct DFSIterator<'a, I: Instantiable> {
         netlist: &'a Netlist<I>,
         stack: Vec<NetRef<I>>,
