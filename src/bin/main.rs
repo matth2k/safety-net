@@ -51,7 +51,7 @@ fn simple_example() -> Netlist<Gate> {
 
 fn harder_example() -> Netlist<Gate> {
     let netlist = Netlist::new("harder_example".to_string());
-    let bitwidth = 8;
+    let bitwidth = 9;
 
     // Add the the inputs
     let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
@@ -94,6 +94,20 @@ fn harder_example() -> Netlist<Gate> {
 fn main() {
     let netlist = harder_example();
     print!("{}", netlist);
+
+    let logic_levels = netlist
+        .get_analysis::<circuit::graph::SimpleCombDepth<_>>()
+        .unwrap();
+    println!("Logic levels: {}", logic_levels.get_max_depth());
+    for n in netlist.objects() {
+        for n in n.nets() {
+            println!(
+                "{}: {}",
+                n.get_identifier(),
+                logic_levels.get_comb_depth(&n).unwrap()
+            );
+        }
+    }
     // let fo = netlist
     //     .get_analysis::<circuit::graph::FanOutTable<_>>()
     //     .unwrap();
@@ -106,16 +120,10 @@ fn main() {
     // for inst in netlist.objects() {
     //     println!("{}", inst);
     // }
-    let pg = netlist
-        .get_analysis::<circuit::graph::MultiDiGraph<_>>()
-        .unwrap();
-    let graph = pg.get_graph();
-    for c in graph.edge_references() {
-        let w = c.weight();
-        if let circuit::graph::Edge::Connection(c) = w {
-            c.src().get_net_mut().set_identifier("lolled".into());
-        }
-    }
+    // let pg = netlist
+    //     .get_analysis::<circuit::graph::MultiDiGraph<_>>()
+    //     .unwrap();
+    // let graph = pg.get_graph();
     // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));
 }
 

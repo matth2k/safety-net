@@ -7,6 +7,7 @@
 use crate::circuit::{Instantiable, Net};
 #[cfg(feature = "graph")]
 use crate::netlist::Connection;
+use crate::netlist::iter::DFSIterator;
 use crate::netlist::{NetRef, Netlist};
 #[cfg(feature = "graph")]
 use petgraph::graph::DiGraph;
@@ -77,6 +78,78 @@ where
             _netlist: netlist,
             fan_out,
             is_an_output,
+        })
+    }
+}
+
+/// An simple example to analyze the logic levels of a netlist.
+/// This analysis checks for cycles, but it doesn't check for registers.
+pub struct SimpleCombDepth<'a, I: Instantiable> {
+    // A reference to the underlying netlist
+    _netlist: &'a Netlist<I>,
+    // Maps a net to its logic level as a DAG
+    comb_depth: HashMap<Net, usize>,
+    /// The maximum depth of the circuit
+    max_depth: usize,
+}
+
+impl<I> SimpleCombDepth<'_, I>
+where
+    I: Instantiable,
+{
+    /// Returns the logic level of a net in the circuit.
+    pub fn get_comb_depth(&self, net: &Net) -> Option<usize> {
+        self.comb_depth.get(net).cloned()
+    }
+
+    /// Returns the maximum logic level of the circuit.
+    pub fn get_max_depth(&self) -> usize {
+        self.max_depth
+    }
+}
+
+impl<'a, I> Analysis<'a, I> for SimpleCombDepth<'a, I>
+where
+    I: Instantiable,
+{
+    fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
+        let mut comb_depth: HashMap<Net, usize> = HashMap::new();
+
+        let mut nodes = Vec::new();
+        for (driven, _) in netlist.outputs() {
+            let mut dfs = DFSIterator::new(netlist, driven.unwrap());
+            while let Some(n) = dfs.next() {
+                if dfs.check_cycles() {
+                    return Err("Cycle detected in the netlist".to_string());
+                }
+                nodes.push(n);
+            }
+        }
+        nodes.reverse();
+
+        for node in nodes {
+            if node.is_an_input() {
+                comb_depth.insert(node.as_net().clone(), 0);
+            } else {
+                // TODO(matth2k): get_driver_net() relies on a weak reference. Rewrite without it.
+                let max_depth: usize = (0..node.get_num_input_ports())
+                    .filter_map(|i| netlist.get_driver_net(node.clone(), i))
+                    .filter_map(|n| comb_depth.get(&n))
+                    .max()
+                    .cloned()
+                    .unwrap_or(usize::MAX);
+                for net in node.nets() {
+                    comb_depth.insert(net, max_depth + 1);
+                }
+            }
+        }
+
+        let max_depth = comb_depth.values().max().cloned().unwrap_or(0);
+
+        Ok(SimpleCombDepth {
+            _netlist: netlist,
+            comb_depth,
+            max_depth,
         })
     }
 }
