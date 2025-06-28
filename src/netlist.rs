@@ -1582,13 +1582,16 @@ pub mod iter {
     /// # Examples
     ///
     /// ```
-    /// use crate::netlist::iter::DFSIterator;
+    /// use circuit::netlist::iter::DFSIterator;
+    /// use circuit::netlist::GateNetlist;
     ///
+    /// let netlist = GateNetlist::new("example".to_string());
+    /// netlist.insert_input("input1".into());
     /// let mut nodes = Vec::new();
-    /// let mut dfs = DFSIterator::new(netlist, netlist.last().unwrap());
+    /// let mut dfs = DFSIterator::new(&netlist, netlist.last().unwrap());
     /// while let Some(n) = dfs.next() {
     ///     if dfs.check_cycles() {
-    ///         return Err("Cycle detected in the netlist".to_string());
+    ///         panic!("Cycle detected in the netlist");
     ///     }
     ///     nodes.push(n);
     /// }
