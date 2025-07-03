@@ -220,10 +220,10 @@ pub trait Instantiable: Clone {
     fn get_name(&self) -> &Identifier;
 
     /// Returns the input ports of the primitive
-    fn get_input_ports(&self) -> &[Net];
+    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net>;
 
     /// Returns the output ports of the primitive
-    fn get_output_ports(&self) -> &[Net];
+    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net>;
 
     /// Returns `true` if the type intakes a parameter with this name.
     fn has_parameter(&self, id: &Identifier) -> bool;
@@ -241,20 +241,34 @@ pub trait Instantiable: Clone {
 
     /// Returns the single output port of the primitive.
     fn get_single_output_port(&self) -> &Net {
-        if self.get_output_ports().len() > 1 {
+        let mut iter = self.get_output_ports().into_iter();
+        let ret = iter.next().expect("Primitive has no output ports");
+        if iter.next().is_some() {
             panic!("Primitive has more than one output port");
         }
-        self.get_input_ports().first().unwrap()
+        ret
     }
 
     /// Returns the output port at the given index.
+    /// # Panics
+    ///
+    /// If the index is out of bounds.
     fn get_output_port(&self, index: usize) -> &Net {
-        &self.get_output_ports()[index]
+        self.get_output_ports()
+            .into_iter()
+            .nth(index)
+            .expect("Index out of bounds for output ports")
     }
 
-    /// Returns the input port of the primitive at index `index`.
+    /// Returns the input port at the given index.
+    /// # Panics
+    ///
+    /// If the index is out of bounds.
     fn get_input_port(&self, index: usize) -> &Net {
-        &self.get_input_ports()[index]
+        self.get_input_ports()
+            .into_iter()
+            .nth(index)
+            .expect("Index out of bounds for output ports")
     }
 }
 

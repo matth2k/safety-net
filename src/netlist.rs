@@ -39,11 +39,11 @@ impl Instantiable for Gate {
         &self.name
     }
 
-    fn get_input_ports(&self) -> &[Net] {
+    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
         &self.inputs
     }
 
-    fn get_output_ports(&self) -> &[Net] {
+    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
         &self.outputs
     }
 
@@ -597,7 +597,7 @@ where
     /// Returns the number of input ports for this circuit node.
     pub fn get_num_input_ports(&self) -> usize {
         if let Some(inst_type) = self.get_instance_type() {
-            inst_type.get_input_ports().len()
+            inst_type.get_input_ports().into_iter().count()
         } else {
             0
         }
@@ -1084,13 +1084,14 @@ where
     ) -> Result<NetRef<I>, String> {
         let nets = inst_type
             .get_output_ports()
-            .iter()
+            .into_iter()
             .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier())))
             .collect::<Vec<_>>();
-        if operands.len() != inst_type.get_input_ports().len() {
+        let input_count = inst_type.get_input_ports().into_iter().count();
+        if operands.len() != input_count {
             return Err(format!(
                 "Expected {} operands, got {}",
-                inst_type.get_input_ports().len(),
+                input_count,
                 operands.len()
             ));
         }
@@ -1106,13 +1107,19 @@ where
     ) -> Result<NetRef<I>, String> {
         let nets = inst_type
             .get_output_ports()
-            .iter()
+            .into_iter()
             .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier())))
             .collect::<Vec<_>>();
         let object = Object::Instance(nets, inst_name, inst_type);
         let index = self.objects.borrow().len();
         let weak = Rc::downgrade(self);
-        let operands = vec![None; object.get_instance_type().unwrap().get_input_ports().len()];
+        let input_count = object
+            .get_instance_type()
+            .unwrap()
+            .get_input_ports()
+            .into_iter()
+            .count();
+        let operands = vec![None; input_count];
         let owned_object = Rc::new(RefCell::new(OwnedObject {
             object,
             owner: weak,
@@ -1857,7 +1864,7 @@ where
                 writeln!(f, "{} (", inst_name.emit_name())?;
                 let level = 4;
                 let indent = " ".repeat(level);
-                for (idx, port) in inst_type.get_input_ports().iter().enumerate() {
+                for (idx, port) in inst_type.get_input_ports().into_iter().enumerate() {
                     let port_name = port.get_identifier().emit_name();
                     if let Some(operand) = owned.operands[idx].as_ref() {
                         let operand = match operand {

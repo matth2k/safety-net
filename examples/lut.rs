@@ -35,11 +35,11 @@ impl Instantiable for Lut {
         &self.id
     }
 
-    fn get_input_ports(&self) -> &[Net] {
+    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
         &self.inputs
     }
 
-    fn get_output_ports(&self) -> &[Net] {
+    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
         std::slice::from_ref(&self.output)
     }
 
