@@ -241,10 +241,12 @@ pub trait Instantiable: Clone {
 
     /// Returns the single output port of the primitive.
     fn get_single_output_port(&self) -> &Net {
-        self.get_input_ports()
-            .into_iter()
-            .next()
-            .expect("Primitive has no output ports")
+        let mut iter = self.get_output_ports().into_iter();
+        let ret = iter.next().expect("Primitive has no output ports");
+        if iter.next().is_some() {
+            panic!("Primitive has more than one output port");
+        }
+        ret
     }
 
     /// Returns the output port at the given index.
