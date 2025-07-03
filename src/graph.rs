@@ -15,11 +15,12 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 
 /// A common trait of analyses than can be performed on a netlist.
+/// An analysis becomes stale when the netlist is modified.
 pub trait Analysis<'a, I: Instantiable>
 where
     Self: Sized + 'a,
 {
-    /// Construct the analysis
+    /// Construct the analysis to the current state of the netlist.
     fn build(netlist: &'a Netlist<I>) -> Result<Self, String>;
 }
 
@@ -27,8 +28,10 @@ where
 pub struct FanOutTable<'a, I: Instantiable> {
     // A reference to the underlying netlist
     _netlist: &'a Netlist<I>,
-    // Maps a net to the list of nets it drives
-    fan_out: HashMap<Net, Vec<NetRef<I>>>,
+    // Maps a net to the list of nodes it drives
+    net_fan_out: HashMap<Net, Vec<NetRef<I>>>,
+    /// Maps a node to the list of nodes it drives
+    node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>>,
     /// Contains nets which are outputs
     is_an_output: HashSet<Net>,
 }
@@ -38,17 +41,25 @@ where
     I: Instantiable,
 {
     /// Returns an iterator to the circuit nodes that use `net`.
-    pub fn get_users(&self, net: &Net) -> impl Iterator<Item = NetRef<I>> {
-        self.fan_out
+    pub fn get_net_users(&self, net: &Net) -> impl Iterator<Item = NetRef<I>> {
+        self.net_fan_out
             .get(net)
+            .into_iter()
+            .flat_map(|users| users.iter().cloned())
+    }
+
+    /// Returns an iterator to the circuit nodes that use `node`.
+    pub fn get_node_users(&self, node: &NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
+        self.node_fan_out
+            .get(node)
             .into_iter()
             .flat_map(|users| users.iter().cloned())
     }
 
     /// Returns `true` if the net has any used by any cells in the circuit
     /// This does incude nets that are only used as outputs.
-    pub fn has_uses(&self, net: &Net) -> bool {
-        (self.fan_out.contains_key(net) && !self.fan_out.get(net).unwrap().is_empty())
+    pub fn net_has_uses(&self, net: &Net) -> bool {
+        (self.net_fan_out.contains_key(net) && !self.net_fan_out.get(net).unwrap().is_empty())
             || self.is_an_output.contains(net)
     }
 }
@@ -58,14 +69,28 @@ where
     I: Instantiable,
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
-        let mut fan_out: HashMap<Net, Vec<NetRef<I>>> = HashMap::new();
+        let mut net_fan_out: HashMap<Net, Vec<NetRef<I>>> = HashMap::new();
+        #[allow(clippy::mutable_key_type)]
+        let mut node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
 
         for c in netlist.connections() {
-            if let Entry::Vacant(e) = fan_out.entry(c.net()) {
+            if let Entry::Vacant(e) = net_fan_out.entry(c.net()) {
                 e.insert(vec![c.target().unwrap()]);
             } else {
-                fan_out.get_mut(&c.net()).unwrap().push(c.target().unwrap());
+                net_fan_out
+                    .get_mut(&c.net())
+                    .unwrap()
+                    .push(c.target().unwrap());
+            }
+
+            if let Entry::Vacant(e) = node_fan_out.entry(c.src().unwrap()) {
+                e.insert(vec![c.target().unwrap()]);
+            } else {
+                node_fan_out
+                    .get_mut(&c.src().unwrap())
+                    .unwrap()
+                    .push(c.target().unwrap());
             }
         }
 
@@ -76,7 +101,8 @@ where
 
         Ok(FanOutTable {
             _netlist: netlist,
-            fan_out,
+            net_fan_out,
+            node_fan_out,
             is_an_output,
         })
     }
@@ -88,7 +114,7 @@ pub struct SimpleCombDepth<'a, I: Instantiable> {
     // A reference to the underlying netlist
     _netlist: &'a Netlist<I>,
     // Maps a net to its logic level as a DAG
-    comb_depth: HashMap<Net, usize>,
+    comb_depth: HashMap<NetRef<I>, usize>,
     /// The maximum depth of the circuit
     max_depth: usize,
 }
@@ -97,9 +123,9 @@ impl<I> SimpleCombDepth<'_, I>
 where
     I: Instantiable,
 {
-    /// Returns the logic level of a net in the circuit.
-    pub fn get_comb_depth(&self, net: &Net) -> Option<usize> {
-        self.comb_depth.get(net).cloned()
+    /// Returns the logic level of a node in the circuit.
+    pub fn get_comb_depth(&self, node: &NetRef<I>) -> Option<usize> {
+        self.comb_depth.get(node).cloned()
     }
 
     /// Returns the maximum logic level of the circuit.
@@ -113,7 +139,8 @@ where
     I: Instantiable,
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
-        let mut comb_depth: HashMap<Net, usize> = HashMap::new();
+        #[allow(clippy::mutable_key_type)]
+        let mut comb_depth: HashMap<NetRef<I>, usize> = HashMap::new();
 
         let mut nodes = Vec::new();
         for (driven, _) in netlist.outputs() {
@@ -129,18 +156,17 @@ where
 
         for node in nodes {
             if node.is_an_input() {
-                comb_depth.insert(node.as_net().clone(), 0);
+                comb_depth.insert(node.clone(), 0);
             } else {
                 // TODO(matth2k): get_driver_net() relies on a weak reference. Rewrite without it.
                 let max_depth: usize = (0..node.get_num_input_ports())
-                    .filter_map(|i| netlist.get_driver_net(node.clone(), i))
+                    .filter_map(|i| netlist.get_driver(node.clone(), i))
                     .filter_map(|n| comb_depth.get(&n))
                     .max()
                     .cloned()
                     .unwrap_or(usize::MAX);
-                for net in node.nets() {
-                    comb_depth.insert(net, max_depth + 1);
-                }
+
+                comb_depth.insert(node, max_depth + 1);
             }
         }
 
