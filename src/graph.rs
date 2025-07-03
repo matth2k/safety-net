@@ -70,7 +70,6 @@ where
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
         let mut net_fan_out: HashMap<Net, Vec<NetRef<I>>> = HashMap::new();
-        #[allow(clippy::mutable_key_type)]
         let mut node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
 
@@ -139,7 +138,6 @@ where
     I: Instantiable,
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
-        #[allow(clippy::mutable_key_type)]
         let mut comb_depth: HashMap<NetRef<I>, usize> = HashMap::new();
 
         let mut nodes = Vec::new();
