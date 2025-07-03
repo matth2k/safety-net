@@ -17,13 +17,13 @@ impl Instantiable for Gate {
         }
     }
 
-    fn get_input_ports(&self) -> &[Net] {
+    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
         match self {
             Gate::And(_, inputs, _) => inputs,
         }
     }
 
-    fn get_output_ports(&self) -> &[Net] {
+    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
         match self {
             Gate::And(_, _, output) => std::slice::from_ref(output),
         }
