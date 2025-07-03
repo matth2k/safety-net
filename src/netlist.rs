@@ -376,6 +376,26 @@ where
     netref: NetRefT<I>,
 }
 
+impl<I> PartialEq for NetRef<I>
+where
+    I: Instantiable,
+{
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.netref, &other.netref)
+    }
+}
+
+impl<I> Eq for NetRef<I> where I: Instantiable {}
+
+impl<I> std::hash::Hash for NetRef<I>
+where
+    I: Instantiable,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Rc::as_ptr(&self.netref).hash(state);
+    }
+}
+
 impl<I> NetRef<I>
 where
     I: Instantiable,
@@ -1104,19 +1124,14 @@ where
         Ok(NetRef::wrap(owned_object))
     }
 
-    /// Returns the driving net at input position `index` for `netref`
+    /// Returns the driving node at input position `index` for `netref`
     ///
     /// # Panics
     ///
     /// Panics if `index` is out of bounds
-    pub fn get_driver_net(&self, netref: NetRef<I>, index: usize) -> Option<Net> {
+    pub fn get_driver(&self, netref: NetRef<I>, index: usize) -> Option<NetRef<I>> {
         let op = netref.unwrap().borrow().operands[index].clone()?;
-        Some(
-            self.index_weak(&op.root())
-                .borrow()
-                .get_net(op.secondary())
-                .clone(),
-        )
+        Some(NetRef::wrap(self.index_weak(&op.root()).clone()))
     }
 
     /// Set an added object as a top-level output.
@@ -1294,7 +1309,7 @@ where
                 let mut is_dead = true;
                 for net in obj.nets() {
                     // This should account for outputs
-                    if fan_out.has_uses(&net) {
+                    if fan_out.net_has_uses(&net) {
                         is_dead = false;
                         break;
                     }
