@@ -609,7 +609,7 @@ where
             self.netref.borrow().operands.len(),
             self.get_num_input_ports()
         );
-        self.netref.borrow().operands.iter().any(|o| o.is_none())
+        self.netref.borrow().operands.iter().all(|o| o.is_some())
     }
 
     /// Returns an iterator to the driving circuit nodes.
