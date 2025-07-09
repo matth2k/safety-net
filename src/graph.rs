@@ -151,12 +151,12 @@ where
             }
         }
         nodes.reverse();
+        nodes.dedup();
 
         for node in nodes {
             if node.is_an_input() {
                 comb_depth.insert(node.clone(), 0);
             } else {
-                // TODO(matth2k): get_driver_net() relies on a weak reference. Rewrite without it.
                 let max_depth: usize = (0..node.get_num_input_ports())
                     .filter_map(|i| netlist.get_driver(node.clone(), i))
                     .filter_map(|n| comb_depth.get(&n))

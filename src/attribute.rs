@@ -8,7 +8,7 @@ use bitvec::vec::BitVec;
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    circuit::{Identifier, Instantiable},
+    circuit::Instantiable,
     netlist::{NetRef, Netlist},
 };
 
@@ -92,10 +92,10 @@ pub struct AttributeFilter<'a, I: Instantiable> {
     _netlist: &'a Netlist<I>,
     // The keys to filter by
     keys: Vec<AttributeKey>,
-    // The set of identifiers that have this attribute
-    set: HashSet<Identifier>,
     /// The mapping of netrefs that have this attribute
-    map: HashMap<Identifier, NetRef<I>>,
+    map: HashMap<AttributeKey, HashSet<NetRef<I>>>,
+    /// Contains a dedup collection of all filtered nodes
+    full_set: HashSet<NetRef<I>>,
 }
 
 impl<'a, I> AttributeFilter<'a, I>
@@ -104,32 +104,29 @@ where
 {
     /// Create a new filter for the netlist
     fn new(netlist: &'a Netlist<I>, keys: Vec<AttributeKey>) -> Self {
-        let mut set = HashSet::new();
         let mut map = HashMap::new();
+        let mut full_set = HashSet::new();
         for nr in netlist.objects() {
             for attr in nr.attributes() {
                 if keys.contains(attr.key()) {
-                    if let Some(inst) = nr.get_instance_name() {
-                        set.insert(inst.clone());
-                        map.insert(inst.clone(), nr.clone());
-                    }
-                    for net in nr.nets() {
-                        set.insert(net.get_identifier().clone());
-                    }
+                    map.entry(attr.key().clone())
+                        .or_insert_with(HashSet::new)
+                        .insert(nr.clone());
+                    full_set.insert(nr.clone());
                 }
             }
         }
         Self {
             _netlist: netlist,
             keys,
-            set,
             map,
+            full_set,
         }
     }
 
-    /// Check if an identifier has one of the attributes
-    pub fn has(&self, id: &Identifier) -> bool {
-        self.set.contains(id)
+    /// Check if an node matches any of the filter keys
+    pub fn has(&self, n: &NetRef<I>) -> bool {
+        self.map.values().any(|s| s.contains(n))
     }
 
     /// Return a slice to the keys that were used for filtering
@@ -144,10 +141,10 @@ where
 {
     type Item = NetRef<I>;
 
-    type IntoIter = std::collections::hash_map::IntoValues<Identifier, NetRef<I>>;
+    type IntoIter = std::collections::hash_set::IntoIter<NetRef<I>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.map.into_values()
+        self.full_set.into_iter()
     }
 }
 
