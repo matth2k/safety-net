@@ -71,7 +71,7 @@ pub enum Parameter {
 impl std::fmt::Display for Parameter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Parameter::Integer(i) => write!(f, "{}", i),
+            Parameter::Integer(i) => write!(f, "{i}"),
             Parameter::Real(_r) => todo!(),
             Parameter::BitVec(bv) => write!(
                 f,

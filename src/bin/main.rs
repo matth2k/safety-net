@@ -30,7 +30,7 @@ fn simple_example() -> Netlist<Gate> {
         .insert_gate(
             and_gate(),
             "my_and".into(),
-            &[input1.clone().into(), input2.clone().into()],
+            &[input1.clone(), input2.clone()],
         )
         .unwrap();
 
@@ -59,12 +59,11 @@ fn harder_example() -> Netlist<Gate> {
     let cin = netlist.insert_input("cin".into());
 
     // Instantiate the full adders
-    let mut input_bus: [DrivenNet<Gate>; 3] =
-        [cin.into(), a_vec[0].clone().into(), b_vec[0].clone().into()];
+    let mut input_bus: [DrivenNet<Gate>; 3] = [cin, a_vec[0].clone(), b_vec[0].clone()];
 
     for i in 0..bitwidth {
         let instance = netlist
-            .insert_gate(full_adder(), format!("fa_{}", i).into(), &input_bus)
+            .insert_gate(full_adder(), format!("fa_{i}").into(), &input_bus)
             .unwrap();
 
         if i == bitwidth - 1 {
@@ -81,8 +80,8 @@ fn harder_example() -> Netlist<Gate> {
             instance.expose_net(&instance.get_net(0)).unwrap();
             input_bus = [
                 instance.get_output(1),
-                a_vec[i + 1].clone().into(),
-                b_vec[i + 1].clone().into(),
+                a_vec[i + 1].clone(),
+                b_vec[i + 1].clone(),
             ];
         }
     }
@@ -93,7 +92,7 @@ fn harder_example() -> Netlist<Gate> {
 
 fn main() {
     let netlist = harder_example();
-    print!("{}", netlist);
+    print!("{netlist}");
 
     let logic_levels = netlist
         .get_analysis::<circuit::graph::SimpleCombDepth<_>>()

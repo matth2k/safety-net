@@ -16,17 +16,17 @@ fn ripple_adder() -> Netlist<Gate> {
     // Add the the inputs
     let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
     let b_vec = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
-    let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into()).into();
+    let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
 
     for i in 0..bitwidth {
         // Instantiate a full adder for each bit
         let fa = netlist
-            .insert_gate_disconnected(full_adder(), format!("fa_{}", i).into())
+            .insert_gate_disconnected(full_adder(), format!("fa_{i}").into())
             .unwrap();
 
         // Connect A_i and B_i
-        fa.get_input(1).connect(a_vec[i].clone().into());
-        fa.get_input(2).connect(b_vec[i].clone().into());
+        fa.get_input(1).connect(a_vec[i].clone());
+        fa.get_input(2).connect(b_vec[i].clone());
 
         // Connect with the prev carry
         carry.connect(fa.get_input(0));
@@ -49,9 +49,9 @@ fn ripple_adder() -> Netlist<Gate> {
 #[cfg(feature = "graph")]
 fn main() {
     let netlist = ripple_adder();
-    eprintln!("{}", netlist);
+    eprintln!("{netlist}");
     let analysis = netlist.get_analysis::<MultiDiGraph<_>>().unwrap();
     let graph = analysis.get_graph();
     let dot = petgraph::dot::Dot::with_config(graph, &[]);
-    println!("{}", dot);
+    println!("{dot}");
 }

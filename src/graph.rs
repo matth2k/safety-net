@@ -94,7 +94,7 @@ where
         }
 
         for (o, n) in netlist.outputs() {
-            is_an_output.insert(o.get_net().clone());
+            is_an_output.insert(o.as_net().clone());
             is_an_output.insert(n);
         }
 
@@ -271,8 +271,8 @@ where
         // Finally, add the output connections
         for (o, n) in netlist.outputs() {
             let s_id = mapping[&o.clone().unwrap().get_obj().to_string()];
-            let t_id = graph.add_node(Node::Pseudo(format!("Output({})", n)));
-            graph.add_edge(s_id, t_id, Edge::Pseudo(o.get_net().clone()));
+            let t_id = graph.add_node(Node::Pseudo(format!("Output({n})")));
+            graph.add_edge(s_id, t_id, Edge::Pseudo(o.as_net().clone()));
         }
 
         Ok(Self {
