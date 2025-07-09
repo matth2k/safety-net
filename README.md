@@ -30,14 +30,14 @@ fn main() {
 
     // Instantiate an AND gate
     let instance = netlist
-        .insert_gate(and_gate(), "inst_0".into(), &[a.into(), b.into()])
+        .insert_gate(and_gate(), "inst_0".into(), &[a, b])
         .unwrap();
 
     // Make this AND gate an output
-    instance.expose_with_name("y".to_string());
+    instance.expose_with_name("y".into());
 
-    // Print the netlist as Verilog
-    println!("{}", netlist);
+    // Print the netlist
+    println!("{netlist}");
 }
 ```
 
