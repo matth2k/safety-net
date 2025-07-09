@@ -59,8 +59,7 @@ fn harder_example() -> Netlist<Gate> {
     let cin = netlist.insert_input("cin".into());
 
     // Instantiate the full adders
-    let mut input_bus: [DrivenNet<Gate>; 3] =
-        [cin, a_vec[0].clone(), b_vec[0].clone()];
+    let mut input_bus: [DrivenNet<Gate>; 3] = [cin, a_vec[0].clone(), b_vec[0].clone()];
 
     for i in 0..bitwidth {
         let instance = netlist

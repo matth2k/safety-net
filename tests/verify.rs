@@ -1,4 +1,5 @@
 use circuit::circuit::Identifier;
+use circuit::circuit::Instantiable;
 use circuit::netlist::Gate;
 use circuit::netlist::GateNetlist;
 
@@ -36,19 +37,27 @@ fn test_bus_operations() {
     // Test that we can connect bus bits to gates
     let buffer_gate = Gate::new_logical(
         Identifier::from("buf1"),
-        vec!["input_bus[0]".to_string()],
+        vec!["input[0]".to_string()],
         "buf_out".to_string(),
     );
 
     let buffer_1 = netlist
         .insert_gate(
             buffer_gate,
-            Identifier::from("buf1"),
+            Identifier::from("buf1_inst"),
             &[input_bus[0].clone()],
         )
         .expect("Failed to connect bus bit to buffer");
 
     // Verify the netlist
+    assert!(
+        buffer_1
+            .get_instance_type()
+            .unwrap()
+            .get_input_port(0)
+            .get_identifier()
+            .is_escaped()
+    );
     buffer_1.expose_with_name("buf_out".into());
     assert!(netlist.verify().is_ok());
 }
