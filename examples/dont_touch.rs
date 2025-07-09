@@ -20,14 +20,14 @@ fn main() {
 
     // Instantiate an AND gate
     let instance = netlist
-        .insert_gate(and_gate(), "inst_0".into(), &[a.into(), b.into()])
+        .insert_gate(and_gate(), "inst_0".into(), &[a, b])
         .unwrap();
 
     // Make this AND gate an output
     instance.set_attribute("dont_touch".to_string());
-    instance.expose_with_name("y".to_string());
+    instance.expose_with_name("y".into());
 
     for nr in dont_touch_filter(&netlist) {
-        println!("Don't touch: {}", nr);
+        println!("Don't touch: {nr}");
     }
 }

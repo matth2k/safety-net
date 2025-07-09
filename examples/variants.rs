@@ -62,15 +62,15 @@ fn main() {
 
     // Instantiate an AND gate
     let instance = netlist
-        .insert_gate(and_gate(), "inst_0".into(), &[a.into(), b.into()])
+        .insert_gate(and_gate(), "inst_0".into(), &[a, b])
         .unwrap();
 
     // Make this AND gate an output
-    instance.expose_with_name("y".to_string());
+    instance.expose_with_name("y".into());
 
     // Print the netlist
-    println!("{}", netlist);
+    println!("{netlist}");
     for node in filter_nodes!(netlist, Gate::And(_, _, _)) {
-        println!("Found AND gate: {}", node);
+        println!("Found AND gate: {node}");
     }
 }

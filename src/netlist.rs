@@ -536,7 +536,7 @@ where
     ///
     /// Panics if the cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
-    pub fn expose_with_name(self, name: String) -> Self {
+    pub fn expose_with_name(self, name: Identifier) -> Self {
         let netlist = self
             .netref
             .borrow()
@@ -934,12 +934,12 @@ where
     }
 
     /// Borrow the net being driven
-    pub fn get_net(&self) -> Ref<Net> {
+    pub fn as_net(&self) -> Ref<Net> {
         self.netref.get_net(self.pos)
     }
 
     /// Get a mutable reference to the net being driven
-    pub fn get_net_mut(&self) -> RefMut<Net> {
+    pub fn as_net_mut(&self) -> RefMut<Net> {
         self.netref.get_net_mut(self.pos)
     }
 
@@ -994,6 +994,29 @@ where
     pub fn unwrap(self) -> NetRef<I> {
         self.netref
     }
+
+    /// Returns a copy of the identifier of the net being driven.
+    pub fn get_identifier(&self) -> Identifier {
+        self.as_net().get_identifier().clone()
+    }
+
+    /// Expose this driven net as a module output
+    ///
+    /// # Panics
+    ///
+    /// Panics if the weak reference to the netlist is dead.
+    pub fn expose_with_name(self, name: Identifier) -> Self {
+        let netlist = self
+            .netref
+            .clone()
+            .unwrap()
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("DrivenNet is unlinked from netlist");
+        netlist.expose_net_with_name(self.clone(), name);
+        self
+    }
 }
 
 impl<I> std::fmt::Display for DrivenNet<I>
@@ -1001,7 +1024,7 @@ where
     I: Instantiable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.get_net().fmt(f)
+        self.as_net().fmt(f)
     }
 }
 
@@ -1058,9 +1081,9 @@ where
     }
 
     /// Inserts an input net to the netlist
-    pub fn insert_input(self: &Rc<Self>, net: Net) -> NetRef<I> {
+    pub fn insert_input(self: &Rc<Self>, net: Net) -> DrivenNet<I> {
         let obj = Object::Input(net);
-        self.insert_object(obj, &[]).unwrap()
+        self.insert_object(obj, &[]).unwrap().into()
     }
 
     /// Inserts a four-state logic input port to the netlist
@@ -1068,7 +1091,7 @@ where
         self: &Rc<Self>,
         net: String,
         bw: usize,
-    ) -> Vec<NetRef<I>> {
+    ) -> Vec<DrivenNet<I>> {
         Net::new_escaped_logic_bus(net, bw)
             .into_iter()
             .map(|n| self.insert_input(n))
@@ -1082,10 +1105,12 @@ where
         inst_name: Identifier,
         operands: &[DrivenNet<I>],
     ) -> Result<NetRef<I>, String> {
+        // TODO(matth2k): Need to a more robust way to concat identifiers.
+        assert!(!inst_name.is_escaped());
         let nets = inst_type
             .get_output_ports()
             .into_iter()
-            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier())))
+            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier()).into()))
             .collect::<Vec<_>>();
         let input_count = inst_type.get_input_ports().into_iter().count();
         if operands.len() != input_count {
@@ -1105,10 +1130,12 @@ where
         inst_type: I,
         inst_name: Identifier,
     ) -> Result<NetRef<I>, String> {
+        // TODO(matth2k): Need to a more robust way to concat identifiers.
+        assert!(!inst_name.is_escaped());
         let nets = inst_type
             .get_output_ports()
             .into_iter()
-            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier())))
+            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier()).into()))
             .collect::<Vec<_>>();
         let object = Object::Instance(nets, inst_name, inst_type);
         let index = self.objects.borrow().len();
@@ -1143,9 +1170,9 @@ where
 
     /// Set an added object as a top-level output.
     /// Panics if `net`` is a multi-output node.
-    pub fn expose_net_with_name(&self, net: DrivenNet<I>, name: String) -> DrivenNet<I> {
+    pub fn expose_net_with_name(&self, net: DrivenNet<I>, name: Identifier) -> DrivenNet<I> {
         let mut outputs = self.outputs.borrow_mut();
-        outputs.insert(net.get_operand(), net.get_net().with_name(name));
+        outputs.insert(net.get_operand(), net.as_net().with_name(name));
         net
     }
 
@@ -1157,7 +1184,7 @@ where
             );
         }
         let mut outputs = self.outputs.borrow_mut();
-        outputs.insert(net.get_operand(), net.get_net().clone());
+        outputs.insert(net.get_operand(), net.as_net().clone());
         Ok(net)
     }
 
@@ -1272,7 +1299,7 @@ where
     pub fn find_net(&self, net: &Net) -> Option<DrivenNet<I>> {
         for obj in self.objects() {
             for o in obj.outputs() {
-                if *o.get_net() == *net {
+                if *o.as_net() == *net {
                     return Some(o);
                 }
             }
@@ -1441,7 +1468,7 @@ where
 
     /// Return the net along the connection
     pub fn net(&self) -> Net {
-        self.driver.get_net().clone()
+        self.driver.as_net().clone()
     }
 
     /// Returns the input port of the connection
@@ -1838,9 +1865,9 @@ where
             if let Object::Instance(nets, inst_name, inst_type) = obj {
                 for (k, v) in owned.attributes.iter() {
                     if let Some(value) = v {
-                        writeln!(f, "{}(* {} = \"{}\" *)", indent, k, value)?;
+                        writeln!(f, "{indent}(* {k} = \"{value}\" *)")?;
                     } else {
-                        writeln!(f, "{}(* {} *)", indent, k)?;
+                        writeln!(f, "{indent}(* {k} *)")?;
                     }
                 }
 
@@ -1852,14 +1879,14 @@ where
                     let params: Vec<_> = inst_type.parameters().collect();
                     for (i, (k, v)) in params.iter().enumerate() {
                         if i == params.len() - 1 {
-                            writeln!(f, "{}.{}({})", indent, k, v)?;
+                            writeln!(f, "{indent}.{k}({v})")?;
                         } else {
-                            writeln!(f, "{}.{}({}),", indent, k, v)?;
+                            writeln!(f, "{indent}.{k}({v}),")?;
                         }
                     }
                     let level = 2;
                     let indent = " ".repeat(level);
-                    write!(f, "{}) ", indent)?;
+                    write!(f, "{indent}) ")?;
                 }
                 writeln!(f, "{} (", inst_name.emit_name())?;
                 let level = 4;
@@ -1906,7 +1933,7 @@ where
 
                 let level = 2;
                 let indent = " ".repeat(level);
-                writeln!(f, "{});", indent)?;
+                writeln!(f, "{indent});")?;
             }
         }
 
@@ -1947,7 +1974,7 @@ fn test_delete_netlist() {
                 "Y".to_string(),
             ),
             "my_and".into(),
-            &[input1.clone().into(), input2.clone().into()],
+            &[input1.clone(), input2.clone()],
         )
         .unwrap();
 

@@ -167,7 +167,7 @@ impl Net {
         for i in 0..bw {
             vec.push(Self::new(
                 Identifier {
-                    name: format!("{}[{}]", name, i),
+                    name: format!("{name}[{i}]"),
                     id_type: IdentifierType::Escaped,
                 },
                 DataType::logic(),
@@ -196,9 +196,9 @@ impl Net {
         &self.data_type
     }
 
-    /// Returns a net of the same type but with a different [IdentifierType::Normal] name
-    pub fn with_name(&self, name: String) -> Self {
-        Self::new(Identifier::new(name), self.data_type)
+    /// Returns a net of the same type but with a different [Identifier].
+    pub fn with_name(&self, name: Identifier) -> Self {
+        Self::new(name, self.data_type)
     }
 }
 
@@ -354,7 +354,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Object::Input(net) => write!(f, "Input({})", net),
+            Object::Input(net) => write!(f, "Input({net})"),
             Object::Instance(_nets, name, instance) => {
                 write!(f, "{}({})", instance.get_name(), name)
             }

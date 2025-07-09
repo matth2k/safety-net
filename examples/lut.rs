@@ -19,8 +19,8 @@ impl Lut {
         bv.truncate(1 << k);
         Lut {
             lookup_table: bv,
-            id: Identifier::new(format!("LUT{}", k)),
-            inputs: (0..k).map(|i| Net::new_logic(format!("I{}", i))).collect(),
+            id: Identifier::new(format!("LUT{k}")),
+            inputs: (0..k).map(|i| Net::new_logic(format!("I{i}"))).collect(),
             output: Net::new_logic("O".to_string()),
         }
     }
@@ -72,15 +72,15 @@ fn main() {
 
     // Instantiate an NAND gate
     let instance = netlist
-        .insert_gate(Lut::new(2, 7), "inst_0".into(), &[a.into(), b.into()])
+        .insert_gate(Lut::new(2, 7), "inst_0".into(), &[a, b])
         .unwrap();
 
     // Let's make it an AND gate by inverting the lookup table
     instance.get_instance_type_mut().unwrap().invert();
 
     // Make this LUT an output
-    instance.expose_with_name("y".to_string());
+    instance.expose_with_name("y".into());
 
     // Print the netlist
-    println!("{}", netlist);
+    println!("{netlist}");
 }
