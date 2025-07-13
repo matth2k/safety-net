@@ -128,6 +128,7 @@ fn driven_net() {
     assert!(out_1.is_top_level_output());
     assert!(out_2.is_top_level_output());
 
+    // print connections
     for connection in netlist.connections() {
         std::io::stdout().lock().write_all(
             format!("Connection: {} -> {} on net {}\n",
