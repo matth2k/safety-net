@@ -6,6 +6,7 @@ use circuit::{
 };
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Lut {
     lookup_table: BitVec,
     id: Identifier,
@@ -83,4 +84,12 @@ fn main() {
 
     // Print the netlist
     println!("{netlist}");
+
+    #[cfg(feature = "serde")]
+    {
+        let res = netlist.reclaim().unwrap().serialize(std::io::stdout());
+        if res.is_err() {
+            eprintln!("Failed to serialize netlist: {:?}", res.err());
+        }
+    }
 }
