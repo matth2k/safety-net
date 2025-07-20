@@ -12,6 +12,7 @@ use crate::{
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
+    num::ParseIntError,
     rc::{Rc, Weak},
 };
 
@@ -143,8 +144,26 @@ impl Operand {
 impl std::fmt::Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Operand::DirectIndex(idx) => write!(f, "{}", idx),
-            Operand::CellIndex(idx, j) => write!(f, "{}.{}", idx, j),
+            Operand::DirectIndex(idx) => write!(f, "{idx}"),
+            Operand::CellIndex(idx, j) => write!(f, "{idx}.{j}"),
+        }
+    }
+}
+
+impl std::str::FromStr for Operand {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.split_once('.') {
+            Some((idx, j)) => {
+                let idx = idx.parse::<usize>()?;
+                let j = j.parse::<usize>()?;
+                Ok(Operand::CellIndex(idx, j))
+            }
+            None => {
+                let idx = s.parse::<usize>()?;
+                Ok(Operand::DirectIndex(idx))
+            }
         }
     }
 }
@@ -2017,7 +2036,8 @@ pub mod serde {
         attribute::{AttributeKey, AttributeValue},
         circuit::{Instantiable, Net, Object},
     };
-    use serde::{Deserialize, Serialize};
+    use serde::{Deserialize, Serialize, de::DeserializeOwned};
+    use std::cell::RefCell;
     use std::{collections::HashMap, rc::Rc};
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -2043,6 +2063,24 @@ pub mod serde {
                 object: value.object,
                 operands: value.operands,
                 attributes: value.attributes,
+            }
+        }
+    }
+
+    impl<I> SerdeObject<I>
+    where
+        I: Instantiable + Serialize,
+    {
+        fn into_owned_object<O>(self, owner: &Rc<O>, index: usize) -> OwnedObject<I, O>
+        where
+            O: WeakIndex<usize, Output = OwnedObject<I, O>>,
+        {
+            OwnedObject {
+                object: self.object,
+                owner: Rc::downgrade(owner),
+                operands: self.operands,
+                attributes: self.attributes,
+                index,
             }
         }
     }
@@ -2090,6 +2128,40 @@ pub mod serde {
         }
     }
 
+    impl<I> SerdeNetlist<I>
+    where
+        I: Instantiable + Serialize,
+    {
+        /// Convert the serialized netlist back into a reference-counted netlist.
+        fn into_netlist(self) -> Rc<Netlist<I>> {
+            let netlist = Netlist::new(self.name);
+            let outputs: HashMap<Operand, Net> = self
+                .outputs
+                .into_iter()
+                .map(|(k, v)| {
+                    let operand = Operand::DirectIndex(k.parse().expect("Invalid index"));
+                    (operand, v)
+                })
+                .collect();
+            let objects = self
+                .objects
+                .into_iter()
+                .enumerate()
+                .map(|(i, o)| {
+                    let owned_object = o.into_owned_object(&netlist, i);
+                    Rc::new(RefCell::new(owned_object))
+                })
+                .collect::<Vec<_>>();
+            {
+                let mut objs_mut = netlist.objects.borrow_mut();
+                *objs_mut = objects;
+                let mut outputs_mut = netlist.outputs.borrow_mut();
+                *outputs_mut = outputs;
+            }
+            netlist
+        }
+    }
+
     /// Serialize the netlist into the writer.
     pub fn netlist_serialize<I: Instantiable + Serialize>(
         netlist: Netlist<I>,
@@ -2097,5 +2169,13 @@ pub mod serde {
     ) -> Result<(), serde_json::Error> {
         let sobj: SerdeNetlist<I> = netlist.into();
         serde_json::to_writer_pretty(writer, &sobj)
+    }
+
+    /// Deserialize a netlist from the reader.
+    pub fn netlist_deserialize<I: Instantiable + Serialize + DeserializeOwned>(
+        reader: impl std::io::Read,
+    ) -> Result<Rc<Netlist<I>>, serde_json::Error> {
+        let sobj: SerdeNetlist<I> = serde_json::from_reader(reader)?;
+        Ok(sobj.into_netlist())
     }
 }
