@@ -2139,7 +2139,7 @@ pub mod serde {
                 .outputs
                 .into_iter()
                 .map(|(k, v)| {
-                    let operand = Operand::DirectIndex(k.parse().expect("Invalid index"));
+                    let operand = k.parse::<Operand>().expect("Invalid index");
                     (operand, v)
                 })
                 .collect();
