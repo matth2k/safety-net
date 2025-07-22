@@ -5,9 +5,9 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 categories = [
-	"data-structures",
-	"eda",
-	"netlist",
+    "data-structures",
+    "eda",
+    "netlist",
     "circuits",
     "hardware",
 ]
@@ -16,19 +16,20 @@ description = "A reference-counted netlist library for EDA tools"
 # documentation = "https://todo"
 # homepage = "https://todo"
 include = [
-	"Cargo.toml",
-	"LICENSE-MIT",
+    "Cargo.toml",
+    "LICENSE-MIT",
     "LICENSE-APACHE",
-	"README.md",
-	"doc/**",
-	"src/**/*.rs",
-	"examples/*.rs",
+    "README.md",
+    "doc/**",
+    "src/**/*.rs",
+    "tests/**/*.rs",
+    "examples/**/*.rs",
 ]
 
 keywords = [
-	"data-structures",
-	"eda",
-	"netlist",
+    "data-structures",
+    "eda",
+    "netlist",
     "circuits",
     "hardware",
 ]
