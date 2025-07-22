@@ -12,6 +12,7 @@ use crate::{
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
+    num::ParseIntError,
     rc::{Rc, Weak},
 };
 
@@ -106,6 +107,7 @@ impl Gate {
 
 /// An operand to an [Instantiable]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 enum Operand {
     /// An index into the list of objects
     DirectIndex(usize),
@@ -135,6 +137,33 @@ impl Operand {
         match self {
             Operand::DirectIndex(_) => 0,
             Operand::CellIndex(_, j) => *j,
+        }
+    }
+}
+
+impl std::fmt::Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operand::DirectIndex(idx) => write!(f, "{idx}"),
+            Operand::CellIndex(idx, j) => write!(f, "{idx}.{j}"),
+        }
+    }
+}
+
+impl std::str::FromStr for Operand {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.split_once('.') {
+            Some((idx, j)) => {
+                let idx = idx.parse::<usize>()?;
+                let j = j.parse::<usize>()?;
+                Ok(Operand::CellIndex(idx, j))
+            }
+            None => {
+                let idx = s.parse::<usize>()?;
+                Ok(Operand::DirectIndex(idx))
+            }
         }
     }
 }
@@ -1796,6 +1825,15 @@ where
     pub fn dfs(&self, from: NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
         iter::DFSIterator::new(self, from)
     }
+
+    #[cfg(feature = "serde")]
+    /// Serializes the netlist to a writer.
+    pub fn serialize(self, writer: impl std::io::Write) -> Result<(), serde_json::Error>
+    where
+        I: ::serde::Serialize,
+    {
+        serde::netlist_serialize(self, writer)
+    }
 }
 
 impl<I> std::fmt::Display for Netlist<I>
@@ -1989,3 +2027,155 @@ fn test_delete_netlist() {
 pub type GateNetlist = Netlist<Gate>;
 /// A type alias to Gate circuit nodes
 pub type GateRef = NetRef<Gate>;
+
+#[cfg(feature = "serde")]
+/// Serde support for netlists
+pub mod serde {
+    use super::{Netlist, Operand, OwnedObject, WeakIndex};
+    use crate::{
+        attribute::{AttributeKey, AttributeValue},
+        circuit::{Instantiable, Net, Object},
+    };
+    use serde::{Deserialize, Serialize, de::DeserializeOwned};
+    use std::cell::RefCell;
+    use std::{collections::HashMap, rc::Rc};
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct SerdeObject<I>
+    where
+        I: Instantiable + Serialize,
+    {
+        /// The object that is owned by the netlist
+        object: Object<I>,
+        /// The list of operands for the object
+        operands: Vec<Option<Operand>>,
+        /// A collection of attributes for the object
+        attributes: HashMap<AttributeKey, AttributeValue>,
+    }
+
+    impl<I, O> From<OwnedObject<I, O>> for SerdeObject<I>
+    where
+        I: Instantiable + Serialize,
+        O: WeakIndex<usize, Output = OwnedObject<I, O>>,
+    {
+        fn from(value: OwnedObject<I, O>) -> Self {
+            SerdeObject {
+                object: value.object,
+                operands: value.operands,
+                attributes: value.attributes,
+            }
+        }
+    }
+
+    impl<I> SerdeObject<I>
+    where
+        I: Instantiable + Serialize,
+    {
+        fn into_owned_object<O>(self, owner: &Rc<O>, index: usize) -> OwnedObject<I, O>
+        where
+            O: WeakIndex<usize, Output = OwnedObject<I, O>>,
+        {
+            OwnedObject {
+                object: self.object,
+                owner: Rc::downgrade(owner),
+                operands: self.operands,
+                attributes: self.attributes,
+                index,
+            }
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct SerdeNetlist<I>
+    where
+        I: Instantiable + Serialize,
+    {
+        /// The name of the netlist
+        name: String,
+        /// The list of objects in the netlist, such as inputs, modules, and primitives
+        objects: Vec<SerdeObject<I>>,
+        /// The list of operands that point to objects which are outputs
+        outputs: HashMap<String, Net>,
+    }
+
+    impl<I> From<Netlist<I>> for SerdeNetlist<I>
+    where
+        I: Instantiable + Serialize,
+    {
+        fn from(value: Netlist<I>) -> Self {
+            SerdeNetlist {
+                name: value.name,
+                objects: value
+                    .objects
+                    .into_inner()
+                    .into_iter()
+                    .map(|o| {
+                        Rc::try_unwrap(o)
+                            .ok()
+                            .expect("Cannot serialize with live references")
+                            .into_inner()
+                            .into()
+                    })
+                    .collect(),
+                outputs: value
+                    .outputs
+                    .into_inner()
+                    .into_iter()
+                    // TODO(matth2k): Indices must be a string. This is a workaround until de-serialize is implemented.
+                    .map(|(o, n)| (o.to_string(), n))
+                    .collect(),
+            }
+        }
+    }
+
+    impl<I> SerdeNetlist<I>
+    where
+        I: Instantiable + Serialize,
+    {
+        /// Convert the serialized netlist back into a reference-counted netlist.
+        fn into_netlist(self) -> Rc<Netlist<I>> {
+            let netlist = Netlist::new(self.name);
+            let outputs: HashMap<Operand, Net> = self
+                .outputs
+                .into_iter()
+                .map(|(k, v)| {
+                    let operand = k.parse::<Operand>().expect("Invalid index");
+                    (operand, v)
+                })
+                .collect();
+            let objects = self
+                .objects
+                .into_iter()
+                .enumerate()
+                .map(|(i, o)| {
+                    let owned_object = o.into_owned_object(&netlist, i);
+                    Rc::new(RefCell::new(owned_object))
+                })
+                .collect::<Vec<_>>();
+            {
+                let mut objs_mut = netlist.objects.borrow_mut();
+                *objs_mut = objects;
+                let mut outputs_mut = netlist.outputs.borrow_mut();
+                *outputs_mut = outputs;
+            }
+            netlist
+        }
+    }
+
+    /// Serialize the netlist into the writer.
+    pub fn netlist_serialize<I: Instantiable + Serialize>(
+        netlist: Netlist<I>,
+        writer: impl std::io::Write,
+    ) -> Result<(), serde_json::Error> {
+        let sobj: SerdeNetlist<I> = netlist.into();
+        serde_json::to_writer_pretty(writer, &sobj)
+    }
+
+    /// Deserialize a netlist from the reader.
+    pub fn netlist_deserialize<I: Instantiable + Serialize + DeserializeOwned>(
+        reader: impl std::io::Read,
+    ) -> Result<Rc<Netlist<I>>, serde_json::Error> {
+        let sobj: SerdeNetlist<I> = serde_json::from_reader(reader)?;
+        Ok(sobj.into_netlist())
+    }
+}

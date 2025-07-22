@@ -8,6 +8,7 @@ use crate::attribute::Parameter;
 
 /// Signals in a circuit can be binary, tri-state, or four-state.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DataType {
     /// A logical 0 or 1
     TwoState,
@@ -41,6 +42,7 @@ impl DataType {
 
 /// The type of identifier labelling a circuit node
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum IdentifierType {
     /// A normal identifier
     Normal,
@@ -52,6 +54,7 @@ pub enum IdentifierType {
 
 /// An identifier of a node in a circuit
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Identifier {
     /// The name of the identifier
     name: String,
@@ -142,6 +145,7 @@ impl std::fmt::Display for Identifier {
 
 /// A net in a circuit, which is identified with a name and data type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Net {
     identifier: Identifier,
     data_type: DataType,
@@ -274,6 +278,7 @@ pub trait Instantiable: Clone {
 
 /// A tagged union for objects in a digital circuit, which can be either an input net or an instance of a module or primitive.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Object<I>
 where
     I: Instantiable,
