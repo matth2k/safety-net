@@ -4,6 +4,40 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 
+categories = [
+	"data-structures",
+	"eda",
+	"netlist",
+    "circuits",
+    "hardware",
+]
+
+description = "A reference-counted netlist library for EDA tools"
+# documentation = "https://todo"
+# homepage = "https://todo"
+include = [
+	"Cargo.toml",
+	"LICENSE-MIT",
+    "LICENSE-APACHE",
+	"README.md",
+	"doc/**",
+	"src/**/*.rs",
+	"examples/*.rs",
+]
+
+keywords = [
+	"data-structures",
+	"eda",
+	"netlist",
+    "circuits",
+    "hardware",
+]
+
+readme = "README.md"
+
+# TODO: come up with crate name
+# repository = "https://github.com/matth2k/circuit"
+
 [dependencies]
 bitvec = { version = "1.0.1" }
 petgraph = { version = "0.8.2", optional = true }
