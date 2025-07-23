@@ -2007,28 +2007,38 @@ where
     }
 }
 
-#[test]
-fn test_delete_netlist() {
-    let netlist = Netlist::new("simple_example".to_string());
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_delete_netlist() {
+        let netlist = Netlist::new("simple_example".to_string());
 
-    // Add the the two inputs
-    let input1 = netlist.insert_input("input1".into());
-    let input2 = netlist.insert_input("input2".into());
+        // Add the the two inputs
+        let input1 = netlist.insert_input("input1".into());
+        let input2 = netlist.insert_input("input2".into());
 
-    // Instantiate an AND gate
-    let instance = netlist
-        .insert_gate(
-            Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
-            "my_and".into(),
-            &[input1.clone(), input2.clone()],
-        )
-        .unwrap();
+        // Instantiate an AND gate
+        let instance = netlist
+            .insert_gate(
+                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "my_and".into(),
+                &[input1.clone(), input2.clone()],
+            )
+            .unwrap();
 
-    // Make this AND gate an output
-    let instance = instance.expose_as_output().unwrap();
-    instance.delete_uses().unwrap();
-    let res = netlist.clean();
-    assert!(res.is_ok());
+        // Make this AND gate an output
+        let instance = instance.expose_as_output().unwrap();
+        instance.delete_uses().unwrap();
+        let res = netlist.clean();
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    #[should_panic(expected = "Attempted to create a gate with a sliced identifier")]
+    fn gate_w_slice_panics() {
+        Gate::new_logical("AND[1]".into(), vec!["A".into(), "B".into()], "Y".into());
+    }
 }
 
 /// A type alias for a netlist of gates
