@@ -36,8 +36,8 @@ keywords = [
 
 readme = "README.md"
 
-# TODO: come up with crate name
-# repository = "https://github.com/matth2k/circuit"
+
+repository = "https://github.com/matth2k/safety-net"
 
 [dependencies]
 bitvec = { version = "1.0.1" }

@@ -15,3 +15,4 @@ pub mod attribute;
 pub mod circuit;
 pub mod graph;
 pub mod netlist;
+pub mod util;
