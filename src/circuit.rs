@@ -73,13 +73,26 @@ impl Identifier {
         }
 
         // Certainly not an exhaustive list.
-        // TODO(matth2k): Implement isEscaped()
-        let esc_chars = ['[', ']', ' ', '\\', '(', ')', ',', '+', '-'];
+        // TODO(matth2k): Implement a true isEscaped()
+        let esc_chars = [' ', '\\', '(', ')', ',', '+', '-'];
         if name.chars().any(|c| esc_chars.contains(&c)) {
             return Identifier {
                 name,
                 id_type: IdentifierType::Escaped,
             };
+        }
+
+        if name.contains('[') && name.ends_with(']') {
+            let name_ind = name.find('[').unwrap();
+            let rname = &name[..name_ind];
+            let index_start = name_ind + 1;
+            let slice = name[index_start..name.len() - 1].parse::<usize>();
+            if let Ok(s) = slice {
+                return Identifier {
+                    name: rname.to_string(),
+                    id_type: IdentifierType::BitSlice(s),
+                };
+            }
         }
 
         Identifier {
@@ -364,5 +377,42 @@ where
                 write!(f, "{}({})", instance.get_name(), name)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identifier_parsing() {
+        let id = Identifier::new("wire".to_string());
+        assert!(!id.is_escaped());
+        assert!(!id.is_sliced());
+        let id = Identifier::new("\\wire".to_string());
+        assert!(id.is_escaped());
+        assert!(!id.is_sliced());
+        let id = Identifier::new("wire[3]".to_string());
+        assert!(!id.is_escaped());
+        assert!(id.is_sliced());
+        assert_eq!(id.get_bit_index(), Some(3));
+    }
+
+    #[test]
+    fn assume_escaped_identifier() {
+        let id = Identifier::new("C++".to_string());
+        assert!(id.is_escaped());
+    }
+
+    #[test]
+    fn identifier_emission() {
+        let id = Identifier::new("wire".to_string());
+        assert_eq!(id.emit_name(), "wire");
+        let id = Identifier::new("\\wire".to_string());
+        assert!(id.is_escaped());
+        assert_eq!(id.emit_name(), "\\wire ");
+        let id = Identifier::new("wire[3]".to_string());
+        assert!(id.is_sliced());
+        assert_eq!(id.emit_name(), "wire[3]");
     }
 }

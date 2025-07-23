@@ -37,7 +37,7 @@ fn test_bus_operations() {
     // Test that we can connect bus bits to gates
     let buffer_gate = Gate::new_logical(
         Identifier::from("buf1"),
-        vec!["input[0]".to_string()],
+        vec!["\\input[0]".to_string()],
         "buf_out".to_string(),
     );
 

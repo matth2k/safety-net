@@ -155,3 +155,28 @@ where
 {
     AttributeFilter::new(netlist, vec!["dont_touch".to_string()])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attribute_iter() {
+        let attributes: [(AttributeKey, AttributeValue); 2] = [
+            ("dont_touch".to_string(), Some("true".to_string())),
+            ("synthesizable".to_string(), None),
+        ];
+        let real_attrs: Vec<Attribute> = Attribute::from_pairs(attributes.into_iter()).collect();
+        assert_eq!(real_attrs.len(), 2);
+        assert_eq!(
+            real_attrs.first().unwrap().to_string(),
+            "(* dont_touch = true *)"
+        );
+        assert_eq!(real_attrs.first().unwrap().key(), "dont_touch");
+        assert_eq!(
+            real_attrs.last().unwrap().to_string(),
+            "(* synthesizable *)"
+        );
+        assert!(real_attrs.last().unwrap().value().is_none());
+    }
+}
