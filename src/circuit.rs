@@ -295,6 +295,22 @@ pub trait Instantiable: Clone {
             .nth(index)
             .expect("Index out of bounds for output ports")
     }
+
+    /// Returns the index of the input port with the given identifier, if it exists.
+    /// **This method should be overriden if the implemenation is capable of O(1) lookup.**
+    fn find_input(&self, id: &Identifier) -> Option<usize> {
+        self.get_input_ports()
+            .into_iter()
+            .position(|n| n.get_identifier() == id)
+    }
+
+    /// Returns the index of the output port with the given identifier, if it exists.
+    /// **This method should be overriden if the implemenation is capable of O(1) lookup.**
+    fn find_output(&self, id: &Identifier) -> Option<usize> {
+        self.get_output_ports()
+            .into_iter()
+            .position(|n| n.get_identifier() == id)
+    }
 }
 
 /// A tagged union for objects in a digital circuit, which can be either an input net or an instance of a module or primitive.

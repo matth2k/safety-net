@@ -311,13 +311,13 @@ mod tests {
                 .unwrap();
 
             // Expose the sum
-            fa.expose_net(&fa.get_net(1)).unwrap();
+            fa.expose_net(&fa.get_net(0)).unwrap();
 
-            carry = fa.get_output(0);
+            carry = fa.find_output(&"COUT".into()).unwrap();
 
             if i == bitwidth - 1 {
                 // Last full adder, expose the carry out
-                fa.get_output(0).expose_with_name("cout".into()).unwrap();
+                fa.get_output(1).expose_with_name("cout".into()).unwrap();
             }
         }
 
@@ -336,7 +336,7 @@ mod tests {
             // Sum bit has no users (it is a direct output)
             assert!(
                 analysis
-                    .get_net_users(&item.get_output(1).as_net())
+                    .get_net_users(&item.find_output(&"S".into()).unwrap().as_net())
                     .next()
                     .is_none(),
                 "Sum bit should not have users"
@@ -347,15 +347,15 @@ mod tests {
                 "Item should have a name. Filtered inputs"
             );
 
-            let net = item.get_output(0).as_net().clone();
+            let net = item.find_output(&"COUT".into()).unwrap().as_net().clone();
             let mut cout_users = analysis.get_net_users(&net);
             if item.get_instance_name().unwrap().to_string() != "fa_3" {
-                assert!(cout_users.next().is_some(), "Sum bit should have users");
+                assert!(cout_users.next().is_some(), "Carry bit should have users");
             }
 
             assert!(
                 cout_users.next().is_none(),
-                "Sum bit should have 1 or 0 user"
+                "Carry bit should have 1 or 0 user"
             );
         }
     }
