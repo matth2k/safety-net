@@ -484,12 +484,24 @@ where
         DrivenNet::new(idx, self.clone())
     }
 
+    /// Returns a borrow to the output connected to port `id`
+    pub fn find_output(&self, id: &Identifier) -> Option<DrivenNet<I>> {
+        let ind = self.get_instance_type()?.find_output(id)?;
+        Some(self.get_output(ind))
+    }
+
     /// Returns an abstraction around the input connection
     pub fn get_input(&self, idx: usize) -> InputPort<I> {
         if self.is_an_input() {
             panic!("Principal inputs do not have inputs");
         }
         InputPort::new(idx, self.clone())
+    }
+
+    /// Returns a borrow to the input port with name `id`
+    pub fn find_input(&self, id: &Identifier) -> Option<InputPort<I>> {
+        let ind = self.get_instance_type()?.find_input(id)?;
+        Some(self.get_input(ind))
     }
 
     /// Returns the name of the net at this circuit node.
