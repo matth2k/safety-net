@@ -174,8 +174,8 @@ impl Net {
     }
 
     /// Create a new net for SystemVerilog-like four-state logic
-    pub fn new_logic(name: String) -> Self {
-        Self::new(Identifier::new(name), DataType::logic())
+    pub fn new_logic(name: Identifier) -> Self {
+        Self::new(name, DataType::logic())
     }
 
     /// Create a wire bus as escaped SystemVerilog signals
@@ -227,7 +227,7 @@ impl std::fmt::Display for Net {
 
 impl From<&str> for Net {
     fn from(name: &str) -> Self {
-        Net::new_logic(name.to_string())
+        Net::new_logic(name.into())
     }
 }
 

@@ -4,11 +4,7 @@ use circuit::{
 };
 
 fn and_gate() -> Gate {
-    Gate::new_logical(
-        "AND".into(),
-        vec!["A".to_string(), "B".to_string()],
-        "Y".to_string(),
-    )
+    Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into())
 }
 
 fn main() {

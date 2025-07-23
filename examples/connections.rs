@@ -4,8 +4,8 @@ use circuit::netlist::{DrivenNet, Gate, Netlist};
 fn full_adder() -> Gate {
     Gate::new_logical_multi(
         "FA".into(),
-        vec!["CIN".to_string(), "A".to_string(), "B".to_string()],
-        vec!["S".to_string(), "COUT".to_string()],
+        vec!["CIN".into(), "A".into(), "B".into()],
+        vec!["S".into(), "COUT".into()],
     )
 }
 

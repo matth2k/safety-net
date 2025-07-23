@@ -21,8 +21,10 @@ impl Lut {
         Lut {
             lookup_table: bv,
             id: Identifier::new(format!("LUT{k}")),
-            inputs: (0..k).map(|i| Net::new_logic(format!("I{i}"))).collect(),
-            output: Net::new_logic("O".to_string()),
+            inputs: (0..k)
+                .map(|i| Net::new_logic(format!("I{i}").into()))
+                .collect(),
+            output: Net::new_logic("O".into()),
         }
     }
 
