@@ -2,7 +2,7 @@
 #![warn(missing_docs, unreachable_pub)]
 /*!
 
-`circuit`
+`safety-net`
 
 TODO: overview, tutorial, testing, research papers
 

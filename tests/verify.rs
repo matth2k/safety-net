@@ -1,7 +1,7 @@
-use circuit::circuit::Identifier;
-use circuit::circuit::Instantiable;
-use circuit::netlist::Gate;
-use circuit::netlist::GateNetlist;
+use safety_net::circuit::Identifier;
+use safety_net::circuit::Instantiable;
+use safety_net::netlist::Gate;
+use safety_net::netlist::GateNetlist;
 
 #[test]
 fn inputs_w_same_name() {

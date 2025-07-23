@@ -1,4 +1,4 @@
-use circuit::{
+use safety_net::{
     attribute::dont_touch_filter,
     netlist::{Gate, Netlist},
 };

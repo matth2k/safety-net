@@ -1,17 +1,17 @@
-![](https://github.com/matth2k/circuit/actions/workflows/rust.yml/badge.svg)
+![](https://github.com/matth2k/safety-net/actions/workflows/rust.yml/badge.svg)
 
-# Circuit: A Reference-Counted Netlist Library
+# Safety Net: A Memory-Safe Netlist Data Structure via Reference Counting
 
 ## Description
 
-A Rust library for compiling and mutating circuit netlists in a memory-safe way
+A Rust library for compiling and mutating Safety Net netlists in a memory-safe way
 
 ## Getting Started
 
 Below is a minimal example to get you started:
 
 ```rust
-use circuit::netlist::{Gate, Netlist};
+use safety_net::netlist::{Gate, Netlist};
 
 fn and_gate() -> Gate {
     Gate::new_logical(
