@@ -285,7 +285,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::netlist::*;
+    use crate::{format_id, netlist::*};
 
     fn full_adder() -> Gate {
         Gate::new_logical_multi(
@@ -307,7 +307,7 @@ mod tests {
         for (i, (a, b)) in a.into_iter().zip(b.into_iter()).enumerate() {
             // Instantiate a full adder for each bit
             let fa = netlist
-                .insert_gate(full_adder(), format!("fa_{i}").into(), &[carry, a, b])
+                .insert_gate(full_adder(), format_id!("fa_{i}"), &[carry, a, b])
                 .unwrap();
 
             // Expose the sum

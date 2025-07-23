@@ -64,6 +64,10 @@ impl Instantiable for Gate {
 impl Gate {
     /// Creates a new gate primitive with four-state logic types
     pub fn new_logical(name: Identifier, inputs: Vec<Identifier>, output: Identifier) -> Self {
+        if name.is_sliced() {
+            panic!("Attempted to create a gate with a sliced identifier: {name}");
+        }
+
         let outputs = vec![Net::new_logic(output)];
         let inputs = inputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         Self {
@@ -79,6 +83,10 @@ impl Gate {
         inputs: Vec<Identifier>,
         outputs: Vec<Identifier>,
     ) -> Self {
+        if name.is_sliced() {
+            panic!("Attempted to create a gate with a sliced identifier: {name}");
+        }
+
         let outputs = outputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         let inputs = inputs.into_iter().map(Net::new_logic).collect::<Vec<_>>();
         Self {

@@ -219,6 +219,14 @@ impl Net {
     }
 }
 
+/// Functions like the [format!] macro, but returns an [Identifier]
+#[macro_export]
+macro_rules! format_id {
+    ($($arg:tt)*) => {
+        $crate::circuit::Identifier::new(format!($($arg)*))
+    }
+}
+
 impl std::fmt::Display for Net {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.identifier.fmt(f)

@@ -1,4 +1,7 @@
-use circuit::netlist::{DrivenNet, Gate, Netlist};
+use circuit::{
+    format_id,
+    netlist::{DrivenNet, Gate, Netlist},
+};
 
 #[allow(dead_code)]
 fn and_gate() -> Gate {
@@ -59,7 +62,7 @@ fn harder_example() -> Netlist<Gate> {
 
     for i in 0..bitwidth {
         let instance = netlist
-            .insert_gate(full_adder(), format!("fa_{i}").into(), &input_bus)
+            .insert_gate(full_adder(), format_id!("fa_{i}"), &input_bus)
             .unwrap();
 
         if i == bitwidth - 1 {

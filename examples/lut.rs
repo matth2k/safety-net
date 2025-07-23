@@ -2,6 +2,7 @@ use bitvec::vec::BitVec;
 use circuit::{
     attribute::Parameter,
     circuit::{Identifier, Instantiable, Net},
+    format_id,
     netlist::Netlist,
 };
 
@@ -20,10 +21,8 @@ impl Lut {
         bv.truncate(1 << k);
         Lut {
             lookup_table: bv,
-            id: Identifier::new(format!("LUT{k}")),
-            inputs: (0..k)
-                .map(|i| Net::new_logic(format!("I{i}").into()))
-                .collect(),
+            id: format_id!("LUT{k}"),
+            inputs: (0..k).map(|i| Net::new_logic(format_id!("I{i}"))).collect(),
             output: Net::new_logic("O".into()),
         }
     }
