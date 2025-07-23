@@ -73,13 +73,26 @@ impl Identifier {
         }
 
         // Certainly not an exhaustive list.
-        // TODO(matth2k): Implement isEscaped()
-        let esc_chars = ['[', ']', ' ', '\\', '(', ')', ',', '+', '-'];
+        // TODO(matth2k): Implement a true isEscaped()
+        let esc_chars = [' ', '\\', '(', ')', ',', '+', '-'];
         if name.chars().any(|c| esc_chars.contains(&c)) {
             return Identifier {
                 name,
                 id_type: IdentifierType::Escaped,
             };
+        }
+
+        if name.contains('[') && name.ends_with(']') {
+            let name_ind = name.find('[').unwrap();
+            let rname = &name[..name_ind];
+            let index_start = name_ind + 1;
+            let slice = name[index_start..name.len() - 1].parse::<usize>();
+            if let Ok(s) = slice {
+                return Identifier {
+                    name: rname.to_string(),
+                    id_type: IdentifierType::BitSlice(s),
+                };
+            }
         }
 
         Identifier {
@@ -161,8 +174,8 @@ impl Net {
     }
 
     /// Create a new net for SystemVerilog-like four-state logic
-    pub fn new_logic(name: String) -> Self {
-        Self::new(Identifier::new(name), DataType::logic())
+    pub fn new_logic(name: Identifier) -> Self {
+        Self::new(name, DataType::logic())
     }
 
     /// Create a wire bus as escaped SystemVerilog signals
@@ -206,6 +219,14 @@ impl Net {
     }
 }
 
+/// Functions like the [format!] macro, but returns an [Identifier]
+#[macro_export]
+macro_rules! format_id {
+    ($($arg:tt)*) => {
+        $crate::circuit::Identifier::new(format!($($arg)*))
+    }
+}
+
 impl std::fmt::Display for Net {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.identifier.fmt(f)
@@ -214,7 +235,7 @@ impl std::fmt::Display for Net {
 
 impl From<&str> for Net {
     fn from(name: &str) -> Self {
-        Net::new_logic(name.to_string())
+        Net::new_logic(name.into())
     }
 }
 
@@ -364,5 +385,42 @@ where
                 write!(f, "{}({})", instance.get_name(), name)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identifier_parsing() {
+        let id = Identifier::new("wire".to_string());
+        assert!(!id.is_escaped());
+        assert!(!id.is_sliced());
+        let id = Identifier::new("\\wire".to_string());
+        assert!(id.is_escaped());
+        assert!(!id.is_sliced());
+        let id = Identifier::new("wire[3]".to_string());
+        assert!(!id.is_escaped());
+        assert!(id.is_sliced());
+        assert_eq!(id.get_bit_index(), Some(3));
+    }
+
+    #[test]
+    fn assume_escaped_identifier() {
+        let id = Identifier::new("C++".to_string());
+        assert!(id.is_escaped());
+    }
+
+    #[test]
+    fn identifier_emission() {
+        let id = Identifier::new("wire".to_string());
+        assert_eq!(id.emit_name(), "wire");
+        let id = Identifier::new("\\wire".to_string());
+        assert!(id.is_escaped());
+        assert_eq!(id.emit_name(), "\\wire ");
+        let id = Identifier::new("wire[3]".to_string());
+        assert!(id.is_sliced());
+        assert_eq!(id.emit_name(), "wire[3]");
     }
 }

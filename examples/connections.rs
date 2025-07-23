@@ -1,11 +1,12 @@
+use circuit::format_id;
 use circuit::graph::MultiDiGraph;
 use circuit::netlist::{DrivenNet, Gate, Netlist};
 
 fn full_adder() -> Gate {
     Gate::new_logical_multi(
         "FA".into(),
-        vec!["CIN".to_string(), "A".to_string(), "B".to_string()],
-        vec!["S".to_string(), "COUT".to_string()],
+        vec!["CIN".into(), "A".into(), "B".into()],
+        vec!["S".into(), "COUT".into()],
     )
 }
 
@@ -21,7 +22,7 @@ fn ripple_adder() -> Netlist<Gate> {
     for i in 0..bitwidth {
         // Instantiate a full adder for each bit
         let fa = netlist
-            .insert_gate_disconnected(full_adder(), format!("fa_{i}").into())
+            .insert_gate_disconnected(full_adder(), format_id!("fa_{i}"))
             .unwrap();
 
         // Connect A_i and B_i

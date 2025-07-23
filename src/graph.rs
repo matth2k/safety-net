@@ -281,3 +281,82 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{format_id, netlist::*};
+
+    fn full_adder() -> Gate {
+        Gate::new_logical_multi(
+            "FA".into(),
+            vec!["CIN".into(), "A".into(), "B".into()],
+            vec!["S".into(), "COUT".into()],
+        )
+    }
+
+    fn ripple_adder() -> GateNetlist {
+        let netlist = Netlist::new("ripple_adder".to_string());
+        let bitwidth = 4;
+
+        // Add the the inputs
+        let a = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
+        let b = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
+        let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
+
+        for (i, (a, b)) in a.into_iter().zip(b.into_iter()).enumerate() {
+            // Instantiate a full adder for each bit
+            let fa = netlist
+                .insert_gate(full_adder(), format_id!("fa_{i}"), &[carry, a, b])
+                .unwrap();
+
+            // Expose the sum
+            fa.expose_net(&fa.get_net(1)).unwrap();
+
+            carry = fa.get_output(0);
+
+            if i == bitwidth - 1 {
+                // Last full adder, expose the carry out
+                fa.get_output(0).expose_with_name("cout".into()).unwrap();
+            }
+        }
+
+        netlist.reclaim().unwrap()
+    }
+
+    #[test]
+    fn fanout_table() {
+        let netlist = ripple_adder();
+        let analysis = FanOutTable::build(&netlist);
+        assert!(analysis.is_ok());
+        let analysis = analysis.unwrap();
+        assert!(netlist.verify().is_ok());
+
+        for item in netlist.objects().filter(|o| !o.is_an_input()) {
+            // Sum bit has no users (it is a direct output)
+            assert!(
+                analysis
+                    .get_net_users(&item.get_output(1).as_net())
+                    .next()
+                    .is_none(),
+                "Sum bit should not have users"
+            );
+
+            assert!(
+                item.get_instance_name().is_some(),
+                "Item should have a name. Filtered inputs"
+            );
+
+            let net = item.get_output(0).as_net().clone();
+            let mut cout_users = analysis.get_net_users(&net);
+            if item.get_instance_name().unwrap().to_string() != "fa_3" {
+                assert!(cout_users.next().is_some(), "Sum bit should have users");
+            }
+
+            assert!(
+                cout_users.next().is_none(),
+                "Sum bit should have 1 or 0 user"
+            );
+        }
+    }
+}

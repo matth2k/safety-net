@@ -45,11 +45,8 @@ impl Instantiable for Gate {
 fn and_gate() -> Gate {
     Gate::And(
         "AND".into(),
-        vec![
-            Net::new_logic("A".to_string()),
-            Net::new_logic("B".to_string()),
-        ],
-        Net::new_logic("Y".to_string()),
+        vec![Net::new_logic("A".into()), Net::new_logic("B".into())],
+        Net::new_logic("Y".into()),
     )
 }
 

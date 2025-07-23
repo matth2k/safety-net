@@ -1,19 +1,18 @@
-use circuit::netlist::{DrivenNet, Gate, Netlist};
+use circuit::{
+    format_id,
+    netlist::{DrivenNet, Gate, Netlist},
+};
 
 #[allow(dead_code)]
 fn and_gate() -> Gate {
-    Gate::new_logical(
-        "AND".into(),
-        vec!["A".to_string(), "B".to_string()],
-        "Y".to_string(),
-    )
+    Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into())
 }
 
 fn full_adder() -> Gate {
     Gate::new_logical_multi(
         "FA".into(),
-        vec!["CIN".to_string(), "A".to_string(), "B".to_string()],
-        vec!["S".to_string(), "COUT".to_string()],
+        vec!["CIN".into(), "A".into(), "B".into()],
+        vec!["S".into(), "COUT".into()],
     )
 }
 
@@ -63,7 +62,7 @@ fn harder_example() -> Netlist<Gate> {
 
     for i in 0..bitwidth {
         let instance = netlist
-            .insert_gate(full_adder(), format!("fa_{i}").into(), &input_bus)
+            .insert_gate(full_adder(), format_id!("fa_{i}"), &input_bus)
             .unwrap();
 
         if i == bitwidth - 1 {
