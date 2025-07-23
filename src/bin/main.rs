@@ -1,4 +1,4 @@
-use circuit::{
+use safety_net::{
     format_id,
     netlist::{DrivenNet, Gate, Netlist},
 };
@@ -94,14 +94,14 @@ fn main() {
     print!("{netlist}");
 
     let logic_levels = netlist
-        .get_analysis::<circuit::graph::SimpleCombDepth<_>>()
+        .get_analysis::<safety_net::graph::SimpleCombDepth<_>>()
         .unwrap();
     println!("Logic levels: {}", logic_levels.get_max_depth());
     for n in netlist.objects() {
         println!("{}: {}", n, logic_levels.get_comb_depth(&n).unwrap());
     }
     // let fo = netlist
-    //     .get_analysis::<circuit::graph::FanOutTable<_>>()
+    //     .get_analysis::<safety_net::graph::FanOutTable<_>>()
     //     .unwrap();
     // for net in netlist.into_iter() {
     //     println!("Net: {}", net);
@@ -113,7 +113,7 @@ fn main() {
     //     println!("{}", inst);
     // }
     // let pg = netlist
-    //     .get_analysis::<circuit::graph::MultiDiGraph<_>>()
+    //     .get_analysis::<safety_net::graph::MultiDiGraph<_>>()
     //     .unwrap();
     // let graph = pg.get_graph();
     // println!("{}", petgraph::dot::Dot::with_config(&graph, &[]));

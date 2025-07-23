@@ -1684,8 +1684,8 @@ pub mod iter {
     /// # Examples
     ///
     /// ```
-    /// use circuit::netlist::iter::DFSIterator;
-    /// use circuit::netlist::GateNetlist;
+    /// use safety_net::netlist::iter::DFSIterator;
+    /// use safety_net::netlist::GateNetlist;
     ///
     /// let netlist = GateNetlist::new("example".to_string());
     /// netlist.insert_input("input1".into());

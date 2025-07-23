@@ -1,4 +1,4 @@
-use circuit::netlist::GateNetlist;
+use safety_net::netlist::GateNetlist;
 
 #[test]
 fn min_module() {

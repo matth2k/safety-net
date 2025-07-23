@@ -1,4 +1,4 @@
-use circuit::{
+use safety_net::{
     attribute::Parameter,
     circuit::{Identifier, Instantiable, Net},
     filter_nodes,

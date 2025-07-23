@@ -1,5 +1,5 @@
 use bitvec::vec::BitVec;
-use circuit::{
+use safety_net::{
     attribute::Parameter,
     circuit::{Identifier, Instantiable, Net},
     format_id,

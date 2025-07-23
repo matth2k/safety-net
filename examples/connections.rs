@@ -1,6 +1,6 @@
-use circuit::format_id;
-use circuit::graph::MultiDiGraph;
-use circuit::netlist::{DrivenNet, Gate, Netlist};
+use safety_net::format_id;
+use safety_net::graph::MultiDiGraph;
+use safety_net::netlist::{DrivenNet, Gate, Netlist};
 
 fn full_adder() -> Gate {
     Gate::new_logical_multi(
