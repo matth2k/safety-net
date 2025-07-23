@@ -1450,12 +1450,17 @@ where
     }
 
     /// Greedly removes unused nodes from the netlist, until it stops changing.
-    pub fn clean(&self) -> Result<(), String> {
-        let mut changed = true;
-        while changed {
-            changed = self.clean_once()?;
+    /// Returns true if the netlist was changed.
+    pub fn clean(&self) -> Result<bool, String> {
+        if !self.clean_once()? {
+            Ok(false)
+        } else {
+            let mut changed = true;
+            while changed {
+                changed = self.clean_once()?;
+            }
+            Ok(true)
         }
-        Ok(())
     }
 
     /// Returns `true` if all the nets are uniquely named
