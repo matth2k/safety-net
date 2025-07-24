@@ -36,7 +36,7 @@ if __name__ == "__main__":
         nargs="+",
         help="Files to whitelist from coverage checks",
         type=str,
-        default=["main.rs"],
+        default=["bin/main.rs"],
     )
     parser.add_argument(
         "input", nargs="?", type=argparse.FileType("r"), default=sys.stdin
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     whitelisted = set(args.whitelist)
+    whitelisted.add("bin/main.rs")
     data = json.load(args.input)
     data = data["data"]
     percent = args.percent
