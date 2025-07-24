@@ -47,6 +47,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     whitelisted = set(args.whitelist)
+    whitelisted.add("bin/main.rs")
     data = json.load(args.input)
     data = data["data"]
     percent = args.percent
