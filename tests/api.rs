@@ -195,3 +195,60 @@ fn test_change_gate_correct() {
          endmodule\n"
     );
 }
+
+#[test]
+fn test_find_net_mut() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    {
+        let net = gate.find_net_mut(&"inst_0_Y".into());
+        assert!(net.is_some());
+        let mut net = net.unwrap();
+        net.set_identifier("changed".into());
+    }
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input a;
+           wire a;
+           input b;
+           wire b;
+           output y;
+           wire y;
+           wire changed;
+           AND inst_0 (
+             .A(a),
+             .B(b),
+             .Y(changed)
+           );
+           assign y = changed;
+         endmodule\n"
+    );
+}
+
+#[test]
+fn test_driver_net_mut() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    {
+        for d in gate.drivers().flatten() {
+            let mut net = d.get_net_mut(0);
+            net.set_identifier("changed".into());
+        }
+
+        assert_eq!(gate.drivers().count(), 2);
+    }
+    assert!(netlist.verify().is_err());
+}
+
+#[test]
+fn test_driver_net() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+
+    assert_eq!(gate.driver_nets().flatten().count(), 2);
+}
