@@ -1,6 +1,7 @@
 use safety_net::attribute::dont_touch_filter;
 use safety_net::circuit::Net;
 use safety_net::format_id;
+use safety_net::graph::SimpleCombDepth;
 use safety_net::netlist::Gate;
 use safety_net::netlist::GateNetlist;
 use safety_net::netlist::Netlist;
@@ -92,4 +93,16 @@ fn test_petgraph() {
     // Outputs are a pseudo node
     assert_eq!(graph.node_count(), 4);
     assert_eq!(graph.edge_count(), 3);
+}
+
+#[test]
+fn test_comb_depth() {
+    let netlist = get_simple_example();
+    let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>();
+    assert!(depth_info.is_ok());
+    let depth_info = depth_info.unwrap();
+
+    let gate = netlist.last().unwrap();
+
+    assert_eq!(depth_info.get_comb_depth(&gate), Some(1));
 }
