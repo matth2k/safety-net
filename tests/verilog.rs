@@ -44,6 +44,26 @@ fn min_module() {
 }
 
 #[test]
+fn test_netlist_first() {
+    let netlist = GateNetlist::new("min_module".to_string());
+    let a = netlist.insert_input("a".into());
+    a.clone().expose_with_name("y".into());
+    let a_too = netlist.last().unwrap();
+    let also_a = netlist.first().unwrap();
+    assert_eq!(a_too, also_a);
+    assert_eq!(a.unwrap(), also_a);
+}
+
+#[test]
+fn test_netlist_find() {
+    let netlist = GateNetlist::new("min_module".to_string());
+    let a = netlist.insert_input("a".into());
+    a.expose_with_name("y".into());
+    assert!(netlist.find_net(&"a".into()).is_some());
+    assert!(netlist.find_net(&"b".into()).is_none());
+}
+
+#[test]
 fn simple_gate_module() {
     let netlist = get_simple_example();
     assert!(netlist.verify().is_ok());

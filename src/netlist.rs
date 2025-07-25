@@ -2066,6 +2066,16 @@ mod tests {
         assert!(gate.get_parameter(&"id".into()).is_none());
         assert_eq!(*gate.get_gate_name(), "AND".into());
     }
+
+    #[test]
+    fn operand_conversations() {
+        let operand = Operand::CellIndex(3, 2);
+        assert_eq!(operand.to_string(), "3.2");
+        let parsed = "3.2".parse::<Operand>();
+        assert!(parsed.is_ok());
+        let parsed = parsed.unwrap();
+        assert_eq!(operand, parsed);
+    }
 }
 
 /// A type alias for a netlist of gates
