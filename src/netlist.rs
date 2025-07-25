@@ -691,7 +691,7 @@ where
 
     /// Returns an iterator to the output nets of this circuit node, along with port information.
     pub fn inputs(&self) -> impl Iterator<Item = InputPort<I>> {
-        let len = self.netref.borrow().get().get_nets().len();
+        let len = self.netref.borrow().operands.len();
         (0..len).map(move |i| InputPort::new(i, self.clone()))
     }
 
@@ -716,7 +716,7 @@ where
     ///
     /// # Panics
     /// Panics if the weak reference to the netlist is lost.
-    pub fn drives_an_top_output(&self) -> bool {
+    pub fn drives_a_top_output(&self) -> bool {
         let netlist = self
             .netref
             .borrow()

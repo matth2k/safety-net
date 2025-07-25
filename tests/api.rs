@@ -252,3 +252,12 @@ fn test_driver_net() {
 
     assert_eq!(gate.driver_nets().flatten().count(), 2);
 }
+
+#[test]
+fn test_gate_io() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    assert_eq!(gate.inputs().count(), 2);
+    assert_eq!(gate.outputs().count(), 1);
+    assert!(gate.drives_a_top_output());
+}

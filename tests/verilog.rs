@@ -103,3 +103,34 @@ fn dont_touch_gate() {
          endmodule\n"
     );
 }
+
+#[test]
+fn simple_gate_attribute() {
+    let netlist = get_simple_example();
+    assert!(netlist.verify().is_ok());
+    let gate = netlist.last().unwrap();
+    gate.insert_attribute("dont_touch".to_string(), "true".to_string());
+    gate.clear_attribute(&"dont_touch".to_string());
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input a;
+           wire a;
+           input b;
+           wire b;
+           output y;
+           wire y;
+           wire inst_0_Y;
+           AND inst_0 (
+             .A(a),
+             .B(b),
+             .Y(inst_0_Y)
+           );
+           assign y = inst_0_Y;
+         endmodule\n"
+    );
+}
