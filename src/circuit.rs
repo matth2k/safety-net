@@ -413,6 +413,7 @@ mod tests {
         let id = Identifier::new("wire".to_string());
         assert!(!id.is_escaped());
         assert!(!id.is_sliced());
+        assert!(id.get_bit_index().is_none());
         let id = Identifier::new("\\wire".to_string());
         assert!(id.is_escaped());
         assert!(!id.is_sliced());
@@ -435,8 +436,18 @@ mod tests {
         let id = Identifier::new("\\wire".to_string());
         assert!(id.is_escaped());
         assert_eq!(id.emit_name(), "\\wire ");
+        assert_eq!(format!("{id}"), "\\wire ");
         let id = Identifier::new("wire[3]".to_string());
         assert!(id.is_sliced());
         assert_eq!(id.emit_name(), "wire[3]");
+    }
+
+    #[test]
+    fn test_implicits() {
+        let net: Net = "hey".into();
+        assert_ne!(*net.get_type(), DataType::boolean());
+        assert_ne!(*net.get_type(), DataType::tristate());
+        assert_eq!(*net.get_type(), DataType::logic());
+        assert_eq!(*net.get_type(), DataType::fourstate());
     }
 }

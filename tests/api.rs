@@ -1,3 +1,4 @@
+use safety_net::assert_verilog_eq;
 use safety_net::circuit::Net;
 use safety_net::format_id;
 use safety_net::netlist::DrivenNet;
@@ -113,6 +114,18 @@ fn test_bad_access_2() {
 }
 
 #[test]
+#[should_panic(expected = "Attempted to grab output port of a multi-output gate")]
+fn test_bad_access_3() {
+    let netlist = ripple_adder();
+    let last_fa = netlist.last().unwrap();
+    // Can't use 'as' methods on multi-output
+    last_fa
+        .get_instance_type()
+        .unwrap()
+        .get_single_output_port();
+}
+
+#[test]
 #[should_panic(expected = "Input port is unlinked from netlist")]
 fn test_unlinked_1() {
     let netlist = ripple_adder();
@@ -126,4 +139,116 @@ fn test_unlinked_2() {
     let netlist = ripple_adder();
     let last_fa = netlist.last().unwrap();
     last_fa.expose_with_name("no".into());
+}
+
+#[test]
+fn test_get_net_from_obj() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    let obj = gate.get_obj();
+    let net = gate.get_net(0).clone();
+    let also_net = obj.get_net(0).clone();
+    let still_net = obj.get_single_net().clone();
+    assert_eq!(net, also_net);
+    assert_eq!(net, still_net);
+}
+
+#[test]
+#[should_panic(expected = "already mutably borrowed: BorrowError")]
+fn test_change_gate_incorrect() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    let mut type_gate = gate.get_instance_type_mut().unwrap();
+    type_gate.set_gate_name("OR".into());
+    // This borrow needs to end
+    eprintln!("{netlist}");
+}
+
+#[test]
+fn test_change_gate_correct() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    {
+        let mut type_gate = gate.get_instance_type_mut().unwrap();
+        type_gate.set_gate_name("OR".into());
+    }
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input a;
+           wire a;
+           input b;
+           wire b;
+           output y;
+           wire y;
+           wire inst_0_Y;
+           OR inst_0 (
+             .A(a),
+             .B(b),
+             .Y(inst_0_Y)
+           );
+           assign y = inst_0_Y;
+         endmodule\n"
+    );
+}
+
+#[test]
+fn test_find_net_mut() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    {
+        let net = gate.find_net_mut(&"inst_0_Y".into());
+        assert!(net.is_some());
+        let mut net = net.unwrap();
+        net.set_identifier("changed".into());
+    }
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input a;
+           wire a;
+           input b;
+           wire b;
+           output y;
+           wire y;
+           wire changed;
+           AND inst_0 (
+             .A(a),
+             .B(b),
+             .Y(changed)
+           );
+           assign y = changed;
+         endmodule\n"
+    );
+}
+
+#[test]
+fn test_driver_net_mut() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    {
+        for d in gate.drivers().flatten() {
+            let mut net = d.get_net_mut(0);
+            net.set_identifier("changed".into());
+        }
+
+        assert_eq!(gate.drivers().count(), 2);
+    }
+    assert!(netlist.verify().is_err());
+}
+
+#[test]
+fn test_driver_net() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+
+    assert_eq!(gate.driver_nets().flatten().count(), 2);
 }

@@ -2057,6 +2057,15 @@ mod tests {
     fn gate_w_slice_panics() {
         Gate::new_logical("AND[1]".into(), vec!["A".into(), "B".into()], "Y".into());
     }
+
+    #[test]
+    fn gates_dont_have_params() {
+        // The baseline implementation of gates do not have parameters.
+        let gate = Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into());
+        assert!(!gate.has_parameter(&"id".into()));
+        assert!(gate.get_parameter(&"id".into()).is_none());
+        assert_eq!(*gate.get_gate_name(), "AND".into());
+    }
 }
 
 /// A type alias for a netlist of gates
