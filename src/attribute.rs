@@ -159,6 +159,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bitvec::prelude::*;
 
     #[test]
     fn attribute_iter() {
@@ -178,5 +179,14 @@ mod tests {
             "(* synthesizable *)"
         );
         assert!(real_attrs.last().unwrap().value().is_none());
+    }
+
+    #[test]
+    fn test_parameter_fmt() {
+        let p1 = Parameter::Integer(42);
+        // Lsb first
+        let p2 = Parameter::BitVec(bitvec![0, 0, 0, 0, 0, 0, 0, 1]);
+        assert_eq!(p1.to_string(), "42");
+        assert_eq!(p2.to_string(), "8'b10000000");
     }
 }

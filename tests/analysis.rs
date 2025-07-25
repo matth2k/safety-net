@@ -1,6 +1,7 @@
 use safety_net::attribute::dont_touch_filter;
 use safety_net::circuit::Net;
 use safety_net::format_id;
+use safety_net::graph::FanOutTable;
 use safety_net::graph::SimpleCombDepth;
 use safety_net::netlist::Gate;
 use safety_net::netlist::GateNetlist;
@@ -77,6 +78,18 @@ fn test_attr_filter() {
     for dt in dont_touch_filter(&*netlist) {
         assert!(dt == inst_1);
     }
+
+    let filter = dont_touch_filter(&*netlist);
+
+    for obj in netlist.objects() {
+        if obj == inst_1 {
+            assert!(filter.has(&obj));
+        } else {
+            assert!(!filter.has(&obj));
+        }
+    }
+
+    assert_eq!(filter.keys().len(), 1)
 }
 
 #[cfg(feature = "graph")]
@@ -105,4 +118,16 @@ fn test_comb_depth() {
     let gate = netlist.last().unwrap();
 
     assert_eq!(depth_info.get_comb_depth(&gate), Some(1));
+    assert_eq!(depth_info.get_max_depth(), 1);
+}
+
+#[test]
+fn test_fanout_table() {
+    let netlist = get_simple_example();
+    let fanout_table = netlist.get_analysis::<FanOutTable<_>>();
+    assert!(fanout_table.is_ok());
+    let fanout_table = fanout_table.unwrap();
+    let gate = netlist.last().unwrap();
+    // Outputs don't have users that are nodes
+    assert_eq!(fanout_table.get_node_users(&gate).count(), 0);
 }
