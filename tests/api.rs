@@ -1,4 +1,6 @@
 use safety_net::circuit::Net;
+use safety_net::format_id;
+use safety_net::netlist::DrivenNet;
 use safety_net::netlist::Gate;
 use safety_net::netlist::GateNetlist;
 use safety_net::netlist::Netlist;
@@ -6,6 +8,43 @@ use std::rc::Rc;
 
 fn and_gate() -> Gate {
     Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into())
+}
+
+fn full_adder() -> Gate {
+    Gate::new_logical_multi(
+        "FA".into(),
+        vec!["CIN".into(), "A".into(), "B".into()],
+        vec!["S".into(), "COUT".into()],
+    )
+}
+
+fn ripple_adder() -> GateNetlist {
+    let netlist = Netlist::new("ripple_adder".to_string());
+    let bitwidth = 4;
+
+    // Add the the inputs
+    let a = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
+    let b = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
+    let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
+
+    for (i, (a, b)) in a.into_iter().zip(b.into_iter()).enumerate() {
+        // Instantiate a full adder for each bit
+        let fa = netlist
+            .insert_gate(full_adder(), format_id!("fa_{i}"), &[carry, a, b])
+            .unwrap();
+
+        // Expose the sum
+        fa.expose_net(&fa.get_net(0)).unwrap();
+
+        carry = fa.find_output(&"COUT".into()).unwrap();
+
+        if i == bitwidth - 1 {
+            // Last full adder, expose the carry out
+            fa.get_output(1).expose_with_name("cout".into()).unwrap();
+        }
+    }
+
+    netlist.reclaim().unwrap()
 }
 
 fn get_simple_example() -> Rc<GateNetlist> {
@@ -53,4 +92,38 @@ fn test_io() {
     // The cell output
     let correct = Net::new_logic("inst_0_Y".into());
     assert_eq!(output.as_net().clone(), correct);
+}
+
+#[test]
+#[should_panic(expected = "Attempt to grab the net of a multi-output instance")]
+fn test_bad_access_1() {
+    let netlist = ripple_adder();
+    let last_fa = netlist.last().unwrap();
+    // Can't use 'as' methods on multi-output
+    last_fa.as_net();
+}
+
+#[test]
+#[should_panic(expected = "Attempt to grab the net of a multi-output instance")]
+fn test_bad_access_2() {
+    let netlist = ripple_adder();
+    let last_fa = netlist.last().unwrap();
+    // Can't use 'as' methods on multi-output
+    last_fa.as_net_mut();
+}
+
+#[test]
+#[should_panic(expected = "Input port is unlinked from netlist")]
+fn test_unlinked_1() {
+    let netlist = ripple_adder();
+    let last_fa = netlist.last().unwrap();
+    last_fa.get_input(0).get_driver();
+}
+
+#[test]
+#[should_panic(expected = "NetRef is unlinked from netlist")]
+fn test_unlinked_2() {
+    let netlist = ripple_adder();
+    let last_fa = netlist.last().unwrap();
+    last_fa.expose_with_name("no".into());
 }
