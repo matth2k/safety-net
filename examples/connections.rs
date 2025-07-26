@@ -1,7 +1,9 @@
 use safety_net::format_id;
+#[cfg(feature = "graph")]
 use safety_net::graph::MultiDiGraph;
 use safety_net::netlist::{DrivenNet, Gate, Netlist};
 
+#[allow(dead_code)]
 fn full_adder() -> Gate {
     Gate::new_logical_multi(
         "FA".into(),
@@ -10,6 +12,7 @@ fn full_adder() -> Gate {
     )
 }
 
+#[allow(dead_code)]
 fn ripple_adder() -> Netlist<Gate> {
     let netlist = Netlist::new("ripple_adder".to_string());
     let bitwidth = 4;
@@ -47,12 +50,14 @@ fn ripple_adder() -> Netlist<Gate> {
     netlist.reclaim().unwrap()
 }
 
-#[cfg(feature = "graph")]
 fn main() {
-    let netlist = ripple_adder();
-    eprintln!("{netlist}");
-    let analysis = netlist.get_analysis::<MultiDiGraph<_>>().unwrap();
-    let graph = analysis.get_graph();
-    let dot = petgraph::dot::Dot::with_config(graph, &[]);
-    println!("{dot}");
+    #[cfg(feature = "graph")]
+    {
+        let netlist = ripple_adder();
+        eprintln!("{netlist}");
+        let analysis = netlist.get_analysis::<MultiDiGraph<_>>().unwrap();
+        let graph = analysis.get_graph();
+        let dot = petgraph::dot::Dot::with_config(graph, &[]);
+        println!("{dot}");
+    }
 }
