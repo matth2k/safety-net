@@ -1,7 +1,6 @@
 use safety_net::assert_verilog_eq;
 use safety_net::circuit::Net;
 use safety_net::format_id;
-use safety_net::netlist;
 use safety_net::netlist::DrivenNet;
 use safety_net::netlist::Gate;
 use safety_net::netlist::GateNetlist;
@@ -319,4 +318,19 @@ fn test_bad_gate_creation() {
     let netlist = GateNetlist::new("example".to_string());
     let gate = netlist.insert_gate(and_gate(), "yo".into(), &vec![]);
     assert!(gate.is_err());
+}
+
+#[test]
+fn test_dfs_order() {
+    let netlist = ripple_adder();
+    let mut dfs = netlist.dfs(netlist.last().unwrap()).collect::<Vec<_>>();
+    dfs.reverse();
+
+    for (i, fa) in dfs.into_iter().filter(|i| !i.is_an_input()).enumerate() {
+        let instance = fa.get_instance_name();
+        assert!(instance.is_some());
+        let instance = instance.unwrap().to_string();
+        assert!(instance.starts_with("fa_"));
+        assert_eq!(instance.split('_').nth(1).unwrap(), i.to_string());
+    }
 }
