@@ -4,7 +4,8 @@
 
 `safety-net`
 
-TODO: overview, tutorial, testing, research papers
+An experimental library for representing circuit netlists for EDA tool development.
+Take a look at some [examples](https://github.com/matth2k/safety-net/tree/main/examples) and the [documentation](https://matth2k.github.io/safety-net/).
 
 */
 #![doc = "## Simple Example\n```"]
