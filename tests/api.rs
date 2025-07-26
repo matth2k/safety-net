@@ -324,7 +324,7 @@ fn test_netref_ids() {
 #[test]
 fn test_bad_gate_creation() {
     let netlist = GateNetlist::new("example".to_string());
-    let gate = netlist.insert_gate(and_gate(), "yo".into(), &vec![]);
+    let gate = netlist.insert_gate(and_gate(), "yo".into(), &[]);
     assert!(gate.is_err());
 }
 
