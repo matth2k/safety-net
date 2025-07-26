@@ -1307,11 +1307,13 @@ where
             }
         }
 
-        if self.outputs.borrow().contains_key(&new_index) {
+        let already_mapped = self.outputs.borrow().contains_key(&new_index);
+        let old_mapping = self.outputs.borrow_mut().remove(&old_index);
+
+        if already_mapped {
             self.outputs.borrow_mut().remove(&old_index);
-        } else if let Some(v) = self.outputs.borrow().get(&old_index) {
+        } else if let Some(v) = old_mapping {
             self.outputs.borrow_mut().insert(new_index, v.clone());
-            self.outputs.borrow_mut().remove(&old_index);
         }
 
         Ok(of.unwrap().borrow().get().clone())
@@ -1392,7 +1394,7 @@ where
     pub fn clean_once(&self) -> Result<bool, String> {
         let mut dead_objs = HashSet::new();
         {
-            let fan_out = self.get_analysis::<FanOutTable<I>>().unwrap();
+            let fan_out = self.get_analysis::<FanOutTable<I>>()?;
             for obj in self.objects() {
                 let mut is_dead = true;
                 for net in obj.nets() {
@@ -1495,7 +1497,7 @@ where
         }
 
         if !self.nets_unique() {
-            return Err("Netlist contains non-unique nets".to_string());
+            return Err("Netlist contains non-unique nets (multiple drivers)".to_string());
         }
 
         if !self.insts_unique() {
@@ -2048,8 +2050,10 @@ mod tests {
         // Make this AND gate an output
         let instance = instance.expose_as_output().unwrap();
         instance.delete_uses().unwrap();
-        let res = netlist.clean();
-        assert!(res.is_ok());
+        // Cannot clean a netlist that is in a invalid state
+        assert!(netlist.clean().is_err());
+        input1.expose_with_name("an_output".into());
+        assert!(netlist.clean().is_ok());
     }
 
     #[test]
@@ -2068,13 +2072,21 @@ mod tests {
     }
 
     #[test]
-    fn operand_conversations() {
+    fn operand_conversions() {
         let operand = Operand::CellIndex(3, 2);
         assert_eq!(operand.to_string(), "3.2");
         let parsed = "3.2".parse::<Operand>();
         assert!(parsed.is_ok());
         let parsed = parsed.unwrap();
         assert_eq!(operand, parsed);
+    }
+
+    #[test]
+    #[should_panic(expected = "out of bounds for netref")]
+    fn test_bad_output() {
+        let netlist = GateNetlist::new("min_module".to_string());
+        let a = netlist.insert_input("a".into());
+        DrivenNet::new(1, a.unwrap());
     }
 }
 

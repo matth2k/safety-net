@@ -253,6 +253,14 @@ fn test_driver_net() {
 }
 
 #[test]
+fn test_get_driver_net() {
+    let netlist = ripple_adder();
+    let gate = netlist.last().unwrap();
+    let driver_net = gate.get_driver_net(0).unwrap();
+    assert_eq!(driver_net.get_identifier(), &"fa_2_COUT".into());
+}
+
+#[test]
 fn test_gate_io() {
     let netlist = get_simple_example();
     let gate = netlist.last().unwrap();
@@ -333,4 +341,60 @@ fn test_dfs_order() {
         assert!(instance.starts_with("fa_"));
         assert_eq!(instance.split('_').nth(1).unwrap(), i.to_string());
     }
+}
+
+#[test]
+fn test_replace_gate_bad() {
+    let netlist = get_simple_example();
+    let inputs = netlist.inputs().collect::<Vec<_>>();
+    let and_gate = netlist.last().unwrap();
+    let or_gate = Gate::new_logical("OR".into(), vec!["A".into(), "B".into()], "Y".into());
+    let or_gate = netlist
+        .insert_gate(or_gate, "inst_0".into(), &inputs)
+        .unwrap();
+    assert!(netlist.replace_net_uses(and_gate, &or_gate).is_ok());
+    // Both the AND and OR gate are driving the same wire name (subtle).
+    // The instance name has to be different, or the user has to manualy rename it.
+    // Will need to consider how to make this more user-friendly.
+    assert!(netlist.clean().is_err());
+}
+
+#[test]
+fn test_replace_gate() {
+    let netlist = get_simple_example();
+    let inputs = netlist.inputs().collect::<Vec<_>>();
+    let and_gate = netlist.last().unwrap();
+    let or_gate = Gate::new_logical("OR".into(), vec!["A".into(), "B".into()], "Y".into());
+    let or_gate = netlist
+        .insert_gate(or_gate, "inst_0".into(), &inputs)
+        .unwrap();
+    assert!(netlist.replace_net_uses(and_gate, &or_gate).is_ok());
+    assert!(netlist.clean().is_err());
+    or_gate.set_instance_name("inst_1".into());
+    or_gate.as_net_mut().set_identifier("inst_1_Y".into());
+    assert!(netlist.clean().is_ok());
+    or_gate.set_instance_name("inst_0".into());
+    or_gate.as_net_mut().set_identifier("inst_0_Y".into());
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input a;
+           wire a;
+           input b;
+           wire b;
+           output y;
+           wire y;
+           wire inst_0_Y;
+           OR inst_0 (
+             .A(a),
+             .B(b),
+             .Y(inst_0_Y)
+           );
+           assign y = inst_0_Y;
+         endmodule\n"
+    );
 }

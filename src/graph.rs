@@ -73,6 +73,9 @@ where
         let mut node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
 
+        // This can only be fully-correct on a verified netlist.
+        netlist.verify()?;
+
         for c in netlist.connections() {
             if let Entry::Vacant(e) = net_fan_out.entry(c.net()) {
                 e.insert(vec![c.target().unwrap()]);
