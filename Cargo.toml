@@ -6,10 +6,8 @@ license = "MIT OR Apache-2.0"
 
 categories = [
     "data-structures",
-    "eda",
-    "netlist",
-    "circuits",
-    "hardware",
+    "compilers",
+    "science",
 ]
 
 description = "A reference-counted netlist library for EDA tools"
