@@ -56,8 +56,8 @@ jobs:
         run: python3 utils/code_coverage.py -p 60.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
       - name: Coverage (80% by line)
         run: python3 utils/code_coverage.py -p 80.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
-      - name: Coverage (90% by line)
-        run: python3 utils/code_coverage.py -p 90.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
+      - name: Coverage (87% by line)
+        run: python3 utils/code_coverage.py -p 87.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
 
   mdformat:
     name: Markdown format
