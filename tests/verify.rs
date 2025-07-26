@@ -1,5 +1,6 @@
 use safety_net::circuit::Identifier;
 use safety_net::circuit::Instantiable;
+#[allow(unused_imports)]
 use safety_net::circuit::Net;
 use safety_net::netlist::Gate;
 use safety_net::netlist::GateNetlist;

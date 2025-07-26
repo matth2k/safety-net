@@ -13,8 +13,8 @@ categories = [
 ]
 
 description = "A reference-counted netlist library for EDA tools"
-# documentation = "https://todo"
-# homepage = "https://todo"
+documentation = "https://matth2k.github.io/safety-net/"
+homepage = "https://matth2k.github.io/safety-net/"
 include = [
     "Cargo.toml",
     "LICENSE-MIT",
@@ -46,7 +46,7 @@ serde = { version = "1.0.219", optional = true, features = ["derive"] }
 serde_json = { version = "1.0.141", optional = true }
 
 [features]
-# default = [ ]
-default = [ "graph", "serde" ]
+default = [ ]
+# default = [ "graph", "serde" ]
 graph = [ "petgraph" ]
 serde = [ "dep:serde", "serde_json", "bitvec/serde" ]

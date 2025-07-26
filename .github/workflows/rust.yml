@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: cargo test --features default
+      - run: cargo test --all-features
 
   # Check formatting with rustfmt
   formatting:
@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Clippy
-        run: cargo clippy --all-targets --features default
+        run: cargo clippy --all-targets --all-features
 
   coverage:
     name: Code Coverage
@@ -51,7 +51,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate code coverage
-        run: cargo llvm-cov --features default --workspace --json > coverage.json
+        run: cargo llvm-cov --all-features --workspace --json > coverage.json
       - name: Coverage (60% by line)
         run: python3 utils/code_coverage.py -p 60.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
       - name: Coverage (80% by line)

@@ -2027,6 +2027,11 @@ where
     }
 }
 
+/// A type alias for a netlist of gates
+pub type GateNetlist = Netlist<Gate>;
+/// A type alias to Gate circuit nodes
+pub type GateRef = NetRef<Gate>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2089,11 +2094,6 @@ mod tests {
         DrivenNet::new(1, a.unwrap());
     }
 }
-
-/// A type alias for a netlist of gates
-pub type GateNetlist = Netlist<Gate>;
-/// A type alias to Gate circuit nodes
-pub type GateRef = NetRef<Gate>;
 
 #[cfg(feature = "serde")]
 /// Serde support for netlists
