@@ -91,3 +91,15 @@ fn test_basic_serialize() {
     assert!(inst.get_instance_type().is_none());
     assert_eq!(*inst.as_net(), "in".into());
 }
+
+#[test]
+fn test_empty_netlist() {
+    let netlist = GateNetlist::new("min_module".to_string());
+    let a = netlist.insert_input("a".into());
+    // The designed behavior here should maybe change.
+    // Should the output get delete alongside the driving netref?
+    a.clone().expose_with_name("y".into());
+    assert!(!netlist.outputs().is_empty());
+    netlist.delete_net_uses(a.unwrap()).unwrap();
+    assert!(netlist.outputs().is_empty());
+}
