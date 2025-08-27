@@ -402,7 +402,7 @@ fn test_replace_gate() {
 #[test]
 fn test_simple_example() {
     let netlist = get_simple_example();
-    assert_eq!(netlist.get_name(), "example");
+    assert_eq!(netlist.get_name().clone(), "example");
     assert_eq!(netlist.get_input_ports().count(), 2);
     assert_eq!(netlist.get_output_ports().len(), 1);
     let objects: Vec<_> = netlist.objects().collect();

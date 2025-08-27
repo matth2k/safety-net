@@ -864,7 +864,7 @@ where
     I: Instantiable,
 {
     /// The name of the netlist
-    name: String,
+    name: RefCell<String>,
     /// The list of objects in the netlist, such as inputs, modules, and primitives
     objects: RefCell<Vec<NetRefT<I>>>,
     /// The list of operands that point to objects which are outputs
@@ -1100,7 +1100,7 @@ where
     /// Creates a new netlist with the given name
     pub fn new(name: String) -> Rc<Self> {
         Rc::new(Self {
-            name,
+            name: RefCell::new(name),
             objects: RefCell::new(Vec::new()),
             outputs: RefCell::new(HashMap::new()),
         })
@@ -1325,13 +1325,16 @@ where
     I: Instantiable,
 {
     /// Returns the name of the netlist module
-    pub fn get_name(&self) -> &str {
-        &self.name
+    pub fn get_name(&self) -> Ref<String> {
+        self.name.borrow()
     }
 
     /// Sets the name of the netlist module
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
+    /// # Panics
+    ///
+    /// Panics if the module name cannot be borrowed mutably.
+    pub fn set_name(&self, name: String) {
+        *self.name.borrow_mut() = name;
     }
 
     /// Iterates over the input ports of the netlist.
@@ -1882,7 +1885,7 @@ where
         let objects = self.objects.borrow();
         let outputs = self.outputs.borrow();
 
-        writeln!(f, "module {} (", self.name)?;
+        writeln!(f, "module {} (", self.get_name())?;
 
         // Print inputs and outputs
         let level = 2;
