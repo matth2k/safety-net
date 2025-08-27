@@ -1329,6 +1329,11 @@ where
         &self.name
     }
 
+    /// Sets the name of the netlist module
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
     /// Iterates over the input ports of the netlist.
     pub fn get_input_ports(&self) -> impl Iterator<Item = Net> {
         self.objects().filter_map(|oref| {
