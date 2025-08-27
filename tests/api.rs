@@ -407,4 +407,6 @@ fn test_simple_example() {
     assert_eq!(netlist.get_output_ports().len(), 1);
     let objects: Vec<_> = netlist.objects().collect();
     assert_eq!(objects.len(), 3); // 2 inputs + 1 gate
+    netlist.set_name("new_name".to_string());
+    assert_eq!(netlist.get_name().clone(), "new_name");
 }
