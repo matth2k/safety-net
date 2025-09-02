@@ -256,6 +256,9 @@ pub trait Instantiable: Clone {
     /// Returns the parameter value for the given key, if it exists.
     fn get_parameter(&self, id: &Identifier) -> Option<Parameter>;
 
+    /// Returns the old parameter value for the given key, if it existed.
+    fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter>;
+
     /// Returns an iterator over the parameters of the primitive.
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)>;
 

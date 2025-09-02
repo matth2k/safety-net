@@ -57,6 +57,10 @@ impl Instantiable for Gate {
         None
     }
 
+    fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
+        None
+    }
+
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
         std::iter::empty()
     }

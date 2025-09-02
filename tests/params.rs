@@ -58,6 +58,22 @@ impl Instantiable for Lut {
         }
     }
 
+    fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
+        if !self.has_parameter(id) {
+            return None;
+        }
+
+        let old = Some(Parameter::BitVec(self.lookup_table.clone()));
+
+        if let Parameter::BitVec(bv) = val {
+            self.lookup_table = bv;
+        } else {
+            panic!("Invalid parameter type for INIT");
+        }
+
+        old
+    }
+
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
         std::iter::once((
             Identifier::new("INIT".to_string()),
