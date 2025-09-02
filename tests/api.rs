@@ -153,7 +153,7 @@ fn test_get_net_from_obj() {
 }
 
 #[test]
-#[should_panic(expected = "already mutably borrowed: BorrowError")]
+#[should_panic(expected = "RefCell already mutably borrowed")]
 fn test_change_gate_incorrect() {
     let netlist = get_simple_example();
     let gate = netlist.last().unwrap();
