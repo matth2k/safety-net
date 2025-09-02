@@ -58,6 +58,7 @@ impl std::fmt::Display for Attribute {
     }
 }
 
+#[derive(Debug, Clone)]
 /// A dedicated type to parameters for instantiables
 pub enum Parameter {
     /// An integer parameter
