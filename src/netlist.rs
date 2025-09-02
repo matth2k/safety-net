@@ -2183,7 +2183,7 @@ pub mod serde {
     {
         fn from(value: Netlist<I>) -> Self {
             SerdeNetlist {
-                name: value.name,
+                name: value.name.into_inner(),
                 objects: value
                     .objects
                     .into_inner()
