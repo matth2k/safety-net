@@ -1304,9 +1304,10 @@ where
             let operands = &mut oref.borrow_mut().operands;
             for operand in operands.iter_mut() {
                 if let Some(op) = operand
-                    && *op == old_index {
-                        *operand = Some(new_index.clone());
-                    }
+                    && *op == old_index
+                {
+                    *operand = Some(new_index.clone());
+                }
             }
         }
 
@@ -1493,9 +1494,10 @@ where
         let mut insts = HashSet::new();
         for inst in self.objects() {
             if let Some(name) = inst.get_instance_name()
-                && !insts.insert(name) {
-                    return false;
-                }
+                && !insts.insert(name)
+            {
+                return false;
+            }
         }
         true
     }
