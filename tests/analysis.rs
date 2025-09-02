@@ -39,7 +39,7 @@ fn test_detect_cycles() {
     let input = netlist.inputs().next().unwrap();
     let inverter = Gate::new_logical("INV".into(), vec!["I".into()], "O".into());
     let inverted = netlist
-        .insert_gate(inverter, "inst_0".into(), &[input.clone()])
+        .insert_gate(inverter, "inst_0".into(), std::slice::from_ref(&input))
         .unwrap();
     assert!(netlist.replace_net_uses(input.unwrap(), &inverted).is_ok());
 
