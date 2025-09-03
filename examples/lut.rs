@@ -81,21 +81,21 @@ impl Instantiable for Lut {
         ))
     }
 
-    fn from_constant(val: Logic) -> Self {
+    fn from_constant(val: Logic) -> Option<Self> {
         match val {
-            Logic::True => Self {
+            Logic::True => Some(Self {
                 lookup_table: BitVec::from_element(1),
                 id: "VDD".into(),
                 inputs: vec![],
                 output: "Y".into(),
-            },
-            Logic::False => Self {
+            }),
+            Logic::False => Some(Self {
                 lookup_table: BitVec::from_element(0),
                 id: "GND".into(),
                 inputs: vec![],
                 output: "Y".into(),
-            },
-            _ => panic!("Can only create constant gates for Logic::True or Logic::False"),
+            }),
+            _ => None,
         }
     }
 

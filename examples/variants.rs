@@ -46,8 +46,8 @@ impl Instantiable for Gate {
         std::iter::empty()
     }
 
-    fn from_constant(_val: Logic) -> Self {
-        panic!("Test matches.rs does not implement from_constant");
+    fn from_constant(_val: Logic) -> Option<Self> {
+        None
     }
 
     fn get_constant(&self) -> Option<Logic> {

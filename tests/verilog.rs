@@ -1,7 +1,8 @@
 use safety_net::{
-    assert_verilog_eq,
+    assert_verilog_eq, logic,
     netlist::{Gate, GateNetlist, Netlist},
 };
+use std::rc::Rc;
 
 fn and_gate() -> Gate {
     Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into())
@@ -151,6 +152,26 @@ fn simple_gate_attribute() {
              .Y(inst_0_Y)
            );
            assign y = inst_0_Y;
+         endmodule\n"
+    );
+}
+
+#[test]
+fn constants() {
+    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let vdd = netlist.insert_constant(logic::Logic::True, "unemitted".into());
+    assert!(vdd.is_ok());
+    let vdd = vdd.unwrap();
+    vdd.expose_with_name("y".into());
+    eprintln!("{netlist}");
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module top (
+           y
+         );
+           output y;
+           wire y;
+           assign y = 1'b1;
          endmodule\n"
     );
 }

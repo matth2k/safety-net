@@ -67,11 +67,11 @@ impl Instantiable for Gate {
         std::iter::empty()
     }
 
-    fn from_constant(val: Logic) -> Self {
+    fn from_constant(val: Logic) -> Option<Self> {
         match val {
-            Logic::True => Gate::new_logical("VDD".into(), vec![], "Y".into()),
-            Logic::False => Gate::new_logical("GND".into(), vec![], "Y".into()),
-            _ => panic!("Can only create constant gates for Logic::True or Logic::False"),
+            Logic::True => Some(Gate::new_logical("VDD".into(), vec![], "Y".into())),
+            Logic::False => Some(Gate::new_logical("GND".into(), vec![], "Y".into())),
+            _ => None,
         }
     }
 
@@ -1234,6 +1234,20 @@ where
         Ok(NetRef::wrap(owned_object))
     }
 
+    /// Inserts a constant [Logic] value to the netlist
+    pub fn insert_constant(
+        self: &Rc<Self>,
+        value: Logic,
+        inst_name: Identifier,
+    ) -> Result<DrivenNet<I>, String> {
+        let obj = I::from_constant(value).ok_or(format!(
+            "Instantiable type does not support constant value {}",
+            value
+        ))?;
+        self.insert_gate_disconnected(obj, inst_name)
+            .map(|nr| nr.into())
+    }
+
     /// Returns the driving node at input position `index` for `netref`
     ///
     /// # Panics
@@ -1949,7 +1963,9 @@ where
         for oref in objects.iter() {
             let owned = oref.borrow();
             let obj = owned.get();
-            if let Object::Instance(nets, _, _) = obj {
+            if let Object::Instance(nets, _, inst_type) = obj
+                && inst_type.get_constant().is_none()
+            {
                 for net in nets.iter() {
                     if !already_decl.contains(net) {
                         writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
@@ -1962,6 +1978,14 @@ where
         for oref in objects.iter() {
             let owned = oref.borrow();
             let obj = owned.get();
+
+            // Skip emitting constants as their uses will be hard-wired
+            if let Some(inst_type) = obj.get_instance_type()
+                && inst_type.get_constant().is_some()
+            {
+                continue;
+            }
+
             if let Object::Instance(nets, inst_name, inst_type) = obj {
                 for (k, v) in owned.attributes.iter() {
                     if let Some(value) = v {
@@ -1994,19 +2018,23 @@ where
                 for (idx, port) in inst_type.get_input_ports().into_iter().enumerate() {
                     let port_name = port.get_identifier().emit_name();
                     if let Some(operand) = owned.operands[idx].as_ref() {
-                        let operand = match operand {
+                        let operand_net = match operand {
                             Operand::DirectIndex(idx) => objects[*idx].borrow().as_net().clone(),
                             Operand::CellIndex(idx, j) => {
                                 objects[*idx].borrow().get_net(*j).clone()
                             }
                         };
-                        writeln!(
-                            f,
-                            "{}.{}({}),",
-                            indent,
-                            port_name,
-                            operand.get_identifier().emit_name()
-                        )?;
+
+                        let operand_str = if let Some(inst_type) =
+                            objects[operand.root()].borrow().get().get_instance_type()
+                            && let Some(logic) = inst_type.get_constant()
+                        {
+                            logic.to_string()
+                        } else {
+                            operand_net.get_identifier().emit_name()
+                        };
+
+                        writeln!(f, "{}.{}({}),", indent, port_name, operand_str)?;
                     }
                 }
 
@@ -2042,13 +2070,26 @@ where
                 Operand::DirectIndex(idx) => self.index_weak(idx).borrow().as_net().clone(),
                 Operand::CellIndex(idx, j) => self.index_weak(idx).borrow().get_net(*j).clone(),
             };
-            if *net != driver_net {
+
+            let driver_str = if let Some(inst_type) = self
+                .index_weak(&driver.root())
+                .borrow()
+                .get()
+                .get_instance_type()
+                && let Some(logic) = inst_type.get_constant()
+            {
+                logic.to_string()
+            } else {
+                driver_net.get_identifier().emit_name()
+            };
+
+            if net.get_identifier() != driver_net.get_identifier() {
                 writeln!(
                     f,
                     "{}assign {} = {};",
                     indent,
                     net.get_identifier().emit_name(),
-                    driver_net.get_identifier().emit_name()
+                    driver_str
                 )?;
             }
         }
