@@ -263,7 +263,7 @@ pub trait Instantiable: Clone {
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)>;
 
     /// Creates the primitive used to represent a constant value, like VDD or GND.
-    /// If the implementor does not support constants, `None` is returned.
+    /// If the implementer does not support the specific constant, `None` is returned.
     fn from_constant(val: Logic) -> Option<Self>;
 
     /// Returns the constant value represented by this primitive, if it is constant.
