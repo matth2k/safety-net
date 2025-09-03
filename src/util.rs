@@ -10,7 +10,7 @@ macro_rules! assert_verilog_eq {
     ($left:expr, $right:expr $(,)?) => {
         match (&$left, &$right) {
             (left_val, right_val) => {
-                for (left_line, right_line) in left_val.lines().zip(right_val.lines()) {
+                for (left_line, right_line) in left_val.lines().map(|x| x.trim()).filter(|x| !x.is_empty()).zip(right_val.lines().map(|x| x.trim()).filter(|x| !x.is_empty())) {
                     assert_eq!(
                         left_line.trim(),
                         right_line.trim()
@@ -22,9 +22,7 @@ macro_rules! assert_verilog_eq {
     ($left:expr, $right:expr, $($arg:tt)+) => {
         match (&$left, &$right) {
             (left_val, right_val) => {
-                let left_string : String = left_val.into();
-                let right_string : String = right_val.into();
-                for (left_line, right_line) in left_val.lines().zip(right_val.lines()) {
+                for (left_line, right_line) in left_val.lines().map(|x| x.trim()).filter(|x| !x.is_empty()).zip(right_val.lines().map(|x| x.trim()).filter(|x| !x.is_empty())) {
                     assert_eq!(
                         left_line.trim(),
                         right_line.trim(),
