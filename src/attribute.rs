@@ -4,7 +4,7 @@
 
 */
 
-use bitvec::vec::BitVec;
+use bitvec::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 use crate::{
@@ -84,6 +84,29 @@ impl std::fmt::Display for Parameter {
                     .collect::<String>()
             ),
         }
+    }
+}
+
+impl Parameter {
+    /// Create a new integer parameter
+    pub fn integer(i: u64) -> Self {
+        Self::Integer(i)
+    }
+
+    /// Create a new real parameter
+    pub fn real(r: f32) -> Self {
+        Self::Real(r)
+    }
+
+    /// Create a new bitvec parameter
+    pub fn bitvec(size: usize, val: u64) -> Self {
+        if size > 64 {
+            panic!("BitVec parameter size cannot be larger than 64");
+        }
+        let mut bv: BitVec = bitvec!(usize, Lsb0; 0; 64);
+        bv[0..64].store::<u64>(val);
+        bv.truncate(size);
+        Self::BitVec(bv)
     }
 }
 

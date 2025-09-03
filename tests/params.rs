@@ -155,3 +155,9 @@ fn param_verilog() {
          endmodule\n"
     );
 }
+
+#[test]
+fn param_bv() {
+    let param = Parameter::bitvec(3, 14);
+    assert_eq!(param.to_string(), "3'b110");
+}
