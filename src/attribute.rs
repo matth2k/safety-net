@@ -18,6 +18,7 @@ pub type AttributeKey = String;
 pub type AttributeValue = Option<String>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// An attribute can add information to instances and wires in string form, like 'dont_touch'
 pub struct Attribute {
     k: AttributeKey,
@@ -59,6 +60,7 @@ impl std::fmt::Display for Attribute {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// A dedicated type to parameters for instantiables
 pub enum Parameter {
     /// An unsigned integer parameter
