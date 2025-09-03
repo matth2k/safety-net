@@ -4,7 +4,7 @@
 
 */
 
-use bitvec::prelude::*;
+use bitvec::{bitvec, field::BitField, order::Lsb0, vec::BitVec};
 use std::collections::{HashMap, HashSet};
 
 use crate::{
@@ -183,7 +183,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitvec::prelude::*;
 
     #[test]
     fn attribute_iter() {
