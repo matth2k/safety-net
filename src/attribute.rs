@@ -61,8 +61,8 @@ impl std::fmt::Display for Attribute {
 #[derive(Debug, Clone)]
 /// A dedicated type to parameters for instantiables
 pub enum Parameter {
-    /// An integer parameter
-    Integer(i32),
+    /// An unsigned integer parameter
+    Integer(u64),
     /// A floating-point parameter
     Real(f32),
     /// A bit vector parameter, like for a truth table
