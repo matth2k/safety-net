@@ -2228,7 +2228,8 @@ pub mod serde {
         name: String,
         /// The list of objects in the netlist, such as inputs, modules, and primitives
         objects: Vec<SerdeObject<I>>,
-        /// The list of operands that point to objects which are outputs
+        /// The list of operands that point to objects which are outputs.
+        /// Indices must be a string if we want to support JSON.
         outputs: HashMap<String, Net>,
     }
 
@@ -2255,7 +2256,7 @@ pub mod serde {
                     .outputs
                     .into_inner()
                     .into_iter()
-                    // TODO(matth2k): Indices must be a string. This is a workaround until de-serialize is implemented.
+                    // Indices must be a string if we want to support JSON.
                     .map(|(o, n)| (o.to_string(), n))
                     .collect(),
             }
