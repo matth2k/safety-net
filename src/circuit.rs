@@ -134,12 +134,12 @@ impl Identifier {
     }
 }
 
-impl std::ops::Add for Identifier {
-    type Output = Self;
+impl std::ops::Add for &Identifier {
+    type Output = Identifier;
 
-    fn add(self, rhs: Self) -> Self::Output {
-        let lname = self.name;
-        let rname = rhs.name;
+    fn add(self, rhs: Self) -> Identifier {
+        let lname = self.name.as_str();
+        let rname = rhs.name.as_str();
 
         let new_type = match (self.id_type, rhs.id_type) {
             (IdentifierType::Escaped, _)
@@ -158,10 +158,18 @@ impl std::ops::Add for Identifier {
             _ => format!("{}_{}", lname, rname),
         };
 
-        Self {
+        Identifier {
             name: new_name,
             id_type: new_type,
         }
+    }
+}
+
+impl std::ops::Add for Identifier {
+    type Output = Identifier;
+
+    fn add(self, rhs: Self) -> Identifier {
+        &self + &rhs
     }
 }
 

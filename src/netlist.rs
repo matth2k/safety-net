@@ -1181,12 +1181,10 @@ where
         inst_name: Identifier,
         operands: &[DrivenNet<I>],
     ) -> Result<NetRef<I>, String> {
-        // TODO(matth2k): Need to a more robust way to concat identifiers.
-        assert!(!inst_name.is_escaped());
         let nets = inst_type
             .get_output_ports()
             .into_iter()
-            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier()).into()))
+            .map(|pnet| pnet.with_name(&inst_name + pnet.get_identifier()))
             .collect::<Vec<_>>();
         let input_count = inst_type.get_input_ports().into_iter().count();
         if operands.len() != input_count {
@@ -1206,12 +1204,10 @@ where
         inst_type: I,
         inst_name: Identifier,
     ) -> Result<NetRef<I>, String> {
-        // TODO(matth2k): Need to a more robust way to concat identifiers.
-        assert!(!inst_name.is_escaped());
         let nets = inst_type
             .get_output_ports()
             .into_iter()
-            .map(|pnet| pnet.with_name(format!("{}_{}", inst_name, pnet.get_identifier()).into()))
+            .map(|pnet| pnet.with_name(&inst_name + pnet.get_identifier()))
             .collect::<Vec<_>>();
         let object = Object::Instance(nets, inst_name, inst_type);
         let index = self.objects.borrow().len();
