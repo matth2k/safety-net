@@ -2,6 +2,7 @@ use safety_net::{
     attribute::Parameter,
     circuit::{Identifier, Instantiable, Net},
     filter_nodes,
+    logic::Logic,
     netlist::Netlist,
 };
 
@@ -43,6 +44,14 @@ impl Instantiable for Gate {
 
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
         std::iter::empty()
+    }
+
+    fn from_constant(_val: Logic) -> Self {
+        panic!("Test matches.rs does not implement from_constant");
+    }
+
+    fn get_constant(&self) -> Option<Logic> {
+        None
     }
 }
 

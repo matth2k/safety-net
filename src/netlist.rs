@@ -8,6 +8,7 @@ use crate::{
     attribute::{Attribute, AttributeKey, AttributeValue, Parameter},
     circuit::{Identifier, Instantiable, Net, Object},
     graph::{Analysis, FanOutTable},
+    logic::Logic,
 };
 use std::{
     cell::{Ref, RefCell, RefMut},
@@ -25,6 +26,7 @@ trait WeakIndex<Idx: ?Sized> {
 }
 
 /// A primitive gate in a digital circuit, such as AND, OR, NOT, etc.
+/// VDD and GND are reserved to represent logic one and zero, respectively.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Gate {
@@ -63,6 +65,22 @@ impl Instantiable for Gate {
 
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
         std::iter::empty()
+    }
+
+    fn from_constant(val: Logic) -> Self {
+        match val {
+            Logic::True => Gate::new_logical("VDD".into(), vec![], "Y".into()),
+            Logic::False => Gate::new_logical("GND".into(), vec![], "Y".into()),
+            _ => panic!("Can only create constant gates for Logic::True or Logic::False"),
+        }
+    }
+
+    fn get_constant(&self) -> Option<Logic> {
+        match self.name.to_string().as_str() {
+            "VDD" => Some(Logic::True),
+            "GND" => Some(Logic::False),
+            _ => None,
+        }
     }
 }
 

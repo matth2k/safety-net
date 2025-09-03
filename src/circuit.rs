@@ -4,7 +4,7 @@
 
 */
 
-use crate::attribute::Parameter;
+use crate::{attribute::Parameter, logic::Logic};
 
 /// Signals in a circuit can be binary, tri-state, or four-state.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
@@ -262,6 +262,12 @@ pub trait Instantiable: Clone {
     /// Returns an iterator over the parameters of the primitive.
     fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)>;
 
+    /// Creates the primitive used to represent a constant value, like VDD or GND.
+    fn from_constant(val: Logic) -> Self;
+
+    /// Returns the constant value represented by this primitive, if it is constant.
+    fn get_constant(&self) -> Option<Logic>;
+
     /// Returns `true` if the primitive is parameterized (has at least one parameter).
     fn is_parameterized(&self) -> bool {
         self.parameters().next().is_some()
@@ -313,6 +319,12 @@ pub trait Instantiable: Clone {
         self.get_output_ports()
             .into_iter()
             .position(|n| n.get_identifier() == id)
+    }
+
+    /// Returns `true` if the primitive has no input ports. In most cases, this means the cell represents a constant.
+    /// **This method should be overriden if the implemenation of `get_input_ports()` is expensive.**
+    fn is_driverless(&self) -> bool {
+        self.get_input_ports().into_iter().next().is_none()
     }
 }
 
