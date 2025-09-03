@@ -15,5 +15,6 @@ Take a look at some [examples](https://github.com/matth2k/safety-net/tree/main/e
 pub mod attribute;
 pub mod circuit;
 pub mod graph;
+pub mod logic;
 pub mod netlist;
 mod util;
