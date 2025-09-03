@@ -53,11 +53,11 @@ jobs:
       - name: Generate code coverage
         run: cargo llvm-cov --all-features --workspace --json > coverage.json
       - name: Coverage (60% by line)
-        run: python3 utils/code_coverage.py -p 60.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
+        run: python3 utils/code_coverage.py -p 60.0 coverage.json --whitelist src/util.rs src/logic.rs >> $GITHUB_STEP_SUMMARY
       - name: Coverage (80% by line)
-        run: python3 utils/code_coverage.py -p 80.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
+        run: python3 utils/code_coverage.py -p 80.0 coverage.json --whitelist src/util.rs src/logic.rs >> $GITHUB_STEP_SUMMARY
       - name: Coverage (87% by line)
-        run: python3 utils/code_coverage.py -p 87.0 coverage.json --whitelist src/util.rs >> $GITHUB_STEP_SUMMARY
+        run: python3 utils/code_coverage.py -p 87.0 coverage.json --whitelist src/util.rs src/logic.rs >> $GITHUB_STEP_SUMMARY
 
   mdformat:
     name: Markdown format
