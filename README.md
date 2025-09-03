@@ -1,5 +1,6 @@
 ![](https://github.com/matth2k/safety-net/actions/workflows/rust.yml/badge.svg)
 [![Docs](https://img.shields.io/badge/docs-github--pages-blue)](https://matth2k.github.io/safety-net/)
+[![crates.io](https://img.shields.io/badge/docs-github--pages-blue)](https://crates.io/crates/safety-net)
 
 # Safety Net: A Memory-Safe Netlist Data Structure via Reference Counting
 
