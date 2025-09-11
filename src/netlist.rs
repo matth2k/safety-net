@@ -452,9 +452,9 @@ where
         match owner.upgrade() {
             Some(owner) => {
                 let n = owner.get_name();
-                write!(f, "{{ {n}:{i} : {o} }}")
+                write!(f, "{{ owner: \"{n}\", index: {i}, val: \"{o}\" }}")
             }
-            None => write!(f, "{{ _:{i} : {o} }}"),
+            None => write!(f, "{{ owner: None, index: {i}, val: \"{o}\" }}"),
         }
     }
 }
