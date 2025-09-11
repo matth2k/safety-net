@@ -67,7 +67,10 @@ fn test_netref_printing() {
     let netlist = get_simple_example();
     let gate = netlist.last().unwrap();
     let output = format!("{gate:?}");
-    assert_eq!(output, "{ owner: \"example\", index: 2, val: \"AND(inst_0)\" }");
+    assert_eq!(
+        output,
+        "{ owner: \"example\", index: 2, val: \"AND(inst_0)\" }"
+    );
 }
 
 #[test]
