@@ -6,7 +6,7 @@
 
 ## Description
 
-A Rust library for compiling and mutating Safety Net netlists in a memory-safe way
+A Rust library for compiling and mutating netlists in a memory-safe way
 
 You can read the docs [here](https://matth2k.github.io/safety-net/).
 
