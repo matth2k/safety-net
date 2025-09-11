@@ -17,4 +17,5 @@ pub mod circuit;
 pub mod graph;
 pub mod logic;
 pub mod netlist;
+pub mod schedule;
 mod util;

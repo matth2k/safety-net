@@ -27,7 +27,7 @@ trait WeakIndex<Idx: ?Sized> {
 
 /// A primitive gate in a digital circuit, such as AND, OR, NOT, etc.
 /// VDD and GND are reserved to represent logic one and zero, respectively.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Gate {
     /// The name of the primitive
