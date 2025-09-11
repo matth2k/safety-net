@@ -432,12 +432,31 @@ type NetRefT<I> = Rc<RefCell<OwnedObject<I, Netlist<I>>>>;
 
 /// Provides an idiomatic interface
 /// to the interior mutability of the netlist
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct NetRef<I>
 where
     I: Instantiable,
 {
     netref: NetRefT<I>,
+}
+
+impl<I> std::fmt::Debug for NetRef<I>
+where
+    I: Instantiable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let b = self.netref.borrow();
+        let o = b.get();
+        let i = b.index;
+        let owner = &b.owner;
+        match owner.upgrade() {
+            Some(owner) => {
+                let n = owner.get_name();
+                write!(f, "{{ {n}:{i} : {o} }}")
+            }
+            None => write!(f, "{{ _:{i} : {o} }}"),
+        }
+    }
 }
 
 impl<I> PartialEq for NetRef<I>
