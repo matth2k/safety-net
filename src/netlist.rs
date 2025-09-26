@@ -1473,6 +1473,7 @@ where
         let mut remap: HashMap<usize, usize> = HashMap::new();
         for (old_index, obj) in old_objects.into_iter().enumerate() {
             if dead_objs.contains(&old_index) {
+                // 1. this ref, 2. as an output
                 if Rc::strong_count(&obj) > 2 {
                     return Err(Error::DanglingReference(
                         obj.borrow().get().get_nets().to_vec(),
