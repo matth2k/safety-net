@@ -38,6 +38,7 @@ readme = "README.md"
 repository = "https://github.com/matth2k/safety-net"
 
 [dependencies]
+thiserror = { version = "2.0.16" }
 bitvec = { version = "1.0.1" }
 petgraph = { version = "0.8.2", optional = true }
 serde = { version = "1.0.219", optional = true, features = ["derive"] }
