@@ -253,7 +253,7 @@ impl<'a, I> Analysis<'a, I> for MultiDiGraph<'a, I>
 where
     I: Instantiable,
 {
-    fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
+    fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
         // If we verify, we can hash by name
         netlist.verify()?;
         let mut mapping = HashMap::new();
