@@ -65,9 +65,22 @@ pub struct Identifier {
 impl Identifier {
     /// Creates a new identifier with the given name
     pub fn new(name: String) -> Self {
+        if name.is_empty() {
+            panic!("Identifier name cannot be empty");
+        }
+
         if let Some(root) = name.strip_prefix('\\') {
             return Identifier {
                 name: root.to_string(),
+                id_type: IdentifierType::Escaped,
+            };
+        }
+
+        // Check if first char is a digit
+        let esc_chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        if esc_chars.contains(&name.chars().next().unwrap()) {
+            return Identifier {
+                name,
                 id_type: IdentifierType::Escaped,
             };
         }
