@@ -1220,7 +1220,7 @@ where
         self: &Rc<Self>,
         inst_type: I,
         inst_name: Identifier,
-    ) -> Result<NetRef<I>, String> {
+    ) -> NetRef<I> {
         let nets = inst_type
             .get_output_ports()
             .into_iter()
@@ -1244,7 +1244,7 @@ where
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
-        Ok(NetRef::wrap(owned_object))
+        NetRef::wrap(owned_object)
     }
 
     /// Inserts a constant [Logic] value to the netlist
@@ -1252,13 +1252,12 @@ where
         self: &Rc<Self>,
         value: Logic,
         inst_name: Identifier,
-    ) -> Result<DrivenNet<I>, String> {
-        let obj = I::from_constant(value).ok_or(format!(
+    ) -> Result<DrivenNet<I>, Error> {
+        let obj = I::from_constant(value).ok_or(Error::InstantiableError(format!(
             "Instantiable type does not support constant value {}",
             value
-        ))?;
-        self.insert_gate_disconnected(obj, inst_name)
-            .map(|nr| nr.into())
+        )))?;
+        Ok(self.insert_gate_disconnected(obj, inst_name).into())
     }
 
     /// Returns the driving node at input position `index` for `netref`

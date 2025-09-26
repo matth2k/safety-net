@@ -26,6 +26,9 @@ pub enum Error {
     /// The netlist has no outputs.
     #[error("No outputs in netlist")]
     NoOutputs,
+    /// An error in the instantiable interface
+    #[error("Error in the instantiable interface: {0}")]
+    InstantiableError(String),
     /// A deletion would cause a dangling reference.
     #[error("Attempted to create a dangling reference to nets {0:?}")]
     DanglingReference(Vec<Net>),

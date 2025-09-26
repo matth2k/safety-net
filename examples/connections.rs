@@ -24,9 +24,7 @@ fn ripple_adder() -> Netlist<Gate> {
 
     for i in 0..bitwidth {
         // Instantiate a full adder for each bit
-        let fa = netlist
-            .insert_gate_disconnected(full_adder(), format_id!("fa_{i}"))
-            .unwrap();
+        let fa = netlist.insert_gate_disconnected(full_adder(), format_id!("fa_{i}"));
 
         // Connect A_i and B_i
         fa.get_input(1).connect(a_vec[i].clone());

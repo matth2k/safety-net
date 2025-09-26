@@ -83,9 +83,7 @@ fn test_replace2() {
     let netlist = get_simple_example();
     let input = netlist.inputs().next().unwrap();
     let inverter = Gate::new_logical("INV".into(), vec!["I".into()], "O".into());
-    let inverted = netlist
-        .insert_gate_disconnected(inverter, "inst_0".into())
-        .unwrap();
+    let inverted = netlist.insert_gate_disconnected(inverter, "inst_0".into());
     // This errors, because input is not safe to delete. No replace is done.
     assert!(
         netlist
