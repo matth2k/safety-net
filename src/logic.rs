@@ -6,6 +6,8 @@
 
 use std::{fmt, str::FromStr};
 
+use crate::error::Error;
+
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 /// An enum to represent four-state logic
 pub enum Logic {
@@ -114,7 +116,7 @@ impl From<bool> for Logic {
 }
 
 impl FromStr for Logic {
-    type Err = String;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -122,7 +124,7 @@ impl FromStr for Logic {
             "1'b0" | "1'h0" => Ok(Logic::False),
             "1'bx" | "1'hx" => Ok(Logic::X),
             "1'bz" | "1'hz" => Ok(Logic::Z),
-            _ => Err(format!("Invalid logic value: {s}")),
+            _ => Err(Error::ParseError(s.to_string())),
         }
     }
 }

@@ -7,6 +7,7 @@
 use crate::{
     attribute::{Attribute, AttributeKey, AttributeValue, Parameter},
     circuit::{Identifier, Instantiable, Net, Object},
+    error::Error,
     graph::{Analysis, FanOutTable},
     logic::Logic,
 };
@@ -614,7 +615,7 @@ where
     ///
     /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
-    pub fn expose_as_output(self) -> Result<Self, String> {
+    pub fn expose_as_output(self) -> Result<Self, Error> {
         let netlist = self
             .netref
             .borrow()
@@ -647,17 +648,18 @@ where
     ///
     /// # Panics
     /// Panics if the reference to the netlist is lost.
-    pub fn expose_net(&self, net: &Net) -> Result<(), String> {
+    pub fn expose_net(&self, net: &Net) -> Result<(), Error> {
         let netlist = self
             .netref
             .borrow()
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        let net_index = self.netref.borrow().find_net(net).ok_or(format!(
-            "Net {} not found in circuit node",
-            net.get_identifier()
-        ))?;
+        let net_index = self
+            .netref
+            .borrow()
+            .find_net(net)
+            .ok_or(Error::NetNotFound(net.clone()))?;
         let dr = DrivenNet::new(net_index, self.clone());
         netlist.expose_net(dr)?;
         Ok(())
@@ -782,7 +784,7 @@ where
     /// # Panics
     ///
     /// Panics if the reference to the netlist is lost.
-    pub fn delete_uses(self) -> Result<Object<I>, String> {
+    pub fn delete_uses(self) -> Result<Object<I>, Error> {
         let netlist = self
             .netref
             .borrow()
@@ -798,7 +800,7 @@ where
     ///
     /// Panics if either `self` or `other` is a multi-output circuit node.
     /// Panics if the weak reference to the netlist is lost.
-    pub fn replace_uses_with(self, other: &Self) -> Result<Object<I>, String> {
+    pub fn replace_uses_with(self, other: &Self) -> Result<Object<I>, Error> {
         let netlist = self
             .netref
             .borrow()
@@ -1157,7 +1159,7 @@ where
         self: &Rc<Self>,
         object: Object<I>,
         operands: &[DrivenNet<I>],
-    ) -> Result<NetRef<I>, String> {
+    ) -> Result<NetRef<I>, Error> {
         let index = self.objects.borrow().len();
         let weak = Rc::downgrade(self);
         let operands = operands
@@ -1199,7 +1201,7 @@ where
         inst_type: I,
         inst_name: Identifier,
         operands: &[DrivenNet<I>],
-    ) -> Result<NetRef<I>, String> {
+    ) -> Result<NetRef<I>, Error> {
         let nets = inst_type
             .get_output_ports()
             .into_iter()
@@ -1207,11 +1209,7 @@ where
             .collect::<Vec<_>>();
         let input_count = inst_type.get_input_ports().into_iter().count();
         if operands.len() != input_count {
-            return Err(format!(
-                "Expected {} operands, got {}",
-                input_count,
-                operands.len()
-            ));
+            return Err(Error::ArgumentMismatch(input_count, operands.len()));
         }
         let obj = Object::Instance(nets, inst_name, inst_type);
         self.insert_object(obj, operands)
@@ -1282,11 +1280,9 @@ where
     }
 
     /// Set an added object as a top-level output.
-    pub fn expose_net(&self, net: DrivenNet<I>) -> Result<DrivenNet<I>, String> {
+    pub fn expose_net(&self, net: DrivenNet<I>) -> Result<DrivenNet<I>, Error> {
         if net.is_an_input() {
-            return Err(
-                "Cannot expose an input net as output without a new name to bind to".to_string(),
-            );
+            return Err(Error::InputNeedsAlias(net.as_net().clone()));
         }
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(net.get_operand(), net.as_net().clone());
@@ -1294,10 +1290,10 @@ where
     }
 
     /// Unlink a circuit node from the rest of the netlist. Return the object that was being stored.
-    pub fn delete_net_uses(&self, netref: NetRef<I>) -> Result<Object<I>, String> {
+    pub fn delete_net_uses(&self, netref: NetRef<I>) -> Result<Object<I>, Error> {
         let unwrapped = netref.clone().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
-            return Err("Cannot delete. References still exist on this node".to_string());
+            return Err(Error::DanglingReference(netref.nets().collect()));
         }
         let old_index = unwrapped.borrow().get_index();
         let objects = self.objects.borrow();
@@ -1336,10 +1332,10 @@ where
 
     /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
     /// Panics if `of` and  `with` are not single-output nodes.
-    pub fn replace_net_uses(&self, of: NetRef<I>, with: &NetRef<I>) -> Result<Object<I>, String> {
+    pub fn replace_net_uses(&self, of: NetRef<I>, with: &NetRef<I>) -> Result<Object<I>, Error> {
         let unwrapped = of.clone().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
-            return Err("Cannot replace. References still exist on this node".to_string());
+            return Err(Error::DanglingReference(of.nets().collect()));
         }
 
         let old_tag: DrivenNet<I> = of.clone().into();
@@ -1405,7 +1401,7 @@ where
     }
 
     /// Constructs an analysis of the netlist.
-    pub fn get_analysis<'a, A: Analysis<'a, I>>(&'a self) -> Result<A, String> {
+    pub fn get_analysis<'a, A: Analysis<'a, I>>(&'a self) -> Result<A, Error> {
         A::build(self)
     }
 
@@ -1450,7 +1446,7 @@ where
     }
 
     /// Cleans unused nodes from the netlist, returning `Ok(true)` if the netlist changed.
-    pub fn clean_once(&self) -> Result<bool, String> {
+    pub fn clean_once(&self) -> Result<bool, Error> {
         let mut dead_objs = HashSet::new();
         {
             let fan_out = self.get_analysis::<FanOutTable<I>>()?;
@@ -1478,10 +1474,8 @@ where
         for (old_index, obj) in old_objects.into_iter().enumerate() {
             if dead_objs.contains(&old_index) {
                 if Rc::strong_count(&obj) > 2 {
-                    return Err(format!(
-                        "Cannot delete object {} as a NetRef still exists, or it is an output. SC = {}",
-                        obj.borrow().get(),
-                        Rc::strong_count(&obj)
+                    return Err(Error::DanglingReference(
+                        obj.borrow().get().get_nets().to_vec(),
                     ));
                 }
                 continue;
@@ -1513,7 +1507,7 @@ where
 
     /// Greedly removes unused nodes from the netlist, until it stops changing.
     /// Returns true if the netlist was changed.
-    pub fn clean(&self) -> Result<bool, String> {
+    pub fn clean(&self) -> Result<bool, Error> {
         if !self.clean_once()? {
             Ok(false)
         } else {
@@ -1526,42 +1520,39 @@ where
     }
 
     /// Returns `true` if all the nets are uniquely named
-    fn nets_unique(&self) -> bool {
+    fn nets_unique(&self) -> Result<(), Error> {
         let mut nets = HashSet::new();
         for net in self.into_iter() {
-            if !nets.insert(net.take_identifier()) {
-                return false;
+            if !nets.insert(net.clone().take_identifier()) {
+                return Err(Error::NonuniqueNets(vec![net]));
             }
         }
-        true
+        Ok(())
     }
 
     /// Returns `true` if all the nets are uniquely named
-    fn insts_unique(&self) -> bool {
+    fn insts_unique(&self) -> Result<(), Error> {
         let mut insts = HashSet::new();
         for inst in self.objects() {
             if let Some(name) = inst.get_instance_name()
-                && !insts.insert(name)
+                && !insts.insert(name.clone())
             {
-                return false;
+                return Err(Error::NonuniqueInsts(vec![name]));
             }
         }
-        true
+        Ok(())
     }
 
     /// Verifies that a netlist is well-formed.
-    pub fn verify(&self) -> Result<(), String> {
+    pub fn verify(&self) -> Result<(), Error> {
         if self.outputs.borrow().is_empty() {
-            return Err("Netlist has no outputs".to_string());
+            return Err(Error::NoOutputs);
         }
 
-        if !self.nets_unique() {
-            return Err("Netlist contains non-unique nets (multiple drivers)".to_string());
-        }
+        self.nets_unique()?;
 
-        if !self.insts_unique() {
-            return Err("Netlist contains non-unique instances".to_string());
-        }
+        self.insts_unique()?;
+
         Ok(())
     }
 }

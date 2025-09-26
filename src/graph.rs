@@ -5,6 +5,7 @@
 */
 
 use crate::circuit::{Instantiable, Net};
+use crate::error::Error;
 #[cfg(feature = "graph")]
 use crate::netlist::Connection;
 use crate::netlist::iter::DFSIterator;
@@ -21,7 +22,7 @@ where
     Self: Sized + 'a,
 {
     /// Construct the analysis to the current state of the netlist.
-    fn build(netlist: &'a Netlist<I>) -> Result<Self, String>;
+    fn build(netlist: &'a Netlist<I>) -> Result<Self, Error>;
 }
 
 /// A table that maps nets to the circuit nodes they drive
@@ -68,7 +69,7 @@ impl<'a, I> Analysis<'a, I> for FanOutTable<'a, I>
 where
     I: Instantiable,
 {
-    fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
+    fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
         let mut net_fan_out: HashMap<Net, Vec<NetRef<I>>> = HashMap::new();
         let mut node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
@@ -140,15 +141,15 @@ impl<'a, I> Analysis<'a, I> for SimpleCombDepth<'a, I>
 where
     I: Instantiable,
 {
-    fn build(netlist: &'a Netlist<I>) -> Result<Self, String> {
+    fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
         let mut comb_depth: HashMap<NetRef<I>, usize> = HashMap::new();
 
         let mut nodes = Vec::new();
         for (driven, _) in netlist.outputs() {
-            let mut dfs = DFSIterator::new(netlist, driven.unwrap());
+            let mut dfs = DFSIterator::new(netlist, driven.clone().unwrap());
             while let Some(n) = dfs.next() {
                 if dfs.check_cycles() {
-                    return Err("Cycle detected in the netlist".to_string());
+                    return Err(Error::CycleDetected(vec![driven.as_net().clone()]));
                 }
                 nodes.push(n);
             }
