@@ -27,9 +27,9 @@ where
 
 /// A table that maps nets to the circuit nodes they drive
 pub struct FanOutTable<'a, I: Instantiable> {
-    // A reference to the underlying netlist
+    /// A reference to the underlying netlist
     _netlist: &'a Netlist<I>,
-    // Maps a net to the list of nodes it drives
+    /// Maps a net to the list of nodes it drives
     net_fan_out: HashMap<Net, Vec<NetRef<I>>>,
     /// Maps a node to the list of nodes it drives
     node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>>,
@@ -114,9 +114,9 @@ where
 /// An simple example to analyze the logic levels of a netlist.
 /// This analysis checks for cycles, but it doesn't check for registers.
 pub struct SimpleCombDepth<'a, I: Instantiable> {
-    // A reference to the underlying netlist
+    /// A reference to the underlying netlist
     _netlist: &'a Netlist<I>,
-    // Maps a net to its logic level as a DAG
+    /// Maps a net to its logic level as a DAG
     comb_depth: HashMap<NetRef<I>, usize>,
     /// The maximum depth of the circuit
     max_depth: usize,

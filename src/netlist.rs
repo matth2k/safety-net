@@ -1271,7 +1271,6 @@ where
     }
 
     /// Set an added object as a top-level output.
-    /// Panics if `net`` is a multi-output node.
     pub fn expose_net_with_name(&self, net: DrivenNet<I>, name: Identifier) -> DrivenNet<I> {
         let mut outputs = self.outputs.borrow_mut();
         outputs.insert(net.get_operand(), net.as_net().with_name(name));
