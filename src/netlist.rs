@@ -1000,7 +1000,7 @@ where
 }
 
 /// Represent a net that is being driven by a [Instantiable]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DrivenNet<I: Instantiable> {
     pos: usize,
     netref: NetRef<I>,
