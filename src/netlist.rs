@@ -1000,7 +1000,7 @@ where
 }
 
 /// Represent a net that is being driven by a [Instantiable]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct DrivenNet<I: Instantiable> {
     pos: usize,
     netref: NetRef<I>,
@@ -1122,6 +1122,27 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.as_net().fmt(f)
+    }
+}
+
+impl<I> PartialEq for DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.netref == other.netref && self.pos == other.pos
+    }
+}
+
+impl<I> Eq for DrivenNet<I> where I: Instantiable {}
+
+impl<I> std::hash::Hash for DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.netref.hash(state);
+        self.pos.hash(state);
     }
 }
 
