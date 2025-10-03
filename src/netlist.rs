@@ -1114,6 +1114,20 @@ where
         netlist.expose_net_with_name(self.clone(), name);
         self
     }
+
+    /// Returns the output position, if the net is the output of a gate.
+    pub fn get_output_index(&self) -> Option<usize> {
+        if self.netref.is_an_input() {
+            None
+        } else {
+            Some(self.pos)
+        }
+    }
+
+    /// Returns the [Instantiable] type driving this net, if it has a driver.
+    pub fn get_instance_type(&self) -> Option<Ref<'_, I>> {
+        self.netref.get_instance_type()
+    }
 }
 
 impl<I> std::fmt::Display for DrivenNet<I>
