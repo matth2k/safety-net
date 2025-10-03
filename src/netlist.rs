@@ -1637,7 +1637,7 @@ pub mod iter {
     use super::{
         Connection, DrivenNet, InputPort, Instantiable, Net, NetRef, Netlist, Operand, WeakIndex,
     };
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
     /// An iterator over the nets in a netlist
     pub struct NetIterator<'a, I: Instantiable> {
         netlist: &'a Netlist<I>,
@@ -1772,6 +1772,51 @@ pub mod iter {
         }
     }
 
+    /// A stack that can check contains in roughly O(1) time.
+    struct Stack<T: std::hash::Hash + PartialEq + Eq + Clone> {
+        stack: Vec<T>,
+        counter: HashMap<T, usize>,
+    }
+
+    impl<T> Stack<T>
+    where
+        T: std::hash::Hash + PartialEq + Eq + Clone,
+    {
+        /// Create a new, empty Stack.
+        fn new() -> Self {
+            Self {
+                stack: Vec::new(),
+                counter: HashMap::new(),
+            }
+        }
+
+        /// Inserts an element into the stack
+        fn push(&mut self, item: T) {
+            self.stack.push(item.clone());
+            *self.counter.entry(item).or_insert(0) += 1;
+        }
+
+        /// Pops the top element from the stack
+        fn pop(&mut self) -> Option<T> {
+            if let Some(item) = self.stack.pop() {
+                if let Some(count) = self.counter.get_mut(&item) {
+                    *count -= 1;
+                    if *count == 0 {
+                        self.counter.remove(&item);
+                    }
+                }
+                Some(item)
+            } else {
+                None
+            }
+        }
+
+        /// Checks if the stack contains the given element
+        fn contains(&self, item: &T) -> bool {
+            self.counter.contains_key(item)
+        }
+    }
+
     /// A depth-first iterator over the circuit nodes in a netlist
     /// # Examples
     ///
@@ -1792,7 +1837,7 @@ pub mod iter {
     /// ```
     pub struct DFSIterator<'a, I: Instantiable> {
         netlist: &'a Netlist<I>,
-        stack: Vec<NetRef<I>>,
+        stack: Stack<NetRef<I>>,
         visited: HashSet<usize>,
         cycles: bool,
     }
@@ -1803,9 +1848,11 @@ pub mod iter {
     {
         /// Create a new DFS iterator for the netlist starting at `from`.
         pub fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
+            let mut s = Stack::new();
+            s.push(from);
             Self {
                 netlist,
-                stack: vec![from],
+                stack: s,
                 visited: HashSet::new(),
                 cycles: false,
             }
@@ -1847,16 +1894,20 @@ pub mod iter {
             if let Some(item) = self.stack.pop() {
                 let uw = item.clone().unwrap();
                 let index = uw.borrow().get_index();
-                if !self.visited.insert(index) {
+                if self.visited.insert(index) {
+                    let operands = &uw.borrow().operands;
+                    for operand in operands.iter().flatten() {
+                        self.stack
+                            .push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
+                    }
+                }
+
+                return if self.stack.contains(&item) {
                     self.cycles = true;
-                    return self.next();
-                }
-                let operands = &uw.borrow().operands;
-                for operand in operands.iter().flatten() {
-                    self.stack
-                        .push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
-                }
-                return Some(item);
+                    self.next()
+                } else {
+                    Some(item)
+                };
             }
 
             None
