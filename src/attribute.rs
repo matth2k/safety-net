@@ -59,7 +59,7 @@ impl std::fmt::Display for Attribute {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 /// A dedicated type to parameters for instantiables
 pub enum Parameter {
@@ -70,6 +70,8 @@ pub enum Parameter {
     /// A bit vector parameter, like for a truth table
     BitVec(BitVec),
 }
+
+impl Eq for Parameter {}
 
 impl std::fmt::Display for Parameter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
