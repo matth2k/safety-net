@@ -1365,8 +1365,14 @@ where
 
     /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
     /// Panics if `of` and  `with` are not single-output nodes.
-    pub fn replace_net_uses(&self, of: NetRef<I>, with: &NetRef<I>) -> Result<Object<I>, Error> {
-        let unwrapped = of.clone().unwrap();
+
+
+    pub fn replace_net_uses(&self, of: DrivenNet<I>, with: &DrivenNet<I>) -> Result<Object<I>, String> {
+        let unwrapped = of.clone().unwrap().unwrap();
+        // Rc (1) - Netlist Owner
+        // Rc (2) - Argument
+        // Rc (3) - Unwrapped Counter Checker
+
         if Rc::strong_count(&unwrapped) > 3 {
             return Err(Error::DanglingReference(of.nets().collect()));
         }
