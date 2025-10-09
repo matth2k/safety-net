@@ -1908,6 +1908,8 @@ pub mod iter {
                         self.stack
                             .push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
                     }
+                } else {
+                    self.cycles = true;
                 }
 
                 return if self.stack.contains(&item) {
