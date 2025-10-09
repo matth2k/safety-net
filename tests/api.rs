@@ -363,7 +363,11 @@ fn test_replace_gate_bad() {
     let or_gate = netlist
         .insert_gate(or_gate, "inst_0".into(), &inputs)
         .unwrap();
-    assert!(netlist.replace_net_uses(and_gate, &or_gate).is_ok());
+    assert!(
+        netlist
+            .replace_net_uses(and_gate.into(), &or_gate.into())
+            .is_ok()
+    );
     // Both the AND and OR gate are driving the same wire name (subtle).
     // The instance name has to be different, or the user has to manualy rename it.
     // Will need to consider how to make this more user-friendly.
@@ -379,7 +383,11 @@ fn test_replace_gate() {
     let or_gate = netlist
         .insert_gate(or_gate, "inst_0".into(), &inputs)
         .unwrap();
-    assert!(netlist.replace_net_uses(and_gate, &or_gate).is_ok());
+    assert!(
+        netlist
+            .replace_net_uses(and_gate.into(), &or_gate.get_output(0))
+            .is_ok()
+    );
     assert!(netlist.clean().is_err());
     or_gate.set_instance_name("inst_1".into());
     or_gate.as_net_mut().set_identifier("inst_1_Y".into());

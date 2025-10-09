@@ -798,16 +798,16 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if either `self` or `other` is a multi-output circuit node.
+    /// Panics if either `self` is a multi-output circuit node.
     /// Panics if the weak reference to the netlist is lost.
-    pub fn replace_uses_with(self, other: &Self) -> Result<Object<I>, Error> {
+    pub fn replace_uses_with(self, other: &DrivenNet<I>) -> Result<Object<I>, Error> {
         let netlist = self
             .netref
             .borrow()
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        netlist.replace_net_uses(self, other)
+        netlist.replace_net_uses(self.into(), other)
     }
 
     /// Clears the attribute with the given key on this circuit node.
@@ -1364,17 +1364,25 @@ where
     }
 
     /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
-    /// Panics if `of` and  `with` are not single-output nodes.
-    pub fn replace_net_uses(&self, of: NetRef<I>, with: &NetRef<I>) -> Result<Object<I>, Error> {
-        let unwrapped = of.clone().unwrap();
+    pub fn replace_net_uses(
+        &self,
+        of: DrivenNet<I>,
+        with: &DrivenNet<I>,
+    ) -> Result<Object<I>, Error> {
+        let unwrapped = of.clone().unwrap().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
-            return Err(Error::DanglingReference(of.nets().collect()));
+            return Err(Error::DanglingReference(of.unwrap().nets().collect()));
         }
 
-        let old_tag: DrivenNet<I> = of.clone().into();
-        let old_index = old_tag.get_operand();
-        let new_tag: DrivenNet<I> = with.clone().into();
-        let new_index = new_tag.get_operand();
+        let old_index = of.get_operand();
+
+        if let Some(v) = self.outputs.borrow().get(&old_index)
+            && *v == *of.as_net()
+        {
+            return Err(Error::NonuniqueNets(vec![v.clone()]));
+        }
+
+        let new_index = with.get_operand();
         let objects = self.objects.borrow();
         for oref in objects.iter() {
             let operands = &mut oref.borrow_mut().operands;
@@ -1396,7 +1404,7 @@ where
             self.outputs.borrow_mut().insert(new_index, v.clone());
         }
 
-        Ok(of.unwrap().borrow().get().clone())
+        Ok(of.unwrap().unwrap().borrow().get().clone())
     }
 }
 

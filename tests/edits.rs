@@ -48,7 +48,7 @@ fn test_replace() {
     let inverted = netlist
         .insert_gate(inverter, "inst_0".into(), std::slice::from_ref(&input))
         .unwrap();
-    assert!(netlist.replace_net_uses(input.unwrap(), &inverted).is_ok());
+    assert!(netlist.replace_net_uses(input, &inverted.into()).is_ok());
     assert_verilog_eq!(
         netlist.to_string(),
         "module example (
@@ -87,7 +87,7 @@ fn test_replace2() {
     // This errors, because input is not safe to delete. No replace is done.
     assert!(
         netlist
-            .replace_net_uses(input.clone().unwrap(), &inverted)
+            .replace_net_uses(input.clone(), &inverted.get_output(0))
             .is_err()
     );
     inverted.find_input(&"I".into()).unwrap().connect(input);
