@@ -13,6 +13,10 @@ fn and_gate() -> Gate {
     Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into())
 }
 
+fn reg() -> Gate {
+    Gate::new_logical("REG".into(), vec!["D".into()], "Q".into())
+}
+
 fn get_simple_example() -> Rc<GateNetlist> {
     let netlist = Netlist::new("example".to_string());
 
@@ -24,6 +28,28 @@ fn get_simple_example() -> Rc<GateNetlist> {
         .unwrap();
 
     instance.expose_with_name("y".into());
+
+    netlist
+}
+
+fn divider_netlist() -> Rc<GateNetlist> {
+    let netlist = Netlist::new("example".to_string());
+
+    // Add the the input
+    let a = netlist.insert_input("a".into());
+
+    // Instantiate a reg
+    let reg = netlist.insert_gate_disconnected(reg(), "inst_0".into());
+
+    // And last val and input
+    let and = netlist
+        .insert_gate(and_gate(), "inst_1".into(), &[a, reg.get_output(0)])
+        .unwrap();
+
+    reg.find_input(&"D".into()).unwrap().connect(and.into());
+
+    // Make this Reg an output
+    reg.expose_with_name("y".into());
 
     netlist
 }
@@ -41,11 +67,23 @@ fn test_detect_cycles() {
     let inverted = netlist
         .insert_gate(inverter, "inst_0".into(), std::slice::from_ref(&input))
         .unwrap();
-    assert!(netlist.replace_net_uses(input.unwrap(), &inverted).is_ok());
+    assert!(
+        netlist
+            .replace_net_uses(input, &inverted.get_output(0))
+            .is_ok()
+    );
 
     // Now there is a cycle.
     // We replaced the inverter input with invert output.
     // Simple combinational loop.
+    let dfs_iter = DFSIterator::new(&netlist, netlist.last().unwrap());
+    assert!(dfs_iter.detect_cycles());
+}
+
+#[test]
+fn test_detect_cycles2() {
+    let netlist = divider_netlist();
+
     let dfs_iter = DFSIterator::new(&netlist, netlist.last().unwrap());
     assert!(dfs_iter.detect_cycles());
 }

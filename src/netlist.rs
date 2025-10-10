@@ -798,16 +798,16 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if either `self` or `other` is a multi-output circuit node.
+    /// Panics if either `self` is a multi-output circuit node.
     /// Panics if the weak reference to the netlist is lost.
-    pub fn replace_uses_with(self, other: &Self) -> Result<Object<I>, Error> {
+    pub fn replace_uses_with(self, other: &DrivenNet<I>) -> Result<Object<I>, Error> {
         let netlist = self
             .netref
             .borrow()
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        netlist.replace_net_uses(self, other)
+        netlist.replace_net_uses(self.into(), other)
     }
 
     /// Clears the attribute with the given key on this circuit node.
@@ -1364,23 +1364,25 @@ where
     }
 
     /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
-    /// Panics if `of` and  `with` are not single-output nodes.
-
-
-    pub fn replace_net_uses(&self, of: DrivenNet<I>, with: &DrivenNet<I>) -> Result<Object<I>, String> {
+    pub fn replace_net_uses(
+        &self,
+        of: DrivenNet<I>,
+        with: &DrivenNet<I>,
+    ) -> Result<Object<I>, Error> {
         let unwrapped = of.clone().unwrap().unwrap();
-        // Rc (1) - Netlist Owner
-        // Rc (2) - Argument
-        // Rc (3) - Unwrapped Counter Checker
-
         if Rc::strong_count(&unwrapped) > 3 {
-            return Err(Error::DanglingReference(of.nets().collect()));
+            return Err(Error::DanglingReference(of.unwrap().nets().collect()));
         }
 
-        let old_tag: DrivenNet<I> = of.clone().into();
-        let old_index = old_tag.get_operand();
-        let new_tag: DrivenNet<I> = with.clone().into();
-        let new_index = new_tag.get_operand();
+        let old_index = of.get_operand();
+
+        if let Some(v) = self.outputs.borrow().get(&old_index)
+            && *v == *of.as_net()
+        {
+            return Err(Error::NonuniqueNets(vec![v.clone()]));
+        }
+
+        let new_index = with.get_operand();
         let objects = self.objects.borrow();
         for oref in objects.iter() {
             let operands = &mut oref.borrow_mut().operands;
@@ -1402,7 +1404,7 @@ where
             self.outputs.borrow_mut().insert(new_index, v.clone());
         }
 
-        Ok(of.unwrap().borrow().get().clone())
+        Ok(of.unwrap().unwrap().borrow().get().clone())
     }
 }
 
@@ -1779,12 +1781,13 @@ pub mod iter {
     }
 
     /// A stack that can check contains in roughly O(1) time.
-    struct Stack<T: std::hash::Hash + PartialEq + Eq + Clone> {
+    #[derive(Clone)]
+    struct Walk<T: std::hash::Hash + PartialEq + Eq + Clone> {
         stack: Vec<T>,
         counter: HashMap<T, usize>,
     }
 
-    impl<T> Stack<T>
+    impl<T> Walk<T>
     where
         T: std::hash::Hash + PartialEq + Eq + Clone,
     {
@@ -1802,24 +1805,14 @@ pub mod iter {
             *self.counter.entry(item).or_insert(0) += 1;
         }
 
-        /// Pops the top element from the stack
-        fn pop(&mut self) -> Option<T> {
-            if let Some(item) = self.stack.pop() {
-                if let Some(count) = self.counter.get_mut(&item) {
-                    *count -= 1;
-                    if *count == 0 {
-                        self.counter.remove(&item);
-                    }
-                }
-                Some(item)
-            } else {
-                None
-            }
+        /// Returns true if the stack shows a cycle
+        fn contains_cycle(&self) -> bool {
+            self.counter.values().any(|&count| count > 1)
         }
 
-        /// Checks if the stack contains the given element
-        fn contains(&self, item: &T) -> bool {
-            self.counter.contains_key(item)
+        /// Returns a reference to the last element in the stack
+        fn last(&self) -> Option<&T> {
+            self.stack.last()
         }
     }
 
@@ -1843,7 +1836,7 @@ pub mod iter {
     /// ```
     pub struct DFSIterator<'a, I: Instantiable> {
         netlist: &'a Netlist<I>,
-        stack: Stack<NetRef<I>>,
+        stacks: Vec<Walk<NetRef<I>>>,
         visited: HashSet<usize>,
         cycles: bool,
     }
@@ -1854,11 +1847,11 @@ pub mod iter {
     {
         /// Create a new DFS iterator for the netlist starting at `from`.
         pub fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
-            let mut s = Stack::new();
+            let mut s = Walk::new();
             s.push(from);
             Self {
                 netlist,
-                stack: s,
+                stacks: vec![s],
                 visited: HashSet::new(),
                 cycles: false,
             }
@@ -1897,23 +1890,25 @@ pub mod iter {
         type Item = NetRef<I>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            if let Some(item) = self.stack.pop() {
-                let uw = item.clone().unwrap();
+            if let Some(walk) = self.stacks.pop() {
+                let item = walk.last().cloned();
+                let uw = item.clone().unwrap().unwrap();
                 let index = uw.borrow().get_index();
                 if self.visited.insert(index) {
                     let operands = &uw.borrow().operands;
                     for operand in operands.iter().flatten() {
-                        self.stack
-                            .push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
+                        let mut new_walk = walk.clone();
+                        new_walk.push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
+                        if !new_walk.contains_cycle() {
+                            self.stacks.push(new_walk);
+                        } else {
+                            self.cycles = true;
+                        }
                     }
+                    return item;
                 }
 
-                return if self.stack.contains(&item) {
-                    self.cycles = true;
-                    self.next()
-                } else {
-                    Some(item)
-                };
+                return self.next();
             }
 
             None
