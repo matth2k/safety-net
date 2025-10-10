@@ -67,11 +67,7 @@ fn test_detect_cycles() {
     let inverted = netlist
         .insert_gate(inverter, "inst_0".into(), std::slice::from_ref(&input))
         .unwrap();
-    assert!(
-        netlist
-            .replace_net_uses(input, &inverted.get_output(0))
-            .is_ok()
-    );
+    assert!(netlist.replace_net_uses(input, &inverted.into()).is_ok());
 
     // Now there is a cycle.
     // We replaced the inverter input with invert output.

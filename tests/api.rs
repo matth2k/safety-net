@@ -385,7 +385,7 @@ fn test_replace_gate() {
         .unwrap();
     assert!(
         netlist
-            .replace_net_uses(and_gate.into(), &or_gate.get_output(0))
+            .replace_net_uses(and_gate.into(), &or_gate.clone().into())
             .is_ok()
     );
     assert!(netlist.clean().is_err());
