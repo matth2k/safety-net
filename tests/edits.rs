@@ -161,30 +161,30 @@ fn test_replace_single_single_v2() {
     assert_verilog_eq!(
         netlist.to_string(),
         "module example (
-      a,
-      b,
-      y
-    );
-      input a;
-      wire a;
-      input b;
-      wire b;
-      output y;
-      wire y;
-      wire and_0_Y;
-      wire or_0_Y;
-      AND and_0 (
-        .A(a),
-        .B(b),
-        .Y(and_0_Y)
-      );
-      OR or_0 (
-        .A(a),
-        .B(b),
-        .Y(or_0_Y)
-      );
-      assign y = or_0_Y;
-    endmodule"
+          a,
+          b,
+          y
+        );
+          input a;
+          wire a;
+          input b;
+          wire b;
+          output y;
+          wire y;
+          wire and_0_Y;
+          wire or_0_Y;
+          AND and_0 (
+            .A(a),
+            .B(b),
+            .Y(and_0_Y)
+          );
+          OR or_0 (
+            .A(a),
+            .B(b),
+            .Y(or_0_Y)
+          );
+          assign y = or_0_Y;
+        endmodule"
     );
 }
 #[test]
@@ -213,31 +213,31 @@ fn test_replace_single_multiple() {
     assert_verilog_eq!(
         netlist.to_string(),
         "module example (
-      a,
-      b,
-      y
-    );
-      input a;
-      wire a;
-      input b;
-      wire b;
-      output y;
-      wire y;
-      wire and_0_Y;
-      wire dup0_O0;
-      wire dup0_O1;
-      AND and_0 (
-        .A(a),
-        .B(b),
-        .Y(and_0_Y)
-      );
-      DUP dup0 (
-        .I(a),
-        .O0(dup0_O0),
-        .O1(dup0_O1)
-      );
-      assign y = and_0_Y;
-    endmodule"
+          a,
+          b,
+          y
+        );
+          input a;
+          wire a;
+          input b;
+          wire b;
+          output y;
+          wire y;
+          wire and_0_Y;
+          wire dup0_O0;
+          wire dup0_O1;
+          AND and_0 (
+            .A(a),
+            .B(b),
+            .Y(and_0_Y)
+          );
+          DUP dup0 (
+            .I(a),
+            .O0(dup0_O0),
+            .O1(dup0_O1)
+          );
+          assign y = and_0_Y;
+        endmodule"
     );
 }
 
@@ -267,31 +267,31 @@ fn test_replace_multiple_single() {
     assert_verilog_eq!(
         netlist.to_string(),
         "module example (
-      a,
-      b,
-      y
-      );
-      input a;
-      wire a;
-      input b;
-      wire b;
-      output y;
-      wire y;
-      wire and_0_Y;
-      wire dup0_O0;
-      wire dup0_O1;
-      AND and_0 (
-        .A(a),
-        .B(b),
-        .Y(and_0_Y)
-      );
-      DUP dup0 (
-        .I(a),
-        .O0(dup0_O0),
-        .O1(dup0_O1)
-      );
-      assign y = dup0_O0;
-    endmodule"
+          a,
+          b,
+          y
+          );
+          input a;
+          wire a;
+          input b;
+          wire b;
+          output y;
+          wire y;
+          wire and_0_Y;
+          wire dup0_O0;
+          wire dup0_O1;
+          AND and_0 (
+            .A(a),
+            .B(b),
+            .Y(and_0_Y)
+          );
+          DUP dup0 (
+            .I(a),
+            .O0(dup0_O0),
+            .O1(dup0_O1)
+          );
+          assign y = dup0_O0;
+        endmodule"
     );
 }
 
@@ -308,13 +308,41 @@ fn test_replace_multiple_multiple() {
         .insert_gate(two_out_gate(), "dup2".into(), &[a.clone()])
         .unwrap();
 
-    dup2.get_output(0).expose_with_name("y".into());
+    dup2.get_output(1).expose_with_name("y".into());
     let dup2_out0 = dup2.get_output(0);
-    let dup1_out1 = dup2.get_output(1);
+    let dup2_out1 = dup2.get_output(1);
 
     drop(dup1);
     drop(dup2);
-    netlist.replace_net_uses(dup1_out1, &dup2_out0).unwrap();
+    netlist.replace_net_uses(dup2_out1, &dup2_out0).unwrap();
     assert!(netlist.verify().is_ok());
-    println!("{}", netlist);
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+            a,
+            y
+            );
+            input a;
+            wire a;
+            output y;
+            wire y;
+            wire dup1_O0;
+            wire dup1_O1;
+            wire dup2_O0;
+            wire dup2_O1;
+            DUP dup1 (
+              .I(a),
+              .O0(dup1_O0),
+              .O1(dup1_O1)
+            );
+            DUP dup2 (
+              .I(a),
+              .O0(dup2_O0),
+              .O1(dup2_O1)
+            );
+            assign y = dup2_O0;
+          endmodule"
+    );
 }
+
+// Add test if you want
