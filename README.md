@@ -57,7 +57,7 @@ The API provides the basic iterators needed to implement graph algorithms like s
 
 However, you may want to use another library that leverages a denser representation and already has all the classic algorithms implemented. This crate provides integration with petgraph. Here is a ripple-carry adder example which converts the netlist to a petgraph which is then converted to a dot graph:
 
-`cargo run --example connections | dot -Tsvg > adder.svg`
+`cargo run --features graph --example connections | dot -Tsvg > adder.svg`
 
 Then, open it up and take a look:
 
