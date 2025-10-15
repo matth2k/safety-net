@@ -152,7 +152,6 @@ fn test_replace_single_single() {
     );
     or_inst.get_output(0).expose_with_name("y".into());
     assert!(netlist.verify().is_ok());
-    print!("{netlist}");
     assert_verilog_eq!(
         netlist.to_string(),
         "module example (
@@ -253,9 +252,7 @@ fn test_replace_multiple_single() {
     let and_out = and_inst.get_output(0);
     let dup_out0 = dup.get_output(0);
     drop(and_inst);
-    netlist
-        .replace_net_uses(and_out, &dup_out0.clone())
-        .unwrap(); // todo: ask why 
+    netlist.replace_net_uses(and_out, &dup_out0).unwrap(); // todo: ask why 
     assert!(netlist.verify().is_ok());
     assert_verilog_eq!(
         netlist.to_string(),
