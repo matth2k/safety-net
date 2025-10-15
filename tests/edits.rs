@@ -131,25 +131,19 @@ fn test_replace2() {
          endmodule\n"
     );
 }
-// Testing edits for replace_net_uses using single and multiple output netrefs that have a
-// DrivenNet that is fed as an argument
-// TEST 1: SINGLE , SINGLE
-// TEST2: SINGLE, MULTIPLE
-// TEST3 MULTIPLE, SINGLE
-// TEST4 MULTOPLE, MULTIPLE
 
 #[test]
-fn test_replace_single_single_v2() {
+fn test_replace_single_single() {
     let netlist = Netlist::new("example".into());
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
     let and_inst = netlist
         .insert_gate(and_gate(), "and_0".into(), &[a.clone(), b.clone()])
         .unwrap();
-    let or_inst = netlist
-        .insert_gate(or_gate(), "or_0".into(), &[a.clone(), b.clone()])
-        .unwrap();
     let and_out = and_inst.get_output(0);
+    let or_inst = netlist
+        .insert_gate(or_gate(), "or_0".into(), &[a.clone(), and_out.clone()])
+        .unwrap();
     drop(and_inst);
     assert!(
         netlist
@@ -158,33 +152,34 @@ fn test_replace_single_single_v2() {
     );
     or_inst.get_output(0).expose_with_name("y".into());
     assert!(netlist.verify().is_ok());
+    print!("{netlist}");
     assert_verilog_eq!(
         netlist.to_string(),
         "module example (
-          a,
-          b,
-          y
-        );
-          input a;
-          wire a;
-          input b;
-          wire b;
-          output y;
-          wire y;
-          wire and_0_Y;
-          wire or_0_Y;
-          AND and_0 (
-            .A(a),
-            .B(b),
-            .Y(and_0_Y)
+            a,
+            b,
+            y
           );
-          OR or_0 (
-            .A(a),
-            .B(b),
-            .Y(or_0_Y)
-          );
-          assign y = or_0_Y;
-        endmodule"
+            input a;
+            wire a;
+            input b;
+            wire b;
+            output y;
+            wire y;
+            wire and_0_Y;
+            wire or_0_Y;
+            AND and_0 (
+              .A(a),
+              .B(b),
+              .Y(and_0_Y)
+            );
+            OR or_0 (
+              .A(a),
+              .B(or_0_Y),
+              .Y(or_0_Y)
+            );
+            assign y = or_0_Y;
+          endmodule"
     );
 }
 #[test]
@@ -198,7 +193,7 @@ fn test_replace_single_multiple() {
         .unwrap();
 
     let dup = netlist
-        .insert_gate(two_out_gate(), "dup0".into(), &[a.clone()])
+        .insert_gate(two_out_gate(), "dup0".into(), &[a])
         .unwrap();
 
     dup.get_output(1).expose_with_name("y".into());
@@ -206,9 +201,7 @@ fn test_replace_single_multiple() {
     let and_out = and_inst.get_output(0);
     let dup_out1 = dup.get_output(1);
     drop(dup);
-    netlist
-        .replace_net_uses(dup_out1, &and_out.clone())
-        .unwrap();
+    netlist.replace_net_uses(dup_out1, &and_out).unwrap();
     assert!(netlist.verify().is_ok());
     assert_verilog_eq!(
         netlist.to_string(),
@@ -252,7 +245,7 @@ fn test_replace_multiple_single() {
         .unwrap();
 
     let dup = netlist
-        .insert_gate(two_out_gate(), "dup0".into(), &[a.clone()])
+        .insert_gate(two_out_gate(), "dup0".into(), &[a])
         .unwrap();
 
     and_inst.get_output(0).expose_with_name("y".into());
@@ -300,19 +293,14 @@ fn test_replace_multiple_multiple() {
     let netlist = Netlist::new("example".into());
     let a = netlist.insert_input("a".into());
 
-    let dup1 = netlist
-        .insert_gate(two_out_gate(), "dup1".into(), &[a.clone()])
-        .unwrap();
-
     let dup2 = netlist
-        .insert_gate(two_out_gate(), "dup2".into(), &[a.clone()])
+        .insert_gate(two_out_gate(), "dup2".into(), &[a])
         .unwrap();
 
     dup2.get_output(1).expose_with_name("y".into());
     let dup2_out0 = dup2.get_output(0);
     let dup2_out1 = dup2.get_output(1);
 
-    drop(dup1);
     drop(dup2);
     netlist.replace_net_uses(dup2_out1, &dup2_out0).unwrap();
     assert!(netlist.verify().is_ok());
@@ -326,15 +314,8 @@ fn test_replace_multiple_multiple() {
             wire a;
             output y;
             wire y;
-            wire dup1_O0;
-            wire dup1_O1;
             wire dup2_O0;
             wire dup2_O1;
-            DUP dup1 (
-              .I(a),
-              .O0(dup1_O0),
-              .O1(dup1_O1)
-            );
             DUP dup2 (
               .I(a),
               .O0(dup2_O0),
@@ -344,5 +325,3 @@ fn test_replace_multiple_multiple() {
           endmodule"
     );
 }
-
-// Add test if you want
