@@ -96,7 +96,6 @@ fn test_replace2() {
     let input = netlist.inputs().next().unwrap();
     let inverter = Gate::new_logical("INV".into(), vec!["I".into()], "O".into());
     let inverted = netlist.insert_gate_disconnected(inverter, "inst_0".into());
-    // This errors, because input is not safe to delete. No replace is done.
     assert!(
         netlist
             .replace_net_uses(input.clone(), &inverted.clone().into())
@@ -252,7 +251,7 @@ fn test_replace_multiple_single() {
     let and_out = and_inst.get_output(0);
     let dup_out0 = dup.get_output(0);
     drop(and_inst);
-    netlist.replace_net_uses(and_out, &dup_out0).unwrap(); // todo: ask why 
+    netlist.replace_net_uses(and_out, &dup_out0).unwrap();
     assert!(netlist.verify().is_ok());
     assert_verilog_eq!(
         netlist.to_string(),
