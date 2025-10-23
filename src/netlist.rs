@@ -3,7 +3,6 @@
   API for a netlist data structure.
 
 */
-
 use crate::{
     attribute::{Attribute, AttributeKey, AttributeValue, Parameter},
     circuit::{Identifier, Instantiable, Net, Object},
@@ -82,6 +81,10 @@ impl Instantiable for Gate {
             "GND" => Some(Logic::False),
             _ => None,
         }
+    }
+
+    fn is_seq(&self) -> bool {
+        false
     }
 }
 

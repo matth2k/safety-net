@@ -1,0 +1,18 @@
+[package]
+name = "inst_derive"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Derive macro for tagged union enums implementing the Instantiable trait in safety-net"
+repository = "https://github.com/matth2k/safety-net"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+prettyplease = "0.2.37"
+proc-macro2 = "1.0.101"
+quote = "1.0.41"
+syn = "2.0.106"
+
+

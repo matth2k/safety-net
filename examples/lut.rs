@@ -106,6 +106,10 @@ impl Instantiable for Lut {
             _ => None,
         }
     }
+
+    fn is_seq(&self) -> bool {
+        false
+    }
 }
 
 fn main() {

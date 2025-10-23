@@ -321,6 +321,9 @@ pub trait Instantiable: Clone {
     /// Returns the constant value represented by this primitive, if it is constant.
     fn get_constant(&self) -> Option<Logic>;
 
+    /// Returns 'true' if the primitive is sequential.
+    fn is_seq(&self) -> bool;
+
     /// Returns `true` if the primitive is parameterized (has at least one parameter).
     fn is_parameterized(&self) -> bool {
         self.parameters().next().is_some()

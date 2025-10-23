@@ -4,13 +4,13 @@
 
 */
 
-use bitvec::{bitvec, field::BitField, order::Lsb0, vec::BitVec};
-use std::collections::{HashMap, HashSet};
-
 use crate::{
     circuit::Instantiable,
+    logic::Logic,
     netlist::{NetRef, Netlist},
 };
+use bitvec::{bitvec, field::BitField, order::Lsb0, vec::BitVec};
+use std::collections::{HashMap, HashSet};
 
 /// A Verilog attribute assigned to a net or gate in the netlist: (* dont_touch *)
 pub type AttributeKey = String;
@@ -69,6 +69,8 @@ pub enum Parameter {
     Real(f32),
     /// A bit vector parameter, like for a truth table
     BitVec(BitVec),
+    /// A four-state logic parameter
+    Logic(Logic),
 }
 
 impl Eq for Parameter {}
@@ -87,6 +89,7 @@ impl std::fmt::Display for Parameter {
                     .map(|b| if *b { '1' } else { '0' })
                     .collect::<String>()
             ),
+            Parameter::Logic(l) => write!(f, "{l}"),
         }
     }
 }

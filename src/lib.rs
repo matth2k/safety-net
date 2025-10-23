@@ -20,4 +20,10 @@ pub mod error;
 pub mod graph;
 pub mod logic;
 pub mod netlist;
+#[cfg(feature = "derive")]
+/// Re-export of the `Instantiable` derive macro.
+/// To disable this feature, opt out with "safety-net = { version = "0.2.10", default-features = false }" in your Cargo.toml
+pub mod derive {
+    pub use inst_derive::Instantiable;
+}
 mod util;

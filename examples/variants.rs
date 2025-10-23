@@ -53,6 +53,10 @@ impl Instantiable for Gate {
     fn get_constant(&self) -> Option<Logic> {
         None
     }
+
+    fn is_seq(&self) -> bool {
+        false
+    }
 }
 
 fn and_gate() -> Gate {

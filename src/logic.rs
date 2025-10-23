@@ -9,6 +9,7 @@ use std::{fmt, str::FromStr};
 use crate::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 /// An enum to represent four-state logic
 pub enum Logic {
     /// Logical zero
