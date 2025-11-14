@@ -9,8 +9,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     circuit::Instantiable,
-    netlist::{NetRef, Netlist},
     logic::Logic,
+    netlist::{NetRef, Netlist},
 };
 
 /// A Verilog attribute assigned to a net or gate in the netlist: (* dont_touch *)
