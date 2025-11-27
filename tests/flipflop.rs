@@ -116,9 +116,13 @@ impl Instantiable for Lut {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FlopVariant {
+    #[allow(clippy::upper_case_acronyms)]
     FDRE(Identifier),
+    #[allow(clippy::upper_case_acronyms)]
     FDSE(Identifier),
+    #[allow(clippy::upper_case_acronyms)]
     FDPE(Identifier),
+    #[allow(clippy::upper_case_acronyms)]
     FDCE(Identifier),
 }
 
