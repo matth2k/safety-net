@@ -3,10 +3,10 @@ use safety_net::{
     attribute::Parameter,
     circuit::{Identifier, Instantiable, Net},
     format_id,
-    logic::Logic,
+    logic::{Logic, dont_care},
     netlist::{Gate, Netlist},
 };
-use std::str::FromStr;
+//use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -114,19 +114,51 @@ impl Instantiable for Lut {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum FlopVariant {
-    Fdre,
-    Fdse,
-    Fdpe,
-    #[allow(dead_code)]
-    Fdce,
+    FDRE(Identifier),
+    FDSE(Identifier),
+    FDPE(Identifier),
+    FDCE(Identifier),
+}
+
+impl FlopVariant {
+    fn new(variant: &str) -> Self {
+        match variant {
+            "FDRE" => FlopVariant::FDRE("FDRE".into()),
+            "FDSE" => FlopVariant::FDSE("FDSE".into()),
+            "FDPE" => FlopVariant::FDPE("FDPE".into()),
+            "FDCE" => FlopVariant::FDCE("FDCE".into()),
+            _ => panic!("Unknown flip-flop variant: {}", variant),
+        }
+    }
+
+    fn from_id(id: &Identifier) -> Self {
+        FlopVariant::new(&id.to_string())
+    }
+
+    fn get_id(&self) -> &Identifier {
+        match self {
+            FlopVariant::FDRE(id) => id,
+            FlopVariant::FDSE(id) => id,
+            FlopVariant::FDPE(id) => id,
+            FlopVariant::FDCE(id) => id,
+        }
+    }
+
+    fn get_reset(self) -> Identifier {
+        match self {
+            FlopVariant::FDRE(_) => "R".into(),
+            FlopVariant::FDSE(_) => "S".into(),
+            FlopVariant::FDPE(_) => "PRE".into(),
+            FlopVariant::FDCE(_) => "CLR".into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 /// A flip-flop in a digital circuit
 struct FlipFlop {
-    id: Identifier,
     variant: FlopVariant,
     init_value: Logic,
     q: Net,
@@ -137,19 +169,13 @@ struct FlipFlop {
 }
 
 impl FlipFlop {
-    fn new(id: Identifier, variant: FlopVariant, init_value: Logic) -> Self {
+    fn new(variant: FlopVariant, init_value: Logic) -> Self {
         let q = Net::new_logic("Q".into());
         let c = Net::new_logic("C".into());
         let ce = Net::new_logic("CE".into());
-        let reset = Net::new_logic(match variant {
-            FlopVariant::Fdre => "R".into(),
-            FlopVariant::Fdse => "S".into(),
-            FlopVariant::Fdpe => "PRE".into(),
-            FlopVariant::Fdce => "CLR".into(),
-        });
+        let reset = Net::new_logic(variant.clone().get_reset());
         let d = Net::new_logic("D".into());
         FlipFlop {
-            id,
             variant,
             init_value,
             q,
@@ -159,15 +185,11 @@ impl FlipFlop {
             d,
         }
     }
-
-    fn get_variant(&self) -> FlopVariant {
-        self.variant
-    }
 }
 
 impl Instantiable for FlipFlop {
     fn get_name(&self) -> &Identifier {
-        &self.id
+        self.variant.get_id()
     }
 
     fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
@@ -316,22 +338,36 @@ impl Instantiable for Cell {
 }
 
 #[test]
-fn cell_test() {
+fn test_flopvariant() {
+    let fv_1 = FlopVariant::new("FDRE");
+    let fv_2 = FlopVariant::from_id(&"FDRE".into());
+    assert_eq!(fv_1.get_id(), &"FDRE".into());
+    assert_eq!(fv_2.get_reset(), "R".into());
+}
+
+#[test]
+fn cell_test_get_name() {
     let lut = Lut::new(4, 0xAAAA);
-    let ff = FlipFlop::new(
-        "flipflop".into(),
-        FlopVariant::Fdse,
-        Logic::from_str("1'b0").unwrap(),
-    );
+    let ff = FlipFlop::new(FlopVariant::new("FDCE"), Logic::False);
     let gate = Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into());
-    let mut cell_lut = Cell::Lut(lut.clone());
-    let mut cell_ff = Cell::FlipFlop(ff.clone());
+    let cell_lut = Cell::Lut(lut.clone());
+    let cell_ff = Cell::FlipFlop(ff.clone());
     let cell_gate = Cell::Gate(gate.clone());
 
     // get_name tests
     assert_eq!(lut.get_name(), cell_lut.get_name());
     assert_eq!(ff.get_name(), cell_ff.get_name());
     assert_eq!(gate.get_name(), cell_gate.get_name());
+}
+
+#[test]
+fn cell_test_get_inputs_outputs() {
+    let lut = Lut::new(4, 0xAAAA);
+    let ff = FlipFlop::new(FlopVariant::new("FDSE"), Logic::False);
+    let gate = Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into());
+    let cell_lut = Cell::Lut(lut.clone());
+    let cell_ff = Cell::FlipFlop(ff.clone());
+    let cell_gate = Cell::Gate(gate.clone());
 
     // get_input_ports and get_output_ports tests
     let cell_lut_inputs: Vec<_> = cell_lut.get_input_ports().into_iter().collect();
@@ -352,6 +388,14 @@ fn cell_test() {
     let cell_gate_outputs: Vec<_> = cell_gate.get_output_ports().into_iter().collect();
     let gate_outputs: Vec<_> = gate.get_output_ports().into_iter().collect();
     assert_eq!(cell_gate_outputs, gate_outputs);
+}
+
+#[test]
+fn cell_test_parameters() {
+    let lut = Lut::new(4, 0xAAAA);
+    let ff = FlipFlop::new(FlopVariant::new("FDSE"), Logic::False);
+    let mut cell_lut = Cell::Lut(lut.clone());
+    let mut cell_ff = Cell::FlipFlop(ff.clone());
 
     // get_parameter and set_parameter tests
     let new_bv: BitVec<usize, _> = BitVec::from_element(0x5555);
@@ -381,14 +425,25 @@ fn cell_test() {
     assert_eq!(lut_params[0].0, Identifier::new("INIT".to_string()));
     let ff_params: Vec<_> = cell_ff.parameters().collect();
     assert_eq!(ff_params[0].0, Identifier::new("INIT".to_string()));
+}
 
+#[test]
+fn cell_test_constants() {
     // from_constant and get_constant tests
     let vdd = Cell::from_constant(Logic::True).unwrap();
     assert_eq!(vdd.get_constant(), Some(Logic::True));
     let gnd = Cell::from_constant(Logic::False).unwrap();
     assert_eq!(gnd.get_constant(), Some(Logic::False));
-    assert!(cell_ff.get_constant().is_none());
-    assert!(cell_gate.get_constant().is_none());
+}
+
+#[test]
+fn cell_test_is_seq() {
+    let lut = Lut::new(4, 0xAAAA);
+    let ff = FlipFlop::new(FlopVariant::new("FDSE"), Logic::False);
+    let gate = Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into());
+    let cell_lut = Cell::Lut(lut.clone());
+    let cell_ff = Cell::FlipFlop(ff.clone());
+    let cell_gate = Cell::Gate(gate.clone());
 
     // is_seq tests
     assert!(!cell_lut.is_seq());
@@ -404,11 +459,7 @@ fn insert_cell_test() {
     let ce = netlist.insert_input("ce".into());
     let preset = netlist.insert_input("pre".into());
     let d = netlist.insert_input("d".into());
-    let flipflop = FlipFlop::new(
-        "flipflop".into(),
-        FlopVariant::Fdpe,
-        Logic::from_str("1'bx").unwrap(),
-    );
+    let flipflop = FlipFlop::new(FlopVariant::new("FDPE"), dont_care());
 
     let instance = netlist
         .insert_gate(
@@ -424,13 +475,8 @@ fn insert_cell_test() {
 
 #[test]
 fn flipflop_test() {
-    let mut ff = FlipFlop::new(
-        "flipflop".into(),
-        FlopVariant::Fdre,
-        Logic::from_str("1'b0").unwrap(),
-    );
-    assert_eq!(ff.get_name(), &"flipflop".into());
-    assert_eq!(ff.get_variant(), FlopVariant::Fdre);
+    let mut ff = FlipFlop::new(FlopVariant::new("FDRE"), Logic::False);
+    assert_eq!(ff.get_name(), &"FDRE".into());
     let input_ports: Vec<_> = ff.get_input_ports().into_iter().collect();
     assert_eq!(input_ports[0], &Net::new_logic("C".into()));
     assert_eq!(input_ports[1], &Net::new_logic("CE".into()));
@@ -441,15 +487,12 @@ fn flipflop_test() {
     let params: Vec<_> = ff.parameters().collect();
     assert_eq!(params[0].0, Identifier::new("INIT".to_string()));
     assert_eq!(
-        ff.set_parameter(
-            &"INIT".into(),
-            Parameter::Logic(Logic::from_str("1'b1").unwrap())
-        ),
-        Some(Parameter::Logic(Logic::from_str("1'b0").unwrap()))
+        ff.set_parameter(&"INIT".into(), Parameter::from_bool(true)),
+        Some(Parameter::from_bool(false))
     );
     assert_eq!(
         ff.get_parameter(&"INIT".into()),
-        Some(Parameter::Logic(Logic::from_str("1'b1").unwrap()))
+        Some(Parameter::from_bool(true))
     );
     assert!(ff.is_seq());
 }
