@@ -6,7 +6,6 @@ use safety_net::{
     logic::{Logic, dont_care},
     netlist::{Gate, Netlist},
 };
-//use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -27,11 +26,6 @@ impl Lut {
             inputs: (0..k).map(|i| Net::new_logic(format_id!("I{i}"))).collect(),
             output: Net::new_logic("O".into()),
         }
-    }
-
-    #[allow(dead_code)]
-    fn invert(&mut self) {
-        self.lookup_table = !self.lookup_table.clone();
     }
 }
 
@@ -117,22 +111,22 @@ impl Instantiable for Lut {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FlopVariant {
     #[allow(clippy::upper_case_acronyms)]
-    FDRE(Identifier),
+    FDRE,
     #[allow(clippy::upper_case_acronyms)]
-    FDSE(Identifier),
+    FDSE,
     #[allow(clippy::upper_case_acronyms)]
-    FDPE(Identifier),
+    FDPE,
     #[allow(clippy::upper_case_acronyms)]
-    FDCE(Identifier),
+    FDCE,
 }
 
 impl FlopVariant {
     fn new(variant: &str) -> Self {
         match variant {
-            "FDRE" => FlopVariant::FDRE("FDRE".into()),
-            "FDSE" => FlopVariant::FDSE("FDSE".into()),
-            "FDPE" => FlopVariant::FDPE("FDPE".into()),
-            "FDCE" => FlopVariant::FDCE("FDCE".into()),
+            "FDRE" => FlopVariant::FDRE,
+            "FDSE" => FlopVariant::FDSE,
+            "FDPE" => FlopVariant::FDPE,
+            "FDCE" => FlopVariant::FDCE,
             _ => panic!("Unknown flip-flop variant: {}", variant),
         }
     }
@@ -141,21 +135,21 @@ impl FlopVariant {
         FlopVariant::new(&id.to_string())
     }
 
-    fn get_id(&self) -> &Identifier {
+    fn get_id(&self) -> Identifier {
         match self {
-            FlopVariant::FDRE(id) => id,
-            FlopVariant::FDSE(id) => id,
-            FlopVariant::FDPE(id) => id,
-            FlopVariant::FDCE(id) => id,
+            FlopVariant::FDRE => "FDRE".into(),
+            FlopVariant::FDSE => "FDSE".into(),
+            FlopVariant::FDPE => "FDPE".into(),
+            FlopVariant::FDCE => "FDCE".into(),
         }
     }
 
     fn get_reset(self) -> Identifier {
         match self {
-            FlopVariant::FDRE(_) => "R".into(),
-            FlopVariant::FDSE(_) => "S".into(),
-            FlopVariant::FDPE(_) => "PRE".into(),
-            FlopVariant::FDCE(_) => "CLR".into(),
+            FlopVariant::FDRE => "R".into(),
+            FlopVariant::FDSE => "S".into(),
+            FlopVariant::FDPE => "PRE".into(),
+            FlopVariant::FDCE => "CLR".into(),
         }
     }
 }
@@ -163,8 +157,8 @@ impl FlopVariant {
 #[derive(Debug, Clone)]
 /// A flip-flop in a digital circuit
 struct FlipFlop {
-    variant: FlopVariant,
     init_value: Logic,
+    identifier: Identifier,
     q: Net,
     c: Net,
     ce: Net,
@@ -174,14 +168,15 @@ struct FlipFlop {
 
 impl FlipFlop {
     fn new(variant: FlopVariant, init_value: Logic) -> Self {
+        let identifier = variant.get_id();
         let q = Net::new_logic("Q".into());
         let c = Net::new_logic("C".into());
         let ce = Net::new_logic("CE".into());
-        let reset = Net::new_logic(variant.clone().get_reset());
+        let reset = Net::new_logic(variant.get_reset());
         let d = Net::new_logic("D".into());
         FlipFlop {
-            variant,
             init_value,
+            identifier,
             q,
             c,
             ce,
@@ -193,7 +188,7 @@ impl FlipFlop {
 
 impl Instantiable for FlipFlop {
     fn get_name(&self) -> &Identifier {
-        self.variant.get_id()
+        &self.identifier
     }
 
     fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
@@ -345,7 +340,7 @@ impl Instantiable for Cell {
 fn test_flopvariant() {
     let fv_1 = FlopVariant::new("FDRE");
     let fv_2 = FlopVariant::from_id(&"FDRE".into());
-    assert_eq!(fv_1.get_id(), &"FDRE".into());
+    assert_eq!(fv_1.get_id(), "FDRE".into());
     assert_eq!(fv_2.get_reset(), "R".into());
 }
 
