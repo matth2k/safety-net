@@ -1,3 +1,6 @@
+//! Demonstrates how to wrap several instantiable types into a 'Cell' enum
+//! This could make certain traversals and manipulations easier
+
 use bitvec::vec::BitVec;
 use safety_net::{
     attribute::Parameter,
