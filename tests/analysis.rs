@@ -129,7 +129,7 @@ fn test_attr_filter() {
 #[cfg(feature = "graph")]
 #[test]
 fn test_petgraph() {
-    use safety_net::graph::MultiDiGraph;
+    use safety_net::MultiDiGraph;
 
     let netlist = get_simple_example();
 
