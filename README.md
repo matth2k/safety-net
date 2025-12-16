@@ -15,7 +15,7 @@ You can read the docs [here](https://matth2k.github.io/safety-net/).
 Below is a minimal example to get you started:
 
 ```rust
-use safety_net::netlist::{Gate, Netlist};
+use safety_net::{Gate, Netlist};
 
 fn and_gate() -> Gate {
     Gate::new_logical(
