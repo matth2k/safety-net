@@ -67,7 +67,7 @@ fn test_bus_operations() {
 #[cfg(feature = "serde")]
 #[test]
 fn test_basic_serialize() {
-    use safety_net::netlist::serde::netlist_deserialize;
+    use safety_net::serde::netlist_deserialize;
     use std::{io::Cursor, rc::Rc};
 
     let netlist = GateNetlist::new("top".to_string());
