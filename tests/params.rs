@@ -1,11 +1,6 @@
 use bitvec::vec::BitVec;
 use safety_net::{
-    assert_verilog_eq,
-    attribute::Parameter,
-    circuit::{Identifier, Instantiable, Net},
-    format_id,
-    logic::Logic,
-    netlist::Netlist,
+    Identifier, Instantiable, Logic, Net, Netlist, Parameter, assert_verilog_eq, format_id,
 };
 
 #[derive(Debug, Clone)]

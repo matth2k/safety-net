@@ -1,4 +1,4 @@
-use safety_net::netlist::{Gate, Netlist};
+use safety_net::{Gate, Netlist};
 
 fn and_gate() -> Gate {
     Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into())

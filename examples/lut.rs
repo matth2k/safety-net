@@ -1,11 +1,5 @@
 use bitvec::vec::BitVec;
-use safety_net::{
-    attribute::Parameter,
-    circuit::{Identifier, Instantiable, Net},
-    format_id,
-    logic::Logic,
-    netlist::Netlist,
-};
+use safety_net::{Identifier, Instantiable, Logic, Net, Netlist, Parameter, format_id};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

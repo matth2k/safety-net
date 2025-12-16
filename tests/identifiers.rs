@@ -1,4 +1,4 @@
-use safety_net::circuit::Identifier;
+use safety_net::Identifier;
 
 #[test]
 fn concat_simple() {

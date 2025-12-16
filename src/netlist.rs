@@ -1831,8 +1831,8 @@ pub mod iter {
     /// # Examples
     ///
     /// ```
-    /// use safety_net::netlist::iter::DFSIterator;
-    /// use safety_net::netlist::GateNetlist;
+    /// use safety_net::iter::DFSIterator;
+    /// use safety_net::GateNetlist;
     ///
     /// let netlist = GateNetlist::new("example".to_string());
     /// netlist.insert_input("input1".into());

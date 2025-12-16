@@ -1,10 +1,10 @@
+use safety_net::DrivenNet;
+use safety_net::Gate;
+use safety_net::GateNetlist;
+use safety_net::Net;
+use safety_net::Netlist;
 use safety_net::assert_verilog_eq;
-use safety_net::circuit::Net;
 use safety_net::format_id;
-use safety_net::netlist::DrivenNet;
-use safety_net::netlist::Gate;
-use safety_net::netlist::GateNetlist;
-use safety_net::netlist::Netlist;
 use std::rc::Rc;
 
 fn and_gate() -> Gate {

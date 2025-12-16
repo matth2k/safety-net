@@ -1,9 +1,9 @@
-use safety_net::circuit::Identifier;
-use safety_net::circuit::Instantiable;
+use safety_net::Gate;
+use safety_net::GateNetlist;
+use safety_net::Identifier;
+use safety_net::Instantiable;
 #[allow(unused_imports)]
-use safety_net::circuit::Net;
-use safety_net::netlist::Gate;
-use safety_net::netlist::GateNetlist;
+use safety_net::Net;
 
 #[test]
 fn inputs_w_same_name() {

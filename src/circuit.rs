@@ -275,7 +275,7 @@ impl Net {
 #[macro_export]
 macro_rules! format_id {
     ($($arg:tt)*) => {
-        $crate::circuit::Identifier::new(format!($($arg)*))
+        $crate::Identifier::new(format!($($arg)*))
     }
 }
 

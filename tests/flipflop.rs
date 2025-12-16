@@ -3,11 +3,7 @@
 
 use bitvec::vec::BitVec;
 use safety_net::{
-    attribute::Parameter,
-    circuit::{Identifier, Instantiable, Net},
-    format_id,
-    logic::{Logic, dont_care},
-    netlist::{Gate, Netlist},
+    Gate, Identifier, Instantiable, Logic, Net, Netlist, Parameter, dont_care, format_id,
 };
 
 #[derive(Debug, Clone)]

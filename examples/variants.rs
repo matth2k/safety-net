@@ -1,10 +1,4 @@
-use safety_net::{
-    attribute::Parameter,
-    circuit::{Identifier, Instantiable, Net},
-    filter_nodes,
-    logic::Logic,
-    netlist::Netlist,
-};
+use safety_net::{Identifier, Instantiable, Logic, Net, Netlist, Parameter, filter_nodes};
 
 #[derive(Debug, Clone)]
 enum Gate {
