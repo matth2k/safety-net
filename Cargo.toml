@@ -43,6 +43,7 @@ bitvec = { version = "1.0.1" }
 petgraph = { version = "0.8.2", optional = true }
 serde = { version = "1.0.219", optional = true, features = ["derive"] }
 serde_json = { version = "1.0.141", optional = true }
+inst_derive = { version = "0.1.1" }
 
 [features]
 default = [ ]

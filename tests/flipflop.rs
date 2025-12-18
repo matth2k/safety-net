@@ -246,93 +246,12 @@ impl Instantiable for FlipFlop {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, inst_derive::Instantiable)]
 enum Cell {
     Lut(Lut),
     FlipFlop(FlipFlop),
+    #[instantiable(constant)]
     Gate(Gate),
-}
-
-impl Instantiable for Cell {
-    fn get_name(&self) -> &Identifier {
-        match self {
-            Cell::Lut(lut) => lut.get_name(),
-            Cell::FlipFlop(ff) => ff.get_name(),
-            Cell::Gate(gate) => gate.get_name(),
-        }
-    }
-
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
-        match self {
-            Cell::Lut(lut) => lut.get_input_ports().into_iter().collect::<Vec<_>>(),
-            Cell::FlipFlop(ff) => ff.get_input_ports().into_iter().collect::<Vec<_>>(),
-            Cell::Gate(gate) => gate.get_input_ports().into_iter().collect::<Vec<_>>(),
-        }
-    }
-
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
-        match self {
-            Cell::Lut(lut) => lut.get_output_ports().into_iter().collect::<Vec<_>>(),
-            Cell::FlipFlop(ff) => ff.get_output_ports().into_iter().collect::<Vec<_>>(),
-            Cell::Gate(gate) => gate.get_output_ports().into_iter().collect::<Vec<_>>(),
-        }
-    }
-
-    fn has_parameter(&self, id: &Identifier) -> bool {
-        match self {
-            Cell::Lut(lut) => lut.has_parameter(id),
-            Cell::FlipFlop(ff) => ff.has_parameter(id),
-            Cell::Gate(gate) => gate.has_parameter(id),
-        }
-    }
-
-    fn get_parameter(&self, id: &Identifier) -> Option<Parameter> {
-        match self {
-            Cell::Lut(lut) => lut.get_parameter(id),
-            Cell::FlipFlop(ff) => ff.get_parameter(id),
-            Cell::Gate(gate) => gate.get_parameter(id),
-        }
-    }
-
-    fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
-        match self {
-            Cell::Lut(lut) => lut.set_parameter(id, val),
-            Cell::FlipFlop(ff) => ff.set_parameter(id, val),
-            Cell::Gate(gate) => gate.set_parameter(id, val),
-        }
-    }
-
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        match self {
-            Cell::Lut(lut) => lut.parameters().collect::<Vec<_>>().into_iter(),
-            Cell::FlipFlop(ff) => ff.parameters().collect::<Vec<_>>().into_iter(),
-            Cell::Gate(gate) => gate.parameters().collect::<Vec<_>>().into_iter(),
-        }
-    }
-
-    fn from_constant(val: Logic) -> Option<Self> {
-        if (val == Logic::True) || (val == Logic::False) {
-            Lut::from_constant(val).map(Cell::Lut)
-        } else {
-            None
-        }
-    }
-
-    fn get_constant(&self) -> Option<Logic> {
-        match self {
-            Cell::Lut(lut) => lut.get_constant(),
-            Cell::FlipFlop(ff) => ff.get_constant(),
-            Cell::Gate(gate) => gate.get_constant(),
-        }
-    }
-
-    fn is_seq(&self) -> bool {
-        match self {
-            Cell::Lut(lut) => lut.is_seq(),
-            Cell::FlipFlop(ff) => ff.is_seq(),
-            Cell::Gate(gate) => gate.is_seq(),
-        }
-    }
 }
 
 #[test]
