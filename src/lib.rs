@@ -22,5 +22,5 @@ mod logic;
 mod netlist;
 mod util;
 
-pub use {attribute::*, circuit::*, error::*, graph::*, logic::*, netlist::*};
 pub use inst_derive::Instantiable;
+pub use {attribute::*, circuit::*, error::*, graph::*, logic::*, netlist::*};
