@@ -53,6 +53,19 @@ fn test_clean() {
 }
 
 #[test]
+fn test_replace_self() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    let output = gate.get_output(0);
+    let result = netlist.replace_net_uses(output.clone(), &output);
+    assert!(result.is_ok());
+    let result = result.unwrap().get_instance_type().cloned();
+    assert!(result.is_some());
+    let gtype = result.unwrap();
+    assert_eq!(gtype.get_gate_name(), &"AND".into());
+}
+
+#[test]
 fn test_replace() {
     let netlist = get_simple_example();
     let input = netlist.inputs().next().unwrap();

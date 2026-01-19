@@ -1377,8 +1377,12 @@ where
         let i = of.get_output_index();
         let k = with.get_output_index();
 
-        if of.clone().unwrap() == with.clone().unwrap() {
-            if i == k || Rc::strong_count(&unwrapped) > 4 {
+        if of.clone().unwrap() == with.clone().unwrap() && i == k {
+            if i == k {
+                return Ok(of.unwrap().unwrap().borrow().get().clone());
+            }
+
+            if Rc::strong_count(&unwrapped) > 4 {
                 return Err(Error::DanglingReference(of.unwrap().nets().collect()));
             }
         } else if Rc::strong_count(&unwrapped) > 3 {
