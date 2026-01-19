@@ -1377,7 +1377,7 @@ where
         let i = of.get_output_index();
         let k = with.get_output_index();
 
-        if of.clone().unwrap() == with.clone().unwrap() && i == k {
+        if of.clone().unwrap() == with.clone().unwrap() {
             if i == k {
                 return Ok(of.unwrap().unwrap().borrow().get().clone());
             }
