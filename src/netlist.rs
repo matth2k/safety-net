@@ -2104,6 +2104,7 @@ where
 
                 write!(f, "{}{} ", indent, inst_type.get_name())?;
                 if inst_type.is_parameterized() {
+                    eprintln!("is parameterized");
                     writeln!(f, "#(")?;
                     let level = 4;
                     let indent = " ".repeat(level);
