@@ -326,6 +326,7 @@ pub trait Instantiable: Clone {
 
     /// Returns `true` if the primitive is parameterized (has at least one parameter).
     fn is_parameterized(&self) -> bool {
+        eprintln!("param = {}", self.parameters().next().unwrap().0);
         self.parameters().next().is_some()
     }
 
