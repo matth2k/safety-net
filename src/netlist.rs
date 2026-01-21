@@ -2108,6 +2108,11 @@ where
                     "inst_type is parameterized = {}",
                     inst_type.is_parameterized()
                 );
+                write!(
+                    f,
+                    "init parameter = {}",
+                    inst_type.get_parameter(&"INIT".into()).unwrap()
+                );
                 if inst_type.is_parameterized() {
                     writeln!(f, "#(")?;
                     let level = 4;
