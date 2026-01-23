@@ -1501,6 +1501,32 @@ where
         false
     }
 
+    /// Rename nets and instances in the netlist using the provided *injective* function.
+    /// Returns an error if the function is not injective.
+    pub fn rename_nets<F: Fn(usize) -> Identifier>(&self, f: F) -> Result<(), Error> {
+        let mut i: usize = 0;
+        for nr in self.objects() {
+            if nr.is_an_input() {
+                continue;
+            }
+            for mut net in nr.nets_mut() {
+                net.set_identifier(f(i));
+                i += 1;
+            }
+        }
+
+        for nr in self.objects() {
+            if nr.is_an_input() {
+                continue;
+            }
+
+            nr.set_instance_name(f(i));
+            i += 1;
+        }
+
+        self.verify()
+    }
+
     /// Cleans unused nodes from the netlist, returning `Ok(true)` if the netlist changed.
     pub fn clean_once(&self) -> Result<bool, Error> {
         let mut dead_objs = HashSet::new();
