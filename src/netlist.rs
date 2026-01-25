@@ -538,6 +538,7 @@ where
             self.get_instance_type().unwrap().get_name().get_name()
         );
         let ind = self.get_instance_type()?.find_output(id)?;
+        eprintln!("find_output ind = {}", ind);
         Some(self.get_output(ind))
     }
 
@@ -556,6 +557,7 @@ where
             self.get_instance_type().unwrap().get_name().get_name()
         );
         let ind = self.get_instance_type()?.find_input(id)?;
+        eprintln!("find_input ind = {}", ind);
         Some(self.get_input(ind))
     }
 
