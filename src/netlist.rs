@@ -974,8 +974,7 @@ where
         if self.netref.is_an_input() {
             panic!("Input port is not driven by a primitive");
         }
-        if let Some(prev_operand) = self.netref.clone().unwrap().borrow().operands[self.pos].clone()
-        {
+        if let Some(prev_operand) = self.netref.clone().unwrap().borrow().operands[self.pos] {
             let netlist = self
                 .netref
                 .clone()
@@ -1103,7 +1102,7 @@ where
             .upgrade()
             .expect("Output port is unlinked from netlist");
         let obj = netlist.index_weak(&index);
-        obj.borrow_mut().operands[input.pos] = Some(operand.clone());
+        obj.borrow_mut().operands[input.pos] = Some(operand);
     }
 
     /// Returns `true` if this net is a top-level output in the netlist.
@@ -1365,7 +1364,7 @@ where
     ///
     /// Panics if `index` is out of bounds
     pub fn get_driver(&self, netref: NetRef<I>, index: usize) -> Option<NetRef<I>> {
-        let op = netref.unwrap().borrow().operands[index].clone()?;
+        let op = netref.unwrap().borrow().operands[index]?;
         Some(NetRef::wrap(self.index_weak(&op.root()).clone()))
     }
 
@@ -1507,7 +1506,7 @@ where
                 if let Some(op) = operand
                     && *op == old_index
                 {
-                    *operand = Some(new_index.clone());
+                    *operand = Some(new_index);
                 }
             }
         }
@@ -1679,7 +1678,7 @@ where
             for operand in obj.borrow_mut().inds_mut() {
                 let root = operand.root();
                 let root = *remap.get(&root).unwrap_or(&root);
-                *operand = operand.clone().remap(root);
+                *operand = operand.remap(root);
             }
         }
 
@@ -1687,7 +1686,7 @@ where
         for (operand, net) in pairs {
             let root = operand.root();
             let root = *remap.get(&root).unwrap_or(&root);
-            let new_operand = operand.clone().remap(root);
+            let new_operand = operand.remap(root);
             self.outputs.borrow_mut().insert(new_operand, net);
         }
 
