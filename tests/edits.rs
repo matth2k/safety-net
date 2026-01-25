@@ -2,6 +2,7 @@ use safety_net::Gate;
 use safety_net::GateNetlist;
 use safety_net::Netlist;
 use safety_net::assert_verilog_eq;
+use safety_net::format_id;
 use std::rc::Rc;
 
 fn and_gate() -> Gate {
@@ -333,4 +334,12 @@ fn test_replace_multiple_multiple() {
             assign y = dup2_O0;
           endmodule"
     );
+}
+
+#[test]
+fn test_rename() {
+    let netlist = get_simple_example();
+    assert!(netlist.rename_nets(|i| format_id!("__{i}__")).is_ok());
+    let gate = netlist.last().unwrap();
+    assert_eq!(gate.get_instance_name().unwrap(), "__1__".into());
 }
