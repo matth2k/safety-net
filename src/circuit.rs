@@ -7,7 +7,7 @@
 use crate::{attribute::Parameter, logic::Logic};
 
 /// Signals in a circuit can be binary, tri-state, or four-state.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DataType {
     /// A logical 0 or 1
@@ -41,7 +41,7 @@ impl DataType {
 }
 
 /// The type of identifier labelling a circuit node
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 enum IdentifierType {
     /// A normal identifier
@@ -53,7 +53,7 @@ enum IdentifierType {
 }
 
 /// An identifier of a node in a circuit
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Identifier {
     /// The name of the identifier
@@ -209,7 +209,7 @@ impl std::fmt::Display for Identifier {
 }
 
 /// A net in a circuit, which is identified with a name and data type.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Net {
     identifier: Identifier,
