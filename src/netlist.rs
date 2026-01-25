@@ -533,10 +533,6 @@ where
 
     /// Returns a borrow to the output connected to port `id`
     pub fn find_output(&self, id: &Identifier) -> Option<DrivenNet<I>> {
-        eprintln!(
-            "instance_type find_output = {}",
-            self.get_instance_type().unwrap().get_name().get_name()
-        );
         let ind = self.get_instance_type()?.find_output(id)?;
         Some(self.get_output(ind))
     }
@@ -551,10 +547,6 @@ where
 
     /// Returns a borrow to the input port with name `id`
     pub fn find_input(&self, id: &Identifier) -> Option<InputPort<I>> {
-        eprintln!(
-            "instance_type find_input = {}",
-            self.get_instance_type().unwrap().get_name().get_name()
-        );
         let ind = self.get_instance_type()?.find_input(id)?;
         Some(self.get_input(ind))
     }
