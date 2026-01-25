@@ -2382,7 +2382,10 @@ pub mod serde {
     };
     use serde::{Deserialize, Serialize, de::DeserializeOwned};
     use std::cell::RefCell;
-    use std::{collections::HashMap, rc::Rc};
+    use std::{
+        collections::{BTreeSet, HashMap},
+        rc::Rc,
+    };
 
     #[derive(Debug, Serialize, Deserialize)]
     struct SerdeObject<I>
