@@ -1319,7 +1319,7 @@ where
         let named_net = net.as_net().with_name(name);
         outputs
             .entry(net.get_operand())
-            .or_insert_with(BTreeSet::new)
+            .or_default()
             .insert(named_net);
         net
     }
@@ -1333,7 +1333,7 @@ where
         let mut outputs = self.outputs.borrow_mut();
         outputs
             .entry(net.get_operand())
-            .or_insert_with(BTreeSet::new)
+            .or_default()
             .insert(net.as_net().clone());
         Ok(net)
     }
@@ -1403,10 +1403,10 @@ where
 
         let old_index = of.get_operand();
 
-        if let Some(nets) = self.outputs.borrow().get(&old_index) {
-            if nets.contains(&*of.as_net()) {
-                return Err(Error::NonuniqueNets(nets.iter().cloned().collect()));
-            }
+        if let Some(nets) = self.outputs.borrow().get(&old_index)
+            && nets.contains(&*of.as_net())
+        {
+            return Err(Error::NonuniqueNets(nets.iter().cloned().collect()));
         }
 
         let new_index = with.get_operand();
@@ -2085,10 +2085,7 @@ where
             }
         }
         // Flatten the outputs to collect all (operand, net) pairs
-        let all_outputs: Vec<_> = outputs
-            .iter()
-            .flat_map(|(_, nets)| nets.iter().map(|n| n))
-            .collect();
+        let all_outputs: Vec<_> = outputs.iter().flat_map(|(_, nets)| nets.iter()).collect();
         for (i, net) in all_outputs.iter().enumerate() {
             if i == all_outputs.len() - 1 {
                 writeln!(f, "{}{}", indent, net.get_identifier().emit_name())?;
