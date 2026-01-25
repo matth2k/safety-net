@@ -364,6 +364,11 @@ pub trait Instantiable: Clone {
     /// Returns the index of the input port with the given identifier, if it exists.
     /// **This method should be overriden if the implemenation is capable of O(1) lookup.**
     fn find_input(&self, id: &Identifier) -> Option<usize> {
+        let mut iterator = self.get_input_ports().into_iter();
+        eprintln!(
+            "find_input item 1 = {}",
+            iterator.next().unwrap().get_identifier().get_name()
+        );
         self.get_input_ports()
             .into_iter()
             .position(|n| n.get_identifier() == id)
