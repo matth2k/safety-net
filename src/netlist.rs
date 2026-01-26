@@ -1159,7 +1159,6 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn remove_output(&self, net_name: &Identifier) -> bool {
         let netlist = self
@@ -1178,7 +1177,6 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn remove_all_outputs(&self) -> usize {
         let netlist = self
