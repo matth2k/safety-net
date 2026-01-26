@@ -198,3 +198,28 @@ fn constant_driver() {
            assign y = inst_0_Y;\n"
     );
 }
+
+#[test]
+fn double_output() {
+    let netlist = GateNetlist::new("top".to_string());
+    let a = netlist.insert_input("a".into());
+    a.clone().expose_with_name("y".into());
+    a.expose_with_name("z".into());
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module top (
+           a,
+           y,
+           z
+         );
+           input a;
+           wire a;
+           output y;
+           wire y;
+           output z;
+           wire z;
+           assign y = a;
+           assign z = a;
+         endmodule\n"
+    );
+}

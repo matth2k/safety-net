@@ -701,7 +701,7 @@ where
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        netlist.remove_outputs_for_operand(&self.into())
+        netlist.remove_outputs(&self.into())
     }
 
     /// Returns the circuit node that drives the `index`th input
@@ -1187,7 +1187,7 @@ where
             .owner
             .upgrade()
             .expect("DrivenNet is unlinked from netlist");
-        netlist.remove_outputs_for_operand(self)
+        netlist.remove_outputs(self)
     }
 
     /// Returns the output position, if the net is the output of a gate.
@@ -1425,7 +1425,7 @@ where
 
     /// Removes all output aliases for a specific operand.
     /// Returns the number of outputs that were removed.
-    pub fn remove_outputs_for_operand(&self, operand: &DrivenNet<I>) -> usize {
+    pub fn remove_outputs(&self, operand: &DrivenNet<I>) -> usize {
         //let mut outputs = self.outputs.borrow_mut();
         self.outputs
             .borrow_mut()

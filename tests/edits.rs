@@ -285,7 +285,7 @@ fn test_netlist_remove_output_by_operand() {
     assert_eq!(outputs.len(), 1);
 
     // Remove all outputs using netlist method
-    let count = netlist.remove_outputs_for_operand(&instance.into());
+    let count = netlist.remove_outputs(&instance.into());
     assert_eq!(count, 1, "Should have removed 1 remaining output");
 
     // Verify we have no outputs
