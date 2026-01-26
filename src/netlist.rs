@@ -1523,13 +1523,14 @@ where
             }
         }
 
-        let already_mapped = self.outputs.borrow().contains_key(&new_index);
-        let old_mapping = self.outputs.borrow_mut().remove(&old_index);
-
-        if already_mapped {
-            self.outputs.borrow_mut().remove(&old_index);
-        } else if let Some(nets) = old_mapping {
-            self.outputs.borrow_mut().insert(new_index, nets);
+        // Move all the old outputs to the new key
+        let outs = self.outputs.borrow_mut().remove(&old_index);
+        if let Some(outs) = outs {
+            self.outputs
+                .borrow_mut()
+                .entry(new_index)
+                .or_default()
+                .extend(outs);
         }
 
         Ok(of.unwrap().unwrap().borrow().get().clone())
