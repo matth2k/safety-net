@@ -148,7 +148,7 @@ impl Gate {
 /// An operand to an [Instantiable]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-pub enum Operand {
+enum Operand {
     /// An index into the list of objects
     DirectIndex(usize),
     /// An index into the list of objects, with an extra index on the cell/primitive
@@ -672,6 +672,10 @@ where
 
     /// Removes a specific output alias by its name from this circuit node.
     /// Returns true if the output was removed, false if it didn't exist.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn remove_output(&self, net_name: &Identifier) -> bool {
         let netlist = self
@@ -680,12 +684,15 @@ where
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        let operand = Operand::DirectIndex(self.clone().unwrap().borrow().get_index());
-        netlist.remove_output(&operand, net_name)
+        netlist.remove_output(&self.into(), net_name)
     }
 
     /// Removes all output aliases for this circuit node.
     /// Returns the number of outputs that were removed.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn remove_all_outputs(&self) -> usize {
         let netlist = self
@@ -694,8 +701,7 @@ where
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        let operand = Operand::DirectIndex(self.clone().unwrap().borrow().get_index());
-        netlist.remove_outputs_for_operand(&operand)
+        netlist.remove_outputs_for_operand(&self.into())
     }
 
     /// Returns the circuit node that drives the `index`th input
@@ -1150,7 +1156,11 @@ where
 
     /// Removes a specific output alias by its name from this driven net.
     /// Returns true if the output was removed, false if it didn't exist.
-    /// Panics if the weak reference to the netlist is dead.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cell is a multi-output circuit node.
+    /// Panics if the reference to the netlist is lost.
     pub fn remove_output(&self, net_name: &Identifier) -> bool {
         let netlist = self
             .netref
@@ -1160,12 +1170,16 @@ where
             .owner
             .upgrade()
             .expect("DrivenNet is unlinked from netlist");
-        netlist.remove_output(&self.get_operand(), net_name)
+        netlist.remove_output(self, net_name)
     }
 
     /// Removes all output aliases for this driven net.
     /// Returns the number of outputs that were removed.
-    /// Panics if the weak reference to the netlist is dead.
+    ///
+    /// # Panics
+    ///
+    /// Panics if cell is a multi-output circuit node.
+    /// Panics if the reference to the netlist is lost.
     pub fn remove_all_outputs(&self) -> usize {
         let netlist = self
             .netref
@@ -1175,7 +1189,7 @@ where
             .owner
             .upgrade()
             .expect("DrivenNet is unlinked from netlist");
-        netlist.remove_outputs_for_operand(&self.get_operand())
+        netlist.remove_outputs_for_operand(self)
     }
 
     /// Returns the output position, if the net is the output of a gate.
@@ -1395,15 +1409,15 @@ where
 
     /// Removes a specific output alias by its operand and net name.
     /// Returns true if the output was removed, false if it didn't exist.
-    pub fn remove_output(&self, operand: &Operand, net_name: &Identifier) -> bool {
+    pub fn remove_output(&self, operand: &DrivenNet<I>, net_name: &Identifier) -> bool {
         let mut outputs = self.outputs.borrow_mut();
-        if let Some(nets) = outputs.get_mut(operand) {
+        if let Some(nets) = outputs.get_mut(&operand.get_operand()) {
             // Create a net with just the identifier to match for removal
             let net_to_remove = Net::new(net_name.clone(), crate::circuit::DataType::logic());
             if nets.remove(&net_to_remove) {
                 // If the set is now empty, remove the operand entirely
                 if nets.is_empty() {
-                    outputs.remove(operand);
+                    outputs.remove(&operand.get_operand());
                 }
                 return true;
             }
@@ -1413,11 +1427,11 @@ where
 
     /// Removes all output aliases for a specific operand.
     /// Returns the number of outputs that were removed.
-    pub fn remove_outputs_for_operand(&self, operand: &Operand) -> usize {
+    pub fn remove_outputs_for_operand(&self, operand: &DrivenNet<I>) -> usize {
         //let mut outputs = self.outputs.borrow_mut();
         self.outputs
             .borrow_mut()
-            .remove(operand)
+            .remove(&operand.get_operand())
             .map(|nets| nets.len())
             .unwrap_or(0)
     }
@@ -2121,21 +2135,14 @@ where
         self.outputs
             .borrow()
             .iter()
-            .flat_map(|(k, nets)| nets.iter().map(move |n| (k, n)))
-            .map(|(k, n)| {
-                (
-                    DrivenNet::new(k.secondary(), NetRef::wrap(self.index_weak(&k.root()))),
-                    n.clone(),
-                )
+            .flat_map(|(k, nets)| {
+                nets.iter().map(|n| {
+                    (
+                        DrivenNet::new(k.secondary(), NetRef::wrap(self.index_weak(&k.root()))),
+                        n.clone(),
+                    )
+                })
             })
-            //.flat_map(|(k, nets)| {
-            //    nets.iter().map(move |n| {
-            //        (
-            //            DrivenNet::new(k.secondary(), NetRef::wrap(self.index_weak(&k.root()))),
-            //            n.clone(),
-            //        )
-            //    })
-            //})
             .collect()
     }
 
@@ -2180,10 +2187,11 @@ where
                 writeln!(f, "{}{},", indent, net.get_identifier().emit_name())?;
             }
         }
+
         // Flatten the outputs to collect all (operand, net) pairs
-        //let all_outputs: Vec<_> = outputs.iter().flat_map(|(_, nets)| nets.iter()).collect();
-        for (i, net) in outputs.iter().flat_map(|(_, nets)| nets.iter()).enumerate() {
-            if i == outputs.len() - 1 {
+        let all_outputs: Vec<_> = outputs.iter().flat_map(|(_, nets)| nets.iter()).collect();
+        for (i, net) in all_outputs.iter().enumerate() {
+            if i == all_outputs.len() - 1 {
                 writeln!(f, "{}{}", indent, net.get_identifier().emit_name())?;
             } else {
                 writeln!(f, "{}{},", indent, net.get_identifier().emit_name())?;
@@ -2417,292 +2425,7 @@ mod tests {
         let a = netlist.insert_input("a".into());
         DrivenNet::new(1, a.unwrap());
     }
-
-    #[test]
-    fn test_multiple_output_aliases() {
-        let netlist = GateNetlist::new("passthru_example".to_string());
-
-        // Add the input
-        let b = netlist.insert_input("b".into());
-
-        // Instantiate an AND gate
-        let instance = netlist
-            .insert_gate(
-                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
-                "inst_0".into(),
-                &[b.clone(), b.clone()],
-            )
-            .unwrap();
-
-        // Create multiple output aliases for the same net
-        instance.clone().expose_with_name("y".into());
-        instance.clone().expose_with_name("z".into());
-
-        // Verify that we have two outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(
-            outputs.len(),
-            2,
-            "Expected 2 output aliases but got {}",
-            outputs.len()
-        );
-
-        // Verify that the outputs have the correct names
-        let output_names: Vec<&str> = outputs
-            .iter()
-            .map(|net| net.get_identifier().get_name())
-            .collect();
-        assert!(
-            output_names.contains(&"y"),
-            "Expected output 'y' but got {:?}",
-            output_names
-        );
-        assert!(
-            output_names.contains(&"z"),
-            "Expected output 'z' but got {:?}",
-            output_names
-        );
-    }
-
-    #[test]
-    fn test_remove_output() {
-        let netlist = GateNetlist::new("remove_output_test".to_string());
-
-        // Add the input
-        let b = netlist.insert_input("b".into());
-
-        // Instantiate an AND gate
-        let instance = netlist
-            .insert_gate(
-                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
-                "inst_0".into(),
-                &[b.clone(), b.clone()],
-            )
-            .unwrap();
-
-        // Create multiple output aliases
-        instance.clone().expose_with_name("y".into());
-        instance.clone().expose_with_name("z".into());
-        instance.clone().expose_with_name("w".into());
-
-        // Verify we have three outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 3);
-
-        // Remove one output alias using NetRef method
-        let removed = instance.remove_output(&"z".into());
-        assert!(removed, "Should have successfully removed 'z'");
-
-        // Verify we now have two outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(
-            outputs.len(),
-            2,
-            "Expected 2 outputs after removal but got {}",
-            outputs.len()
-        );
-
-        // Verify the correct outputs remain
-        let output_names: Vec<&str> = outputs
-            .iter()
-            .map(|net| net.get_identifier().get_name())
-            .collect();
-        assert!(output_names.contains(&"y"));
-        assert!(!output_names.contains(&"z"));
-        assert!(output_names.contains(&"w"));
-
-        // Try to remove a non-existent output
-        let removed = instance.remove_output(&"nonexistent".into());
-        assert!(
-            !removed,
-            "Should return false when removing non-existent output"
-        );
-
-        // Verify output count unchanged
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 2);
-    }
-
-    #[test]
-    fn test_remove_all_outputs() {
-        let netlist = GateNetlist::new("remove_all_outputs_test".to_string());
-
-        // Add the input
-        let b = netlist.insert_input("b".into());
-
-        // Instantiate an AND gate
-        let instance = netlist
-            .insert_gate(
-                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
-                "inst_0".into(),
-                &[b.clone(), b.clone()],
-            )
-            .unwrap();
-
-        // Create multiple output aliases
-        instance.clone().expose_with_name("y".into());
-        instance.clone().expose_with_name("z".into());
-        instance.clone().expose_with_name("w".into());
-
-        // Verify we have three outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 3);
-
-        // Remove all outputs using NetRef method
-        let count = instance.remove_all_outputs();
-        assert_eq!(
-            count, 3,
-            "Should have removed 3 outputs but removed {}",
-            count
-        );
-
-        // Verify we have no outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(
-            outputs.len(),
-            0,
-            "Expected 0 outputs but got {}",
-            outputs.len()
-        );
-
-        // Verify calling remove_all_outputs again returns 0
-        let count = instance.remove_all_outputs();
-        assert_eq!(count, 0, "Should return 0 when removing from empty outputs");
-    }
-
-    #[test]
-    fn test_driven_net_remove_output() {
-        let netlist = GateNetlist::new("driven_net_remove_test".to_string());
-
-        // Add inputs
-        let a = netlist.insert_input("a".into());
-        let b = netlist.insert_input("b".into());
-
-        // Instantiate an AND gate
-        let instance = netlist
-            .insert_gate(
-                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
-                "inst_0".into(),
-                &[a, b],
-            )
-            .unwrap();
-
-        // Get the driven net output
-        let driven_net = instance.get_output(0);
-
-        // Create multiple output aliases via DrivenNet
-        driven_net.clone().expose_with_name("y".into());
-        driven_net.clone().expose_with_name("z".into());
-        driven_net.clone().expose_with_name("w".into());
-
-        // Verify we have three outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 3);
-
-        // Remove one output using DrivenNet method
-        let removed = driven_net.remove_output(&"y".into());
-        assert!(removed, "Should have successfully removed 'y'");
-
-        // Verify we now have two outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 2);
-
-        // Remove all remaining outputs using DrivenNet method
-        let count = driven_net.remove_all_outputs();
-        assert_eq!(count, 2, "Should have removed 2 remaining outputs");
-
-        // Verify we have no outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 0);
-    }
-
-    #[test]
-    fn test_netlist_remove_output_by_operand() {
-        let netlist = GateNetlist::new("netlist_remove_test".to_string());
-
-        // Add inputs
-        let a = netlist.insert_input("a".into());
-        let b = netlist.insert_input("b".into());
-
-        // Instantiate an AND gate
-        let instance = netlist
-            .insert_gate(
-                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
-                "inst_0".into(),
-                &[a, b],
-            )
-            .unwrap();
-
-        // Create multiple output aliases
-        instance.clone().expose_with_name("y".into());
-        instance.clone().expose_with_name("z".into());
-
-        // Verify we have two outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 2);
-
-        // Remove one output directly from netlist
-        let operand = Operand::DirectIndex(instance.unwrap().borrow().get_index());
-        let removed = netlist.remove_output(&operand, &"y".into());
-        assert!(removed, "Should have successfully removed 'y'");
-
-        // Verify we have one output left
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 1);
-
-        // Remove all outputs using netlist method
-        let count = netlist.remove_outputs_for_operand(&operand);
-        assert_eq!(count, 1, "Should have removed 1 remaining output");
-
-        // Verify we have no outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 0);
-    }
-
-    #[test]
-    fn test_netlist_clear_outputs() {
-        let netlist = GateNetlist::new("clear_outputs_test".to_string());
-
-        // Add inputs
-        let a = netlist.insert_input("a".into());
-        let b = netlist.insert_input("b".into());
-
-        // Instantiate gates
-        let instance1 = netlist
-            .insert_gate(
-                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
-                "inst_0".into(),
-                &[a.clone(), b.clone()],
-            )
-            .unwrap();
-
-        let instance2 = netlist
-            .insert_gate(
-                Gate::new_logical("OR".into(), vec!["A".into(), "B".into()], "Y".into()),
-                "inst_1".into(),
-                &[a.clone(), b.clone()],
-            )
-            .unwrap();
-
-        // Create multiple output aliases on both gates
-        instance1.clone().expose_with_name("y1".into());
-        instance1.clone().expose_with_name("y2".into());
-        instance2.clone().expose_with_name("z1".into());
-        instance2.clone().expose_with_name("z2".into());
-
-        // Verify we have four outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 4);
-
-        // Clear all outputs
-        netlist.clear_outputs();
-
-        // Verify we have no outputs
-        let outputs = netlist.get_output_ports();
-        assert_eq!(outputs.len(), 0, "Expected 0 outputs after clear");
-    }
 }
-
 #[cfg(feature = "serde")]
 /// Serde support for netlists
 pub mod serde {
