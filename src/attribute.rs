@@ -81,15 +81,26 @@ impl std::fmt::Display for Parameter {
         match self {
             Parameter::Integer(i) => write!(f, "{i}"),
             Parameter::Real(_r) => todo!(),
-            Parameter::BitVec(bv) => write!(
-                f,
-                "{}'b{}",
-                bv.len(),
-                bv.iter()
-                    .rev()
-                    .map(|b| if *b { '1' } else { '0' })
-                    .collect::<String>()
-            ),
+            Parameter::BitVec(bv) => {
+                if bv.len() >= 4 && bv.len() % 4 == 0 {
+                    write!(f, "{}'h", bv.len())?;
+                    for n in bv.chunks(4).rev() {
+                        let val: u8 = n.load();
+                        write!(f, "{:x}", val)?;
+                    }
+                    Ok(())
+                } else {
+                    write!(
+                        f,
+                        "{}'b{}",
+                        bv.len(),
+                        bv.iter()
+                            .rev()
+                            .map(|b| if *b { '1' } else { '0' })
+                            .collect::<String>()
+                    )
+                }
+            }
             Parameter::Logic(l) => write!(f, "{l}"),
         }
     }
@@ -230,8 +241,16 @@ mod tests {
         let p3 = Parameter::Logic(Logic::from_bool(true));
         let p4 = Parameter::from_bool(true);
         assert_eq!(p1.to_string(), "42");
-        assert_eq!(p2.to_string(), "8'b10000000");
+        assert_eq!(p2.to_string(), "8'h80");
         assert_eq!(p3.to_string(), "1'b1");
         assert_eq!(p4.to_string(), "1'b1");
+    }
+
+    #[test]
+    fn test_parameter_hex() {
+        let p = Parameter::BitVec(bitvec![1, 1, 1, 0, 1, 0, 0, 0]);
+        assert_eq!(p.to_string(), "8'h17");
+        let p = Parameter::BitVec(bitvec![1, 1, 1, 1, 1, 0, 0, 0]);
+        assert_eq!(p.to_string(), "8'h1f");
     }
 }

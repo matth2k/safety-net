@@ -128,7 +128,6 @@ fn param_verilog() {
     instance.expose_with_name("y".into());
 
     // Print the netlist
-    println!("{netlist}");
     assert_verilog_eq!(
         netlist.to_string(),
         "module example (
@@ -144,7 +143,7 @@ fn param_verilog() {
            wire y;
            wire inst_0_O;
            LUT2 #(
-             .INIT(4'b1000)
+             .INIT(4'h8)
            ) inst_0 (
              .I0(a),
              .I1(b),
