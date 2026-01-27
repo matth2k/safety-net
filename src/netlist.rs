@@ -1056,7 +1056,7 @@ where
 }
 
 /// Represent a net that is being driven by a [Instantiable]
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct DrivenNet<I: Instantiable> {
     pos: usize,
     netref: NetRef<I>,
@@ -1229,6 +1229,48 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.as_net().fmt(f)
+    }
+}
+
+impl<I> PartialEq for DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.netref == other.netref && self.pos == other.pos
+    }
+}
+
+impl<I> Eq for DrivenNet<I> where I: Instantiable {}
+
+impl<I> std::hash::Hash for DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.netref.hash(state);
+        self.pos.hash(state);
+    }
+}
+
+impl<I> Ord for DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.netref.cmp(&other.netref) {
+            std::cmp::Ordering::Equal => self.pos.cmp(&other.pos),
+            ord => ord,
+        }
+    }
+}
+
+impl<I> PartialOrd for DrivenNet<I>
+where
+    I: Instantiable,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
