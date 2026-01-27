@@ -87,7 +87,9 @@ impl Identifier {
 
         // Certainly not an exhaustive list.
         // TODO(matth2k): Implement a true isEscaped()
-        let esc_chars = [' ', '\\', '(', ')', ',', '+', '-', '$', '\'', '~'];
+        let esc_chars = [
+            ' ', '\\', '(', ')', ',', '+', '-', '$', '\'', '~', ';', '.', ',', '?', '!',
+        ];
         if name.chars().any(|c| esc_chars.contains(&c)) {
             return Identifier {
                 name,
