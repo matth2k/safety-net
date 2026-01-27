@@ -1670,17 +1670,24 @@ where
         }
 
         let old_objects = self.objects.take();
+
+        // Check no dangling references will be created before mutating
+        for i in dead_objs.iter() {
+            let rc = &old_objects[*i];
+            if Rc::strong_count(rc) > 1 {
+                self.objects.replace(old_objects.clone());
+                return Err(Error::DanglingReference(
+                    rc.borrow().get().get_nets().to_vec(),
+                ));
+            }
+        }
+
         let mut remap: HashMap<usize, usize> = HashMap::new();
         for (old_index, obj) in old_objects.into_iter().enumerate() {
             if dead_objs.contains(&old_index) {
-                // 1. this ref, 2. as an output
-                if Rc::strong_count(&obj) > 2 {
-                    return Err(Error::DanglingReference(
-                        obj.borrow().get().get_nets().to_vec(),
-                    ));
-                }
                 continue;
             }
+
             let new_index = self.objects.borrow().len();
             remap.insert(old_index, new_index);
             obj.borrow_mut().index = new_index;

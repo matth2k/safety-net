@@ -43,11 +43,14 @@ fn test_clean() {
     assert!(!netlist.clean().unwrap());
     let inputs: Vec<_> = netlist.inputs().collect();
     assert_eq!(inputs.len(), 2);
-    let _new_cell = netlist
-        .insert_gate(and_gate(), "inst_1".into(), &inputs)
-        .unwrap();
-    assert!(netlist.verify().is_ok());
-    assert_eq!(netlist.objects().count(), 4);
+    {
+        let _new_cell = netlist
+            .insert_gate(and_gate(), "inst_1".into(), &inputs)
+            .unwrap();
+        assert!(netlist.verify().is_ok());
+        assert_eq!(netlist.objects().count(), 4);
+        assert!(netlist.clean().is_err());
+    }
     assert!(netlist.clean().unwrap());
     assert_eq!(netlist.objects().count(), 3);
     assert!(!netlist.clean().unwrap());
