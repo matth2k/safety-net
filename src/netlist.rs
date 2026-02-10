@@ -1674,14 +1674,16 @@ where
     ///
     /// ```
     /// use safety_net::format_id;
-    /// use safety_net::GateNetlist;
+    /// use safety_net::{Gate, GateNetlist};
     ///
     /// let netlist = GateNetlist::new("example".to_string());
-    /// netlist.insert_input("foo".into());
-    /// netlist.insert_input("bar".into()).expose_with_name("y".into());
-    /// netlist.rename_nets(|id, i| format_id!("{}baz{}", id, i) ).unwrap();
-    /// // "foo" -> "foobaz0"
-    /// // "bar" -> "barbaz1"
+    /// let inv = Gate::new_logical("INV".into(), vec!["A".into()], "Y".into());
+    /// let foo = netlist.insert_input("foo".into());
+    /// let nr = netlist.insert_gate(inv, "bar".into(), &[foo]).unwrap();
+    /// nr.expose_with_name("baz".into());
+    /// netlist.rename_nets(|id, i| format_id!("{}_{}", id, i) ).unwrap();
+    /// // "bar_Y" -> "bar_Y_0"
+    /// // "bar" -> "bar_1"
     /// ```
     pub fn rename_nets<F: Fn(&Identifier, usize) -> Identifier>(&self, f: F) -> Result<(), Error> {
         let mut i: usize = 0;
