@@ -40,7 +40,7 @@ fn get_simple_example() -> Rc<GateNetlist> {
 fn test_clean() {
     let netlist = get_simple_example();
     assert!(netlist.verify().is_ok());
-    assert!(!netlist.clean().unwrap());
+    assert!(netlist.clean().unwrap().is_empty());
     let inputs: Vec<_> = netlist.inputs().collect();
     assert_eq!(inputs.len(), 2);
     {
@@ -51,9 +51,9 @@ fn test_clean() {
         assert_eq!(netlist.objects().count(), 4);
         assert!(netlist.clean().is_err());
     }
-    assert!(netlist.clean().unwrap());
+    assert!(!netlist.clean().unwrap().is_empty());
     assert_eq!(netlist.objects().count(), 3);
-    assert!(!netlist.clean().unwrap());
+    assert!(netlist.clean().unwrap().is_empty());
 }
 
 #[test]
@@ -625,7 +625,7 @@ fn test_replace_multiple_multiple() {
 #[test]
 fn test_rename() {
     let netlist = get_simple_example();
-    assert!(netlist.rename_nets(|i| format_id!("__{i}__")).is_ok());
+    assert!(netlist.rename_nets(|_, i| format_id!("__{i}__")).is_ok());
     let gate = netlist.last().unwrap();
     assert_eq!(gate.get_instance_name().unwrap(), "__1__".into());
 }

@@ -1670,14 +1670,15 @@ where
 
     /// Rename nets and instances in the netlist using the provided *injective* function.
     /// Returns an error if the function is not injective.
-    pub fn rename_nets<F: Fn(usize) -> Identifier>(&self, f: F) -> Result<(), Error> {
+    pub fn rename_nets<F: Fn(&Identifier, usize) -> Identifier>(&self, f: F) -> Result<(), Error> {
         let mut i: usize = 0;
         for nr in self.objects() {
             if nr.is_an_input() {
                 continue;
             }
             for mut net in nr.nets_mut() {
-                net.set_identifier(f(i));
+                let rename = f(net.get_identifier(), i);
+                net.set_identifier(rename);
                 i += 1;
             }
         }
@@ -1687,15 +1688,16 @@ where
                 continue;
             }
 
-            nr.set_instance_name(f(i));
+            let rename = f(&nr.get_instance_name().unwrap(), i);
+            nr.set_instance_name(rename);
             i += 1;
         }
 
         self.verify()
     }
 
-    /// Cleans unused nodes from the netlist, returning `Ok(true)` if the netlist changed.
-    pub fn clean_once(&self) -> Result<bool, Error> {
+    /// Cleans unused nodes from the netlist, returning `Ok(vec)` of the removed objects.
+    pub fn clean_once(&self) -> Result<Vec<Object<I>>, Error> {
         let mut dead_objs = HashSet::new();
         {
             let fan_out = self.get_analysis::<FanOutTable<I>>()?;
@@ -1715,7 +1717,7 @@ where
         }
 
         if dead_objs.is_empty() {
-            return Ok(false);
+            return Ok(vec![]);
         }
 
         let old_objects = self.objects.take();
@@ -1731,9 +1733,11 @@ where
             }
         }
 
+        let mut removed = Vec::new();
         let mut remap: HashMap<usize, usize> = HashMap::new();
         for (old_index, obj) in old_objects.into_iter().enumerate() {
             if dead_objs.contains(&old_index) {
+                removed.push(obj.borrow().get().clone());
                 continue;
             }
 
@@ -1759,21 +1763,19 @@ where
             self.outputs.borrow_mut().insert(new_operand, net);
         }
 
-        Ok(true)
+        Ok(removed)
     }
 
     /// Greedly removes unused nodes from the netlist, until it stops changing.
-    /// Returns true if the netlist was changed.
-    pub fn clean(&self) -> Result<bool, Error> {
-        if !self.clean_once()? {
-            Ok(false)
-        } else {
-            let mut changed = true;
-            while changed {
-                changed = self.clean_once()?;
-            }
-            Ok(true)
+    /// Returns `Ok(vec)` of the removed objects.
+    pub fn clean(&self) -> Result<Vec<Object<I>>, Error> {
+        let mut removed = Vec::new();
+        let mut r = self.clean_once()?;
+        while !r.is_empty() {
+            removed.extend(r);
+            r = self.clean_once()?;
         }
+        Ok(removed)
     }
 
     /// Returns `true` if all the nets are uniquely named
