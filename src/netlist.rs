@@ -1670,6 +1670,19 @@ where
 
     /// Rename nets and instances in the netlist using the provided *injective* function.
     /// Returns an error if the function is not injective.
+    /// # Examples
+    ///
+    /// ```
+    /// use safety_net::format_id;
+    /// use safety_net::GateNetlist;
+    ///
+    /// let netlist = GateNetlist::new("example".to_string());
+    /// netlist.insert_input("foo".into());
+    /// netlist.insert_input("bar".into()).expose_with_name("y".into());
+    /// netlist.rename_nets(|id, i| format_id!("{}baz{}", id, i) ).unwrap();
+    /// // "foo" -> "foobaz0"
+    /// // "bar" -> "barbaz1"
+    /// ```
     pub fn rename_nets<F: Fn(&Identifier, usize) -> Identifier>(&self, f: F) -> Result<(), Error> {
         let mut i: usize = 0;
         for nr in self.objects() {
