@@ -2146,6 +2146,91 @@ pub mod iter {
             None
         }
     }
+
+    /// Depth-first iterator that works like DFSIterator but iterates over DrivenNet
+    pub struct DrivenDFSIterator<'a, I: Instantiable> {
+        netlist: &'a Netlist<I>,
+        stacks: Vec<Walk<DrivenNet<I>>>,
+        visited: HashSet<usize>,
+        cycles: bool,
+    }
+
+    impl<'a, I> DrivenDFSIterator<'a, I>
+    where
+        I: Instantiable,
+    {
+        /// Create a new DFS DrivenNet iterator for the netlist starting at `from`.
+        pub fn new(netlist: &'a Netlist<I>, from: DrivenNet<I>) -> Self {
+            let mut s = Walk::new();
+            s.push(from);
+            Self {
+                netlist,
+                stacks: vec![s],
+                visited: HashSet::new(),
+                cycles: false,
+            }
+        }
+    }
+
+    impl<I> DrivenDFSIterator<'_, I>
+    where
+        I: Instantiable,
+    {
+        /// Check if the DFS traversal has encountered a cycle yet.
+        pub fn check_cycles(&self) -> bool {
+            self.cycles
+        }
+
+        /// Consumes the iterator to detect cycles in the netlist.
+        pub fn detect_cycles(mut self) -> bool {
+            if self.cycles {
+                return true;
+            }
+
+            while let Some(_) = self.next() {
+                if self.cycles {
+                    return true;
+                }
+            }
+
+            self.cycles
+        }
+    }
+
+    impl<I> Iterator for DrivenDFSIterator<'_, I>
+    where
+        I: Instantiable,
+    {
+        type Item = DrivenNet<I>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(walk) = self.stacks.pop() {
+                let item = walk.last().cloned();
+                let uw = item.clone().unwrap().unwrap().unwrap();
+                let index = uw.borrow().get_index();
+                if self.visited.insert(index) {
+                    let operands = &uw.borrow().operands;
+                    for operand in operands.iter().flatten() {
+                        let mut new_walk = walk.clone();
+                        new_walk.push(DrivenNet::new(
+                            operand.secondary(),
+                            NetRef::wrap(self.netlist.index_weak(&operand.root())),
+                        ));
+                        if !new_walk.contains_cycle() {
+                            self.stacks.push(new_walk);
+                        } else {
+                            self.cycles = true;
+                        }
+                    }
+                    return item;
+                }
+
+                return self.next();
+            }
+
+            None
+        }
+    }
 }
 
 impl<'a, I> IntoIterator for &'a Netlist<I>
@@ -2226,6 +2311,11 @@ where
     /// Returns a depth-first search iterator over the nodes in the netlist.
     pub fn dfs(&self, from: NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
         iter::DFSIterator::new(self, from)
+    }
+
+    /// Returns a depth-first search iterator over the nodes in the netlist, with the nodes in DrivenNet form.
+    pub fn driven_dfs(&self, from: DrivenNet<I>) -> impl Iterator<Item = DrivenNet<I>> {
+        iter::DrivenDFSIterator::new(self, from)
     }
 
     #[cfg(feature = "serde")]
@@ -2438,6 +2528,7 @@ pub type GateRef = NetRef<Gate>;
 
 #[cfg(test)]
 mod tests {
+    use super::iter::{DFSIterator, DrivenDFSIterator};
     use super::*;
     #[test]
     fn test_delete_netlist() {
@@ -2496,6 +2587,91 @@ mod tests {
         let netlist = GateNetlist::new("min_module".to_string());
         let a = netlist.insert_input("a".into());
         DrivenNet::new(1, a.unwrap());
+    }
+
+    #[test]
+    fn test_drivendfsiterator() {
+        let netlist = Netlist::new("dfs_netlist".to_string());
+
+        // inputs
+        let a = netlist.insert_input("a".into());
+        let b = netlist.insert_input("b".into());
+        let c = netlist.insert_input("c".into());
+        let d = netlist.insert_input("d".into());
+        let e = netlist.insert_input("e".into());
+
+        // gates
+        let n1 = netlist
+            .insert_gate(
+                Gate::new_logical("OR".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n1".into(),
+                &[a.clone(), b.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+        let n2 = netlist
+            .insert_gate(
+                Gate::new_logical("NOR".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n2".into(),
+                &[d.clone(), e.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+        let n3 = netlist
+            .insert_gate(
+                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n3".into(),
+                &[n1.clone(), c.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+        let n4 = netlist
+            .insert_gate(
+                Gate::new_logical("NAND".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n4".into(),
+                &[n3.clone(), n2.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+        n4.clone().expose_with_name("y".into());
+
+        // test DFSIterator
+        let mut dfs = DrivenDFSIterator::new(&netlist, n4.clone());
+        assert_eq!(dfs.next(), Some(n4));
+        assert_eq!(dfs.next(), Some(n2));
+        assert_eq!(dfs.next(), Some(e));
+        assert_eq!(dfs.next(), Some(d));
+        assert_eq!(dfs.next(), Some(n3));
+        assert_eq!(dfs.next(), Some(c));
+        assert_eq!(dfs.next(), Some(n1));
+        assert_eq!(dfs.next(), Some(b));
+        assert_eq!(dfs.next(), Some(a));
+        assert_eq!(dfs.next(), None);
+    }
+
+    #[test]
+    fn test_dfs_cycles() {
+        let netlist = Netlist::new("dfs_cycles".to_string());
+
+        // inputs
+        let a = netlist.insert_input("a".into());
+
+        // gates
+        let and = netlist.insert_gate_disconnected(
+            Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
+            "and".into(),
+        );
+
+        // connect and form cycle
+        a.connect(and.get_input(0));
+        and.get_output(0).connect(and.get_input(1));
+
+        // test dfs iterators
+        let dfs = DFSIterator::new(&netlist, and.clone());
+        let driven_dfs = DrivenDFSIterator::new(&netlist, and.get_output(0));
+
+        assert!(dfs.detect_cycles());
+        assert!(driven_dfs.detect_cycles());
     }
 }
 #[cfg(feature = "serde")]
