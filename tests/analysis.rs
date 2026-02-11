@@ -82,6 +82,8 @@ fn test_detect_cycles2() {
     assert_eq!(dfs_iter.count(), 3);
     let dfs_iter = DFSIterator::new(&netlist, netlist.last().unwrap());
     assert!(dfs_iter.detect_cycles());
+    let dfs_iter = DFSIterator::new(&netlist, netlist.last().unwrap());
+    assert!(dfs_iter.detect_self_loop());
 }
 
 #[test]

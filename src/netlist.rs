@@ -2042,6 +2042,14 @@ pub mod iter {
             self.counter.values().any(|&count| count > 1)
         }
 
+        /// Returns true if the stack contains a cycle to the root node
+        fn root_cycle(&self) -> bool {
+            if self.stack.is_empty() {
+                return false;
+            }
+            self.counter[&self.stack[0]] > 1
+        }
+
         /// Returns a reference to the last element in the stack
         fn last(&self) -> Option<&T> {
             self.stack.last()
@@ -2076,15 +2084,8 @@ pub mod iter {
     {
         /// Create a new DFS iterator for the netlist starting at `from`.
         pub fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
-            let mut s = Walk::new();
-            s.push(DrivenNet::new(0, from));
             Self {
-                dfs: NetDFSIterator {
-                    netlist,
-                    stacks: vec![s],
-                    visited: HashSet::new(),
-                    cycles: false,
-                },
+                dfs: NetDFSIterator::new(netlist, DrivenNet::new(0, from)),
             }
         }
     }
@@ -2101,6 +2102,16 @@ pub mod iter {
         /// Consumes the iterator to detect cycles in the netlist.
         pub fn detect_cycles(self) -> bool {
             self.dfs.detect_cycles()
+        }
+
+        /// Check if the DFS traversal has encountered the root `from`` again.
+        pub fn check_self_loop(&self) -> bool {
+            self.dfs.check_self_loop()
+        }
+
+        /// Consumes the iterator to detect if the DFS traversal will encounter the root `from` again.
+        pub fn detect_self_loop(self) -> bool {
+            self.dfs.detect_self_loop()
         }
     }
 
@@ -2120,7 +2131,8 @@ pub mod iter {
         netlist: &'a Netlist<I>,
         stacks: Vec<Walk<DrivenNet<I>>>,
         visited: HashSet<usize>,
-        cycles: bool,
+        any_cycle: bool,
+        root_cycle: bool,
     }
 
     impl<'a, I> NetDFSIterator<'a, I>
@@ -2135,7 +2147,8 @@ pub mod iter {
                 netlist,
                 stacks: vec![s],
                 visited: HashSet::new(),
-                cycles: false,
+                any_cycle: false,
+                root_cycle: false,
             }
         }
     }
@@ -2146,22 +2159,42 @@ pub mod iter {
     {
         /// Check if the DFS traversal has encountered a cycle yet.
         pub fn check_cycles(&self) -> bool {
-            self.cycles
+            self.any_cycle
         }
 
         /// Consumes the iterator to detect cycles in the netlist.
         pub fn detect_cycles(mut self) -> bool {
-            if self.cycles {
+            if self.any_cycle {
                 return true;
             }
 
             while let Some(_) = self.next() {
-                if self.cycles {
+                if self.any_cycle {
                     return true;
                 }
             }
 
-            self.cycles
+            self.any_cycle
+        }
+
+        /// Check if the DFS traversal has encountered the root `from` again.
+        pub fn check_self_loop(&self) -> bool {
+            self.root_cycle
+        }
+
+        /// Consumes the iterator to detect if the DFS traversal will encounter the root `from` again.
+        pub fn detect_self_loop(mut self) -> bool {
+            if self.root_cycle {
+                return true;
+            }
+
+            while let Some(_) = self.next() {
+                if self.root_cycle {
+                    return true;
+                }
+            }
+
+            self.root_cycle
         }
     }
 
@@ -2173,9 +2206,8 @@ pub mod iter {
 
         fn next(&mut self) -> Option<Self::Item> {
             if let Some(walk) = self.stacks.pop() {
-                if walk.contains_cycle() {
-                    self.cycles = true;
-                }
+                self.any_cycle |= walk.contains_cycle();
+                self.root_cycle |= walk.root_cycle();
                 let item = walk.last().cloned();
                 let uw = item.clone().unwrap().unwrap().unwrap();
                 let index = uw.borrow().get_index();
