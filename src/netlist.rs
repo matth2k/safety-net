@@ -2123,6 +2123,9 @@ pub mod iter {
 
         fn next(&mut self) -> Option<Self::Item> {
             if let Some(walk) = self.stacks.pop() {
+                if walk.contains_cycle() {
+                    self.cycles = true;
+                }
                 let item = walk.last().cloned();
                 let uw = item.clone().unwrap().unwrap();
                 let index = uw.borrow().get_index();
@@ -2131,11 +2134,7 @@ pub mod iter {
                     for operand in operands.iter().flatten() {
                         let mut new_walk = walk.clone();
                         new_walk.push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
-                        if !new_walk.contains_cycle() {
-                            self.stacks.push(new_walk);
-                        } else {
-                            self.cycles = true;
-                        }
+                        self.stacks.push(new_walk);
                     }
                     return item;
                 }
