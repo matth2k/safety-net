@@ -79,6 +79,8 @@ fn test_detect_cycles2() {
     let netlist = divider_netlist();
 
     let dfs_iter = DFSIterator::new(&netlist, netlist.last().unwrap());
+    assert_eq!(dfs_iter.count(), 3);
+    let dfs_iter = DFSIterator::new(&netlist, netlist.last().unwrap());
     assert!(dfs_iter.detect_cycles());
 }
 
