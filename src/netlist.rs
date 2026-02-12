@@ -2187,11 +2187,7 @@ pub mod iter {
                             operand.secondary(),
                             NetRef::wrap(self.netlist.index_weak(&operand.root())),
                         ));
-                        if !new_walk.contains_cycle() {
-                            self.stacks.push(new_walk);
-                        } else {
-                            self.cycles = true;
-                        }
+                        self.stacks.push(new_walk);
                     }
                     return item;
                 }
