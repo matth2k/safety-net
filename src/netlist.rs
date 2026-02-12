@@ -2325,6 +2325,25 @@ where
     {
         serde::netlist_serialize(self, writer)
     }
+
+    #[cfg(feature = "graph")]
+    /// Dumps the current netlist to <module_name>.dot in the current working directory.
+    pub fn dump_dot(&self) -> std::io::Result<()> {
+        use super::graph::MultiDiGraph;
+        use std::io::Write;
+        let mut dir = std::env::current_dir()?;
+        let mod_name = format!("{}.dot", self.get_name());
+        dir.push(mod_name);
+        let mut file = std::fs::File::create(dir)?;
+        if let Err(e) = self.verify() {
+            write!(file, "Netlist verification failed: {e}")
+        } else {
+            let analysis = self.get_analysis::<MultiDiGraph<_>>().unwrap();
+            let graph = analysis.get_graph();
+            let dot = petgraph::dot::Dot::with_config(graph, &[]);
+            write!(file, "{dot}")
+        }
+    }
 }
 
 impl<I> std::fmt::Display for Netlist<I>
