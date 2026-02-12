@@ -2183,6 +2183,9 @@ pub mod iter {
 
         fn next(&mut self) -> Option<Self::Item> {
             if let Some(walk) = self.stacks.pop() {
+                if walk.contains_cycle() {
+                    self.cycles = true;
+                }
                 let item = walk.last().cloned();
                 let uw = item.clone().unwrap().unwrap().unwrap();
                 let index = uw.borrow().get_index();
@@ -2190,6 +2193,7 @@ pub mod iter {
                     let operands = &uw.borrow().operands;
                     for operand in operands.iter().flatten() {
                         let mut new_walk = walk.clone();
+<<<<<<< drivennet
                         new_walk.push(DrivenNet::new(
                             operand.secondary(),
                             NetRef::wrap(self.netlist.index_weak(&operand.root())),
@@ -2199,6 +2203,10 @@ pub mod iter {
                         } else {
                             self.cycles = true;
                         }
+=======
+                        new_walk.push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
+                        self.stacks.push(new_walk);
+>>>>>>> main
                     }
                     return item;
                 }

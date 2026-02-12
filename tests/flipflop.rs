@@ -1,155 +1,152 @@
 //! Demonstrates how to wrap several instantiable types into a 'Cell' enum
 //! This could make certain traversals and manipulations easier
 
-use safety_net::{Identifier, Instantiable, Logic, Net, Parameter};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum FlopVariant {
-    #[allow(clippy::upper_case_acronyms)]
-    FDRE,
-    #[allow(clippy::upper_case_acronyms)]
-    FDSE,
-    #[allow(clippy::upper_case_acronyms)]
-    FDPE,
-    #[allow(clippy::upper_case_acronyms)]
-    FDCE,
-}
-
-impl FlopVariant {
-    fn new(variant: &str) -> Self {
-        match variant {
-            "FDRE" => FlopVariant::FDRE,
-            "FDSE" => FlopVariant::FDSE,
-            "FDPE" => FlopVariant::FDPE,
-            "FDCE" => FlopVariant::FDCE,
-            _ => panic!("Unknown flip-flop variant: {}", variant),
-        }
-    }
-
-    fn from_id(id: &Identifier) -> Self {
-        FlopVariant::new(&id.to_string())
-    }
-
-    fn get_id(&self) -> Identifier {
-        match self {
-            FlopVariant::FDRE => "FDRE".into(),
-            FlopVariant::FDSE => "FDSE".into(),
-            FlopVariant::FDPE => "FDPE".into(),
-            FlopVariant::FDCE => "FDCE".into(),
-        }
-    }
-
-    fn get_reset(self) -> Identifier {
-        match self {
-            FlopVariant::FDRE => "R".into(),
-            FlopVariant::FDSE => "S".into(),
-            FlopVariant::FDPE => "PRE".into(),
-            FlopVariant::FDCE => "CLR".into(),
-        }
-    }
-}
-#[derive(Debug, Clone)]
-/// A flip-flop in a digital circuit
-struct FlipFlop {
-    init_value: Logic,
-    identifier: Identifier,
-    q: Net,
-    c: Net,
-    ce: Net,
-    reset: Net,
-    d: Net,
-}
-
-impl FlipFlop {
-    fn new(variant: FlopVariant, init_value: Logic) -> Self {
-        let identifier = variant.get_id();
-        let q = Net::new_logic("Q".into());
-        let c = Net::new_logic("C".into());
-        let ce = Net::new_logic("CE".into());
-        let reset = Net::new_logic(variant.get_reset());
-        let d = Net::new_logic("D".into());
-        FlipFlop {
-            init_value,
-            identifier,
-            q,
-            c,
-            ce,
-            reset,
-            d,
-        }
-    }
-}
-
-impl Instantiable for FlipFlop {
-    fn get_name(&self) -> &Identifier {
-        &self.identifier
-    }
-
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
-        vec![&self.c, &self.ce, &self.reset, &self.d]
-    }
-
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
-        std::slice::from_ref(&self.q)
-    }
-
-    fn has_parameter(&self, id: &Identifier) -> bool {
-        *id == Identifier::new("INIT".to_string())
-    }
-
-    fn get_parameter(&self, id: &Identifier) -> Option<Parameter> {
-        if self.has_parameter(id) {
-            Some(Parameter::Logic(self.init_value))
-        } else {
-            None
-        }
-    }
-
-    fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
-        if !self.has_parameter(id) {
-            return None;
-        }
-
-        let old = Some(Parameter::Logic(self.init_value));
-
-        if let Parameter::Logic(l) = val {
-            self.init_value = l;
-        } else {
-            panic!("Invalid type for INIT parameter: {val}");
-        }
-
-        old
-    }
-
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        std::iter::once((
-            Identifier::new("INIT".to_string()),
-            Parameter::Logic(self.init_value),
-        ))
-    }
-
-    fn from_constant(_val: Logic) -> Option<Self> {
-        None
-    }
-
-    fn get_constant(&self) -> Option<Logic> {
-        None
-    }
-
-    fn is_seq(&self) -> bool {
-        true
-    }
-}
-
 #[cfg(feature = "derive")]
 mod flipflop {
-
-    use super::*;
     use bitvec::vec::BitVec;
     use safety_net::{CombDepthResult, Gate, Netlist, SimpleCombDepth, dont_care, format_id};
+    use safety_net::{Identifier, Instantiable, Logic, Net, Parameter};
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum FlopVariant {
+        #[allow(clippy::upper_case_acronyms)]
+        FDRE,
+        #[allow(clippy::upper_case_acronyms)]
+        FDSE,
+        #[allow(clippy::upper_case_acronyms)]
+        FDPE,
+        #[allow(clippy::upper_case_acronyms)]
+        FDCE,
+    }
+
+    impl FlopVariant {
+        fn new(variant: &str) -> Self {
+            match variant {
+                "FDRE" => FlopVariant::FDRE,
+                "FDSE" => FlopVariant::FDSE,
+                "FDPE" => FlopVariant::FDPE,
+                "FDCE" => FlopVariant::FDCE,
+                _ => panic!("Unknown flip-flop variant: {}", variant),
+            }
+        }
+
+        fn from_id(id: &Identifier) -> Self {
+            FlopVariant::new(&id.to_string())
+        }
+
+        fn get_id(&self) -> Identifier {
+            match self {
+                FlopVariant::FDRE => "FDRE".into(),
+                FlopVariant::FDSE => "FDSE".into(),
+                FlopVariant::FDPE => "FDPE".into(),
+                FlopVariant::FDCE => "FDCE".into(),
+            }
+        }
+
+        fn get_reset(self) -> Identifier {
+            match self {
+                FlopVariant::FDRE => "R".into(),
+                FlopVariant::FDSE => "S".into(),
+                FlopVariant::FDPE => "PRE".into(),
+                FlopVariant::FDCE => "CLR".into(),
+            }
+        }
+    }
+    #[derive(Debug, Clone)]
+    /// A flip-flop in a digital circuit
+    struct FlipFlop {
+        init_value: Logic,
+        identifier: Identifier,
+        q: Net,
+        c: Net,
+        ce: Net,
+        reset: Net,
+        d: Net,
+    }
+
+    impl FlipFlop {
+        fn new(variant: FlopVariant, init_value: Logic) -> Self {
+            let identifier = variant.get_id();
+            let q = Net::new_logic("Q".into());
+            let c = Net::new_logic("C".into());
+            let ce = Net::new_logic("CE".into());
+            let reset = Net::new_logic(variant.get_reset());
+            let d = Net::new_logic("D".into());
+            FlipFlop {
+                init_value,
+                identifier,
+                q,
+                c,
+                ce,
+                reset,
+                d,
+            }
+        }
+    }
+
+    impl Instantiable for FlipFlop {
+        fn get_name(&self) -> &Identifier {
+            &self.identifier
+        }
+
+        fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+            vec![&self.c, &self.ce, &self.reset, &self.d]
+        }
+
+        fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+            std::slice::from_ref(&self.q)
+        }
+
+        fn has_parameter(&self, id: &Identifier) -> bool {
+            *id == Identifier::new("INIT".to_string())
+        }
+
+        fn get_parameter(&self, id: &Identifier) -> Option<Parameter> {
+            if self.has_parameter(id) {
+                Some(Parameter::Logic(self.init_value))
+            } else {
+                None
+            }
+        }
+
+        fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
+            if !self.has_parameter(id) {
+                return None;
+            }
+
+            let old = Some(Parameter::Logic(self.init_value));
+
+            if let Parameter::Logic(l) = val {
+                self.init_value = l;
+            } else {
+                panic!("Invalid type for INIT parameter: {val}");
+            }
+
+            old
+        }
+
+        fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
+            std::iter::once((
+                Identifier::new("INIT".to_string()),
+                Parameter::Logic(self.init_value),
+            ))
+        }
+
+        fn from_constant(_val: Logic) -> Option<Self> {
+            None
+        }
+
+        fn get_constant(&self) -> Option<Logic> {
+            None
+        }
+
+        fn is_seq(&self) -> bool {
+            true
+        }
+    }
+
     #[derive(Debug, Clone)]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg(feature = "derive")]
     struct Lut {
         lookup_table: BitVec,
         id: Identifier,
@@ -157,7 +154,6 @@ mod flipflop {
         output: Net,
     }
 
-    #[cfg(feature = "derive")]
     impl Lut {
         fn new(k: usize, lookup_table: usize) -> Self {
             let mut bv: BitVec<usize, _> = BitVec::from_element(lookup_table);
@@ -171,7 +167,6 @@ mod flipflop {
         }
     }
 
-    #[cfg(feature = "derive")]
     impl Instantiable for Lut {
         fn get_name(&self) -> &Identifier {
             &self.id
