@@ -2067,7 +2067,7 @@ pub mod iter {
     /// }
     /// ```
     pub struct DFSIterator<'a, I: Instantiable> {
-        dfs: DrivenDFSIterator<'a, I>,
+        dfs: NetDFSIterator<'a, I>,
     }
 
     impl<'a, I> DFSIterator<'a, I>
@@ -2079,7 +2079,7 @@ pub mod iter {
             let mut s = Walk::new();
             s.push(DrivenNet::new(0, from));
             Self {
-                dfs: DrivenDFSIterator {
+                dfs: NetDFSIterator {
                     netlist,
                     stacks: vec![s],
                     visited: HashSet::new(),
@@ -2095,22 +2095,12 @@ pub mod iter {
     {
         /// Check if the DFS traversal has encountered a cycle yet.
         pub fn check_cycles(&self) -> bool {
-            self.dfs.cycles
+            self.dfs.check_cycles()
         }
 
         /// Consumes the iterator to detect cycles in the netlist.
-        pub fn detect_cycles(mut self) -> bool {
-            if self.dfs.cycles {
-                return true;
-            }
-
-            while let Some(_) = self.next() {
-                if self.dfs.cycles {
-                    return true;
-                }
-            }
-
-            self.dfs.cycles
+        pub fn detect_cycles(self) -> bool {
+            self.dfs.detect_cycles()
         }
     }
 
@@ -2126,14 +2116,14 @@ pub mod iter {
     }
 
     /// Depth-first iterator that works like DFSIterator but iterates over DrivenNet
-    pub struct DrivenDFSIterator<'a, I: Instantiable> {
+    pub struct NetDFSIterator<'a, I: Instantiable> {
         netlist: &'a Netlist<I>,
         stacks: Vec<Walk<DrivenNet<I>>>,
         visited: HashSet<usize>,
         cycles: bool,
     }
 
-    impl<'a, I> DrivenDFSIterator<'a, I>
+    impl<'a, I> NetDFSIterator<'a, I>
     where
         I: Instantiable,
     {
@@ -2150,7 +2140,7 @@ pub mod iter {
         }
     }
 
-    impl<I> DrivenDFSIterator<'_, I>
+    impl<I> NetDFSIterator<'_, I>
     where
         I: Instantiable,
     {
@@ -2175,7 +2165,7 @@ pub mod iter {
         }
     }
 
-    impl<I> Iterator for DrivenDFSIterator<'_, I>
+    impl<I> Iterator for NetDFSIterator<'_, I>
     where
         I: Instantiable,
     {
@@ -2296,7 +2286,7 @@ where
 
     /// Returns a depth-first search iterator over the nodes in the netlist, with the nodes in DrivenNet form.
     pub fn net_dfs(&self, from: DrivenNet<I>) -> impl Iterator<Item = DrivenNet<I>> {
-        iter::DrivenDFSIterator::new(self, from)
+        iter::NetDFSIterator::new(self, from)
     }
 
     #[cfg(feature = "serde")]
@@ -2509,7 +2499,7 @@ pub type GateRef = NetRef<Gate>;
 
 #[cfg(test)]
 mod tests {
-    use super::iter::{DFSIterator, DrivenDFSIterator};
+    use super::iter::{DFSIterator, NetDFSIterator};
     use super::*;
     #[test]
     fn test_delete_netlist() {
@@ -2571,7 +2561,7 @@ mod tests {
     }
 
     #[test]
-    fn test_drivendfsiterator() {
+    fn test_netdfsiterator() {
         let netlist = Netlist::new("dfs_netlist".to_string());
 
         // inputs
@@ -2617,7 +2607,7 @@ mod tests {
         n4.clone().expose_with_name("y".into());
 
         // test DFSIterator
-        let mut dfs = DrivenDFSIterator::new(&netlist, n4.clone());
+        let mut dfs = NetDFSIterator::new(&netlist, n4.clone());
         assert_eq!(dfs.next(), Some(n4));
         assert_eq!(dfs.next(), Some(n2));
         assert_eq!(dfs.next(), Some(e));
@@ -2649,7 +2639,7 @@ mod tests {
 
         // test dfs iterators
         let dfs = DFSIterator::new(&netlist, and.clone());
-        let driven_dfs = DrivenDFSIterator::new(&netlist, and.get_output(0));
+        let driven_dfs = NetDFSIterator::new(&netlist, and.get_output(0));
 
         assert!(dfs.detect_cycles());
         assert!(driven_dfs.detect_cycles());
