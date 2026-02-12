@@ -2067,10 +2067,7 @@ pub mod iter {
     /// }
     /// ```
     pub struct DFSIterator<'a, I: Instantiable> {
-        netlist: &'a Netlist<I>,
-        stacks: Vec<Walk<NetRef<I>>>,
-        visited: HashSet<usize>,
-        cycles: bool,
+        dfs: DrivenDFSIterator<'a, I>,
     }
 
     impl<'a, I> DFSIterator<'a, I>
@@ -2080,12 +2077,14 @@ pub mod iter {
         /// Create a new DFS iterator for the netlist starting at `from`.
         pub fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
             let mut s = Walk::new();
-            s.push(from);
+            s.push(DrivenNet::new(0, from));
             Self {
-                netlist,
-                stacks: vec![s],
-                visited: HashSet::new(),
-                cycles: false,
+                dfs: DrivenDFSIterator {
+                    netlist,
+                    stacks: vec![s],
+                    visited: HashSet::new(),
+                    cycles: false,
+                },
             }
         }
     }
@@ -2096,22 +2095,22 @@ pub mod iter {
     {
         /// Check if the DFS traversal has encountered a cycle yet.
         pub fn check_cycles(&self) -> bool {
-            self.cycles
+            self.dfs.cycles
         }
 
         /// Consumes the iterator to detect cycles in the netlist.
         pub fn detect_cycles(mut self) -> bool {
-            if self.cycles {
+            if self.dfs.cycles {
                 return true;
             }
 
             while let Some(_) = self.next() {
-                if self.cycles {
+                if self.dfs.cycles {
                     return true;
                 }
             }
 
-            self.cycles
+            self.dfs.cycles
         }
     }
 
@@ -2122,28 +2121,7 @@ pub mod iter {
         type Item = NetRef<I>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            if let Some(walk) = self.stacks.pop() {
-                let item = walk.last().cloned();
-                let uw = item.clone().unwrap().unwrap();
-                let index = uw.borrow().get_index();
-                if self.visited.insert(index) {
-                    let operands = &uw.borrow().operands;
-                    for operand in operands.iter().flatten() {
-                        let mut new_walk = walk.clone();
-                        new_walk.push(NetRef::wrap(self.netlist.index_weak(&operand.root())));
-                        if !new_walk.contains_cycle() {
-                            self.stacks.push(new_walk);
-                        } else {
-                            self.cycles = true;
-                        }
-                    }
-                    return item;
-                }
-
-                return self.next();
-            }
-
-            None
+            self.dfs.next().map(|d| d.unwrap())
         }
     }
 
@@ -2309,12 +2287,12 @@ where
     }
 
     /// Returns a depth-first search iterator over the nodes in the netlist.
-    pub fn dfs(&self, from: NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
+    pub fn node_dfs(&self, from: NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
         iter::DFSIterator::new(self, from)
     }
 
     /// Returns a depth-first search iterator over the nodes in the netlist, with the nodes in DrivenNet form.
-    pub fn driven_dfs(&self, from: DrivenNet<I>) -> impl Iterator<Item = DrivenNet<I>> {
+    pub fn net_dfs(&self, from: DrivenNet<I>) -> impl Iterator<Item = DrivenNet<I>> {
         iter::DrivenDFSIterator::new(self, from)
     }
 

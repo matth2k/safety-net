@@ -342,7 +342,9 @@ fn test_bad_gate_creation() {
 #[test]
 fn test_dfs_order() {
     let netlist = ripple_adder();
-    let mut dfs = netlist.dfs(netlist.last().unwrap()).collect::<Vec<_>>();
+    let mut dfs = netlist
+        .node_dfs(netlist.last().unwrap())
+        .collect::<Vec<_>>();
     dfs.reverse();
 
     for (i, fa) in dfs.into_iter().filter(|i| !i.is_an_input()).enumerate() {
