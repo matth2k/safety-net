@@ -2126,6 +2126,8 @@ pub mod iter {
         }
     }
 
+    type TermFn<I> = Box<dyn Fn(&DrivenNet<I>) -> bool + 'static>;
+
     /// Depth-first iterator that works like DFSIterator but iterates over DrivenNet
     pub struct NetDFSIterator<'a, I: Instantiable> {
         netlist: &'a Netlist<I>,
@@ -2133,14 +2135,20 @@ pub mod iter {
         visited: HashSet<usize>,
         any_cycle: bool,
         root_cycle: bool,
+        terminate: TermFn<I>,
     }
 
     impl<'a, I> NetDFSIterator<'a, I>
     where
         I: Instantiable,
     {
-        /// Create a new DFS DrivenNet iterator for the netlist starting at `from`.
-        pub fn new(netlist: &'a Netlist<I>, from: DrivenNet<I>) -> Self {
+        /// Create a new DFS DrivenNet iterator for the netlist starting at `from`, ignoring all dependencies beyond the `terminate` condition.
+        /// Terminators themselves *are* included in the iteration.
+        pub fn new_filtered<F: Fn(&DrivenNet<I>) -> bool + 'static>(
+            netlist: &'a Netlist<I>,
+            from: DrivenNet<I>,
+            terminate: F,
+        ) -> Self {
             let mut s = Walk::new();
             s.push(from);
             Self {
@@ -2149,7 +2157,13 @@ pub mod iter {
                 visited: HashSet::new(),
                 any_cycle: false,
                 root_cycle: false,
+                terminate: Box::new(terminate),
             }
+        }
+
+        /// Create a new DFS DrivenNet iterator for the netlist starting at `from`.
+        pub fn new(netlist: &'a Netlist<I>, from: DrivenNet<I>) -> Self {
+            Self::new_filtered(netlist, from, |_| false)
         }
     }
 
@@ -2212,14 +2226,16 @@ pub mod iter {
                 let uw = item.clone().unwrap().unwrap().unwrap();
                 let index = uw.borrow().get_index();
                 if self.visited.insert(index) {
-                    let operands = &uw.borrow().operands;
-                    for operand in operands.iter().flatten() {
-                        let mut new_walk = walk.clone();
-                        new_walk.push(DrivenNet::new(
-                            operand.secondary(),
-                            NetRef::wrap(self.netlist.index_weak(&operand.root())),
-                        ));
-                        self.stacks.push(new_walk);
+                    if !(self.terminate)(item.as_ref().unwrap()) {
+                        let operands = &uw.borrow().operands;
+                        for operand in operands.iter().flatten() {
+                            let mut new_walk = walk.clone();
+                            new_walk.push(DrivenNet::new(
+                                operand.secondary(),
+                                NetRef::wrap(self.netlist.index_weak(&operand.root())),
+                            ));
+                            self.stacks.push(new_walk);
+                        }
                     }
                     return item;
                 }
