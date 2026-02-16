@@ -2707,6 +2707,63 @@ mod tests {
         assert!(dfs.detect_cycles());
         assert!(driven_dfs.detect_cycles());
     }
+
+    #[test]
+    fn test_netdfsiterator_with_boundary() {
+        let netlist = Netlist::new("dfs_netlist".to_string());
+
+        // inputs
+        let a = netlist.insert_input("a".into());
+        let b = netlist.insert_input("b".into());
+        let c = netlist.insert_input("c".into());
+        let d = netlist.insert_input("d".into());
+        let e = netlist.insert_input("e".into());
+
+        // gates
+        let n1 = netlist
+            .insert_gate(
+                Gate::new_logical("OR".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n1".into(),
+                &[a.clone(), b.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+        let n2 = netlist
+            .insert_gate(
+                Gate::new_logical("NOR".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n2".into(),
+                &[d.clone(), e.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+        let n3 = netlist
+            .insert_gate(
+                Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n3".into(),
+                &[n1.clone(), c.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+        let n4 = netlist
+            .insert_gate(
+                Gate::new_logical("NAND".into(), vec!["A".into(), "B".into()], "Y".into()),
+                "n4".into(),
+                &[n3.clone(), n2.clone()],
+            )
+            .unwrap()
+            .get_output(0);
+
+        // Stop DFS expansion at n3 to emulate a traversal boundary.
+        let n3_boundary = n3.clone();
+        let mut dfs =
+            NetDFSIterator::new_filtered(&netlist, n4.clone(), move |n| *n == n3_boundary);
+        assert_eq!(dfs.next(), Some(n4));
+        assert_eq!(dfs.next(), Some(n2));
+        assert_eq!(dfs.next(), Some(e));
+        assert_eq!(dfs.next(), Some(d));
+        assert_eq!(dfs.next(), Some(n3));
+        assert_eq!(dfs.next(), None);
+    }
 }
 #[cfg(feature = "serde")]
 /// Serde support for netlists
