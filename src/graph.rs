@@ -327,6 +327,16 @@ where
     pub fn get_graph(&self) -> &DiGraph<Node<I, String>, Edge<I, Net>> {
         &self.graph
     }
+
+    /// Iterates through a [greedy feedback arc set](https://doi.org/10.1016/0020-0190(93)90079-O) for the graph.
+    pub fn greedy_feedback_arcs(&self) -> impl Iterator<Item = Connection<I>> {
+        petgraph::algo::feedback_arc_set::greedy_feedback_arc_set(&self.graph)
+            .map(|e| match e.weight() {
+                Edge::Connection(c) => c,
+                _ => unreachable!("Outputs should be sinks"),
+            })
+            .cloned()
+    }
 }
 
 #[cfg(feature = "graph")]

@@ -142,6 +142,39 @@ fn test_petgraph() {
     // Outputs are a pseudo node
     assert_eq!(graph.node_count(), 4);
     assert_eq!(graph.edge_count(), 3);
+
+    // Ayclic graph should have no feedback arcs.
+    let mut arcs = petgraph.greedy_feedback_arcs();
+    assert!(arcs.next().is_none());
+}
+
+#[cfg(feature = "graph")]
+#[test]
+fn test_feedback_arcs() {
+    use safety_net::MultiDiGraph;
+
+    let netlist = divider_netlist();
+
+    let petgraph = netlist.get_analysis::<MultiDiGraph<_>>();
+    assert!(petgraph.is_ok());
+    let petgraph = petgraph.unwrap();
+
+    // Has exactly one arc
+    let mut arcs = petgraph.greedy_feedback_arcs();
+    let arc = arcs.next();
+    assert!(arc.is_some());
+    assert!(arcs.next().is_none());
+
+    // Disconnect the arc
+    let arc = arc.unwrap();
+    arc.target().disconnect();
+
+    // Should be acyclic now
+    let petgraph = netlist.get_analysis::<MultiDiGraph<_>>();
+    assert!(petgraph.is_ok());
+    let petgraph = petgraph.unwrap();
+    let mut arcs = petgraph.greedy_feedback_arcs();
+    assert!(arcs.next().is_none());
 }
 
 #[test]
