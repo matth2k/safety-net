@@ -2428,6 +2428,16 @@ where
     }
 
     #[cfg(feature = "graph")]
+    /// Converts the current configuration of the netlist to a graphviz string
+    pub fn dot_string(&self) -> Result<String, Error> {
+        use super::graph::MultiDiGraph;
+        let analysis = self.get_analysis::<MultiDiGraph<_>>()?;
+        let graph = analysis.get_graph();
+        let dot = petgraph::dot::Dot::with_config(graph, &[]);
+        Ok(dot.to_string())
+    }
+
+    #[cfg(feature = "graph")]
     /// Dumps the current netlist to <module_name>.dot in the current working directory.
     pub fn dump_dot(&self) -> std::io::Result<()> {
         use super::graph::MultiDiGraph;
