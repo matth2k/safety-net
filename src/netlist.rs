@@ -1303,12 +1303,46 @@ where
         Rc::try_unwrap(self).ok()
     }
 
+    /// Creates a deep clone of the netlist.
+    pub fn deep_clone(self: &Rc<Self>) -> Rc<Self> {
+        let dc = Rc::new(Self {
+            name: self.name.clone(),
+            objects: RefCell::new(Vec::new()),
+            outputs: self.outputs.clone(),
+        });
+
+        let objects_linked: Vec<NetRefT<I>> = self
+            .objects
+            .borrow()
+            .iter()
+            .map(|obj| {
+                Rc::new(RefCell::new(OwnedObject {
+                    object: obj.borrow().object.clone(),
+                    owner: Rc::downgrade(&dc),
+                    operands: obj.borrow().operands.clone(),
+                    attributes: obj.borrow().attributes.clone(),
+                    index: obj.borrow().index,
+                }))
+            })
+            .collect();
+
+        *dc.objects.borrow_mut() = objects_linked;
+
+        dc
+    }
+
     /// Use interior mutability to add an object to the netlist. Returns a mutable reference to the created object.
+    ///
+    /// # Panics
+    /// If any of the `operands` do not belong to this netlist.
     fn insert_object(
         self: &Rc<Self>,
         object: Object<I>,
         operands: &[DrivenNet<I>],
     ) -> Result<NetRef<I>, Error> {
+        for operand in operands {
+            self.belongs(&operand.clone().unwrap());
+        }
         let index = self.objects.borrow().len();
         let weak = Rc::downgrade(self);
         let operands = operands
@@ -1409,19 +1443,47 @@ where
         Ok(self.insert_gate_disconnected(obj, inst_name).into())
     }
 
+    /// # Panics
+    ///
+    /// Panics if `netref` definitely does not belong to this netlist.
+    fn belongs(&self, netref: &NetRef<I>) {
+        if let Some(nl) = netref.netref.borrow().owner.upgrade() {
+            if self.objects.borrow().len() != nl.objects.borrow().len() {
+                panic!("NetRef does not belong to this netlist");
+            }
+
+            if let Some(p) = self.objects.borrow().first()
+                && let Some(np) = nl.objects.borrow().first()
+                && !Rc::ptr_eq(p, np)
+            {
+                panic!("NetRef does not belong to this netlist");
+            }
+        }
+
+        if netref.netref.borrow().index >= self.objects.borrow().len() {
+            panic!("NetRef does not belong to this netlist");
+        }
+    }
+
     /// Returns the driving node at input position `index` for `netref`
     ///
     /// # Panics
     ///
     /// Panics if `index` is out of bounds
+    /// The `netref` does not belong to this netlist
     pub fn get_driver(&self, netref: NetRef<I>, index: usize) -> Option<NetRef<I>> {
+        self.belongs(&netref);
         let op = netref.unwrap().borrow().operands[index]?;
         Some(NetRef::wrap(self.index_weak(&op.root()).clone()))
     }
 
     /// Set an added object as a top-level output with a specific name.
     /// Multiple calls with different names for the same net will create multiple aliases.
+    ///
+    /// # Panics
+    /// The `net` does not belong to this netlist
     pub fn expose_net_with_name(&self, net: DrivenNet<I>, name: Identifier) -> DrivenNet<I> {
+        self.belongs(&net.clone().unwrap());
         let mut outputs = self.outputs.borrow_mut();
         let named_net = net.as_net().with_name(name);
         outputs
@@ -1432,7 +1494,11 @@ where
     }
 
     /// Sets the current net as a top-level output using the current name of the net
+    ///
+    /// # Panics
+    /// The `net` does not belong to this netlist
     pub fn expose_net(&self, net: DrivenNet<I>) -> Result<DrivenNet<I>, Error> {
+        self.belongs(&net.clone().unwrap());
         if net.is_an_input() {
             return Err(Error::InputNeedsAlias(net.as_net().clone()));
         }
@@ -1446,7 +1512,11 @@ where
 
     /// Removes a specific output alias by its operand and net name.
     /// Returns true if the output was removed, false if it didn't exist.
+    ///
+    /// # Panics
+    /// The `operand` does not belong to this netlist
     pub fn remove_output(&self, operand: &DrivenNet<I>, net_name: &Identifier) -> bool {
+        self.belongs(&operand.clone().unwrap());
         let mut outputs = self.outputs.borrow_mut();
         if let Some(nets) = outputs.get_mut(&operand.get_operand()) {
             // Create a net with just the identifier to match for removal
@@ -1479,7 +1549,11 @@ where
     }
 
     /// Unlink a circuit node from the rest of the netlist. Return the object that was being stored.
+    ///
+    /// # Panics
+    /// The `netref` does not belong to this netlist
     pub fn delete_net_uses(&self, netref: NetRef<I>) -> Result<Object<I>, Error> {
+        self.belongs(&netref);
         let unwrapped = netref.clone().unwrap();
         if Rc::strong_count(&unwrapped) > 3 {
             return Err(Error::DanglingReference(netref.nets().collect()));
@@ -1520,11 +1594,18 @@ where
     }
 
     /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
+    ///
+    /// # Panics
+    /// `of` or `with` do not belong to this netlist
     pub fn replace_net_uses(
         &self,
         of: DrivenNet<I>,
         with: &DrivenNet<I>,
     ) -> Result<Object<I>, Error> {
+        {
+            self.belongs(&of.clone().unwrap());
+            self.belongs(&with.clone().unwrap());
+        }
         let unwrapped = of.clone().unwrap().unwrap();
         let i = of.get_output_index();
         let k = with.get_output_index();
@@ -1658,7 +1739,11 @@ where
     }
 
     /// Returns `true` if an output of `netref` which is driving a module output.
+    ///
+    /// # Panics
+    /// The `netref` does not belong to this netlist
     pub fn drives_an_output(&self, netref: NetRef<I>) -> bool {
+        self.belongs(&netref);
         let my_index = netref.unwrap().borrow().get_index();
         for key in self.outputs.borrow().keys() {
             if key.root() == my_index {
@@ -2324,12 +2409,20 @@ where
     }
 
     /// Returns a depth-first search iterator over the nodes in the netlist.
+    ///
+    /// # Panics
+    /// `from` does not belong to this netlist
     pub fn node_dfs(&self, from: NetRef<I>) -> impl Iterator<Item = NetRef<I>> {
+        self.belongs(&from);
         iter::DFSIterator::new(self, from)
     }
 
     /// Returns a depth-first search iterator over the nodes in the netlist, with the nodes in DrivenNet form.
+    ///
+    /// # Panics
+    /// `from` does not belong to this netlist
     pub fn net_dfs(&self, from: DrivenNet<I>) -> impl Iterator<Item = DrivenNet<I>> {
+        self.belongs(&from.clone().unwrap());
         iter::NetDFSIterator::new(self, from)
     }
 

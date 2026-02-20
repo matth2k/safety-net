@@ -431,3 +431,19 @@ fn test_simple_example() {
     netlist.set_name("new_name".to_string());
     assert_eq!(netlist.get_name().clone(), "new_name");
 }
+
+#[test]
+fn test_deep_clone() {
+    let netlist = get_simple_example();
+    let clone = netlist.deep_clone();
+    assert_eq!(netlist.to_string(), clone.to_string());
+}
+
+#[test]
+#[should_panic(expected = "does not belong")]
+fn test_netlist_belongs() {
+    let netlist = get_simple_example();
+    let clone = netlist.deep_clone();
+    let gate = netlist.last().unwrap();
+    let _ = clone.delete_net_uses(gate);
+}
