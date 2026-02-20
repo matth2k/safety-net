@@ -1878,23 +1878,17 @@ where
         Ok(removed)
     }
 
-    /// Returns `true` if all the nets are uniquely named
-    fn nets_unique(&self) -> Result<(), Error> {
+    /// Returns `true` if all the nets/insts are uniquely named
+    fn nets_insts_unique(&self) -> Result<(), Error> {
         let mut nets = HashSet::new();
-        for net in self.into_iter() {
+        for net in self {
             if !nets.insert(net.clone().take_identifier()) {
                 return Err(Error::NonuniqueNets(vec![net]));
             }
         }
-        Ok(())
-    }
-
-    /// Returns `true` if all the nets are uniquely named
-    fn insts_unique(&self) -> Result<(), Error> {
-        let mut insts = HashSet::new();
         for inst in self.objects() {
             if let Some(name) = inst.get_instance_name()
-                && !insts.insert(name.clone())
+                && !nets.insert(name.clone())
             {
                 return Err(Error::NonuniqueInsts(vec![name]));
             }
@@ -1908,9 +1902,7 @@ where
             return Err(Error::NoOutputs);
         }
 
-        self.nets_unique()?;
-
-        self.insts_unique()?;
+        self.nets_insts_unique()?;
 
         Ok(())
     }
