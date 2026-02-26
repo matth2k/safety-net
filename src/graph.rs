@@ -337,6 +337,24 @@ where
             })
             .cloned()
     }
+
+    /// Returns all the circuit nodes sorted into their strongly connected components.
+    pub fn sccs(&self) -> Vec<Vec<NetRef<I>>> {
+        let mut res = Vec::new();
+        for scc in petgraph::algo::tarjan_scc(&self.graph) {
+            let c: Vec<NetRef<I>> = scc
+                .into_iter()
+                .filter_map(|i| match &self.graph[i] {
+                    Node::NetRef(nr) => Some(nr.clone()),
+                    _ => None,
+                })
+                .collect();
+            if !c.is_empty() {
+                res.push(c);
+            }
+        }
+        res
+    }
 }
 
 #[cfg(feature = "graph")]

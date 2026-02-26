@@ -165,6 +165,10 @@ fn test_feedback_arcs() {
     assert!(arc.is_some());
     assert!(arcs.next().is_none());
 
+    // The divider loop + input = 2 sccs
+    let sccs = petgraph.sccs();
+    assert_eq!(sccs.len(), 2);
+
     // Disconnect the arc
     let arc = arc.unwrap();
     arc.target().disconnect();
