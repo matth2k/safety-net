@@ -2691,8 +2691,8 @@ mod tests {
         // Make this AND gate an output
         let instance = instance.expose_as_output().unwrap();
         instance.delete_uses().unwrap();
-        // Cannot clean a netlist that is in a invalid state
-        assert!(netlist.clean().is_err());
+        // We can still clean this mostly empty netlist
+        assert!(netlist.clean().is_ok());
         input1.expose_with_name("an_output".into());
         assert!(netlist.clean().is_ok());
     }
