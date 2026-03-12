@@ -1796,18 +1796,19 @@ where
         self.verify()
     }
 
-    /// Cleans unused nodes from the netlist, returning `Ok(vec)` of the removed objects.
-    pub fn clean_once(&self) -> Result<Vec<Object<I>>, Error> {
+    /// Retains the [DrivenNet]s in `set`, given they are used. Otherwise, they are cleaned and returned in a `Ok(vec)`.
+    pub fn retain_once(&self, set: &mut HashSet<DrivenNet<I>>) -> Result<Vec<Object<I>>, Error> {
         let mut dead_objs = HashSet::new();
         {
             let fan_out = self.get_analysis::<FanOutTable<I>>()?;
             for obj in self.objects() {
                 let mut is_dead = true;
-                for net in obj.nets() {
+                for net in obj.outputs() {
                     // This should account for outputs
-                    if fan_out.net_has_uses(&net) {
+                    if fan_out.net_has_uses(&net.as_net()) {
                         is_dead = false;
-                        break;
+                    } else {
+                        set.remove(&net);
                     }
                 }
                 if is_dead && !obj.is_an_input() {
@@ -1866,14 +1867,25 @@ where
         Ok(removed)
     }
 
-    /// Greedly removes unused nodes from the netlist, until it stops changing.
+    /// Removes unused nodes from the netlist, until it stops changing.
     /// Returns `Ok(vec)` of the removed objects.
     pub fn clean(&self) -> Result<Vec<Object<I>>, Error> {
         let mut removed = Vec::new();
-        let mut r = self.clean_once()?;
+        let mut r = self.retain_once(&mut HashSet::new())?;
         while !r.is_empty() {
             removed.extend(r);
-            r = self.clean_once()?;
+            r = self.retain_once(&mut HashSet::new())?;
+        }
+        Ok(removed)
+    }
+
+    /// Retains the [DrivenNet]s in `set`, given they are used. Otherwise, they are cleaned and returned in a `Ok(vec)`.
+    pub fn retain(&self, set: &mut HashSet<DrivenNet<I>>) -> Result<Vec<Object<I>>, Error> {
+        let mut removed = Vec::new();
+        let mut r = self.retain_once(set)?;
+        while !r.is_empty() {
+            removed.extend(r);
+            r = self.retain_once(set)?;
         }
         Ok(removed)
     }

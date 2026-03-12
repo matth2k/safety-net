@@ -5,6 +5,7 @@ use safety_net::Net;
 use safety_net::Netlist;
 use safety_net::assert_verilog_eq;
 use safety_net::format_id;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 fn and_gate() -> Gate {
@@ -370,10 +371,35 @@ fn test_replace_gate_bad() {
             .replace_net_uses(and_gate.into(), &or_gate.into())
             .is_ok()
     );
-    // Both the AND and OR gate are driving the same wire name (subtle).
-    // The instance name has to be different, or the user has to manualy rename it.
+    // Both the AND and OR gate are driving the same wire name, because their instance names are the same.
+    // The instance name has to be different, or the user has to manually rename the net.
     // Will need to consider how to make this more user-friendly.
     assert!(netlist.clean().is_err());
+}
+
+#[test]
+fn test_retain() {
+    let netlist = get_simple_example();
+    let inputs = netlist.inputs().collect::<Vec<_>>();
+    let and_gate = netlist.last().unwrap().get_output(0);
+    let or_gate = Gate::new_logical("OR".into(), vec!["A".into(), "B".into()], "Y".into());
+    let or_gate = netlist
+        .insert_gate(or_gate, "inst_1".into(), &inputs)
+        .unwrap()
+        .get_output(0);
+    let mut set: HashSet<DrivenNet<Gate>> = HashSet::new();
+    set.insert(or_gate.clone());
+    assert!(netlist.replace_net_uses(and_gate, &or_gate).is_ok());
+
+    assert_eq!(set.len(), 1);
+
+    assert!(netlist.retain(&mut set).is_ok());
+    assert_eq!(set.len(), 1);
+
+    or_gate.remove_all_outputs();
+    set.insert(or_gate);
+    assert!(netlist.retain(&mut set).is_ok());
+    assert_eq!(set.len(), 0);
 }
 
 #[test]
