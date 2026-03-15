@@ -1,6 +1,6 @@
-use safety_net::CombDepthResult;
+use safety_net::Net;
+use safety_net::graph::{CombDepthResult, SimpleCombDepth};
 use safety_net::{Gate, GateNetlist, Netlist};
-use safety_net::{Net, SimpleCombDepth};
 use std::collections::HashMap;
 use std::rc::Rc;
 

@@ -1,6 +1,6 @@
-#[cfg(feature = "graph")]
-use safety_net::MultiDiGraph;
 use safety_net::format_id;
+#[cfg(feature = "graph")]
+use safety_net::graph::MultiDiGraph;
 use safety_net::{DrivenNet, Gate, Netlist};
 
 #[allow(dead_code)]

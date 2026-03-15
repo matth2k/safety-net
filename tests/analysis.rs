@@ -131,7 +131,7 @@ fn test_attr_filter() {
 #[cfg(feature = "graph")]
 #[test]
 fn test_petgraph() {
-    use safety_net::MultiDiGraph;
+    use safety_net::graph::MultiDiGraph;
 
     let netlist = get_simple_example();
 
@@ -151,7 +151,7 @@ fn test_petgraph() {
 #[cfg(feature = "graph")]
 #[test]
 fn test_feedback_arcs() {
-    use safety_net::MultiDiGraph;
+    use safety_net::graph::MultiDiGraph;
 
     let netlist = divider_netlist();
 
