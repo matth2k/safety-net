@@ -1,6 +1,6 @@
-use safety_net::CombDepthResult;
+use safety_net::Net;
+use safety_net::graph::{CombDepthInfo, CombDepthResult};
 use safety_net::{Gate, GateNetlist, Netlist};
-use safety_net::{Net, SimpleCombDepth};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -92,7 +92,7 @@ fn get_dag() -> (Rc<GateNetlist>, HashMap<Net, CombDepthResult>) {
 #[test]
 fn test_comb_loop() {
     let netlist = get_comb_loop();
-    let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>();
+    let depth_info = netlist.get_analysis::<CombDepthInfo<_>>();
 
     // Even though we have cycles, the combinational depth analysis should complete
     assert!(depth_info.is_ok());
@@ -116,7 +116,7 @@ fn test_comb_loop() {
 #[test]
 fn test_dag() {
     let (netlist, map) = get_dag();
-    let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>();
+    let depth_info = netlist.get_analysis::<CombDepthInfo<_>>();
 
     assert!(depth_info.is_ok());
     let depth_info = depth_info.unwrap();
@@ -133,7 +133,7 @@ fn test_dag() {
 #[test]
 fn test_comb_depth() {
     let netlist = get_simple_example();
-    let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>();
+    let depth_info = netlist.get_analysis::<CombDepthInfo<_>>();
     assert!(depth_info.is_ok());
     let depth_info = depth_info.unwrap();
 
@@ -169,7 +169,7 @@ fn test_comb_depth_dag_shared_subgraph() {
     or.expose_with_name("y".into());
     let or_node = netlist.last().unwrap();
 
-    let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+    let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
 
     assert_eq!(
         depth_info.get_comb_depth(&and).unwrap(),
@@ -180,6 +180,14 @@ fn test_comb_depth_dag_shared_subgraph() {
         CombDepthResult::Depth(2)
     );
     assert_eq!(depth_info.get_max_depth(), Some(2));
+
+    let p = depth_info.get_crit_input(&or_node);
+    assert!(p.is_some());
+
+    let p = depth_info.build_critical_path().unwrap();
+    assert!(p.len() == 2);
+    assert_eq!(p[0], or_node);
+    assert_eq!(p[1], and);
 }
 
 #[test]
@@ -197,7 +205,7 @@ fn test_comb_depth_incomplete() {
 
     and.expose_with_name("y".into());
 
-    let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+    let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
     let and_node = netlist.last().unwrap();
     assert_eq!(
         depth_info.get_comb_depth(&and_node).unwrap(),
@@ -222,7 +230,7 @@ fn test_comb_depth_cycle() {
 
     inv.expose_with_name("y".into());
 
-    let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+    let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
     let inv_node = netlist.last().unwrap();
 
     assert_eq!(

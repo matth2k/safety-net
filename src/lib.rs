@@ -17,7 +17,7 @@ The most important API is the [Netlist](https://matth2k.github.io/safety-net/saf
 mod attribute;
 mod circuit;
 mod error;
-mod graph;
+pub mod graph;
 mod logic;
 mod netlist;
 mod util;
@@ -25,4 +25,5 @@ mod util;
 #[cfg(feature = "derive")]
 pub use inst_derive::Instantiable;
 
-pub use {attribute::*, circuit::*, error::*, graph::*, logic::*, netlist::*};
+pub use graph::{Analysis, FanOutTable};
+pub use {attribute::*, circuit::*, error::*, logic::*, netlist::*};

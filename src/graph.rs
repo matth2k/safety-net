@@ -8,11 +8,12 @@ use crate::circuit::{Instantiable, Net};
 use crate::error::Error;
 #[cfg(feature = "graph")]
 use crate::netlist::Connection;
-use crate::netlist::{NetRef, Netlist};
+use crate::netlist::{InputPort, NetRef, Netlist};
 #[cfg(feature = "graph")]
 use petgraph::graph::DiGraph;
+use std::cmp::Reverse;
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// A common trait of analyses than can be performed on a netlist.
 /// An analysis becomes stale when the netlist is modified.
@@ -132,21 +133,55 @@ pub enum CombDepthResult {
 ///
 /// Each net is classified as having a defined depth, being undefined,
 /// or participating in a combinational cycle.
-pub struct SimpleCombDepth<'a, I: Instantiable> {
+pub struct CombDepthInfo<'a, I: Instantiable> {
     _netlist: &'a Netlist<I>,
+    /// The total distance from a sequential element
     results: HashMap<NetRef<I>, CombDepthResult>,
-    /// Max will be None whenever no outputs in the whole netlist have a well defined combinational depth
-    /// for example if they are all undefined or they all partake in a cycle
+    /// The critical predecessor to the node
+    critical_par: HashMap<NetRef<I>, InputPort<I>>,
+    /// Critical endpoints to build paths from
+    critical_ends: BinaryHeap<(Reverse<usize>, NetRef<I>)>,
+    /// Max will be `None` if the entire circuit is part of a combinational cycle or has undriven elements
     max_depth: Option<usize>,
 }
 
-impl<I> SimpleCombDepth<'_, I>
+impl<I> CombDepthInfo<'_, I>
 where
     I: Instantiable,
 {
+    /// Max number of critical endpoints to keep in the heap.
+    const SIZE_HEAP: usize = 10;
+
     /// Returns the logic level of a node in the circuit.
     pub fn get_comb_depth(&self, node: &NetRef<I>) -> Option<CombDepthResult> {
         self.results.get(node).copied()
+    }
+
+    /// Returns the critical input port
+    pub fn get_crit_input(&self, node: &NetRef<I>) -> Option<&InputPort<I>> {
+        self.critical_par.get(node)
+    }
+
+    /// Returns the most critical endpoints in the circuit
+    pub fn get_critical_points(&self) -> impl IntoIterator<Item = &NetRef<I>> {
+        let mut v = self.critical_ends.iter().collect::<Vec<_>>();
+        v.sort_by_key(|(d, _)| *d);
+        v.into_iter().map(|(_, n)| n)
+    }
+
+    /// Builds the most critical path
+    pub fn build_critical_path(&self) -> Option<Vec<NetRef<I>>> {
+        let mut path = Vec::new();
+        let mut current = self.get_critical_points().into_iter().next()?.clone();
+        while let Some(crit) = self.critical_par.get(&current) {
+            path.push(current.clone());
+            current = self
+                ._netlist
+                .get_driver(current, crit.get_input_num())
+                .unwrap();
+        }
+        path.push(current);
+        Some(path)
     }
 
     /// Returns the maximum logic level of the circuit.
@@ -154,12 +189,15 @@ where
         self.max_depth
     }
 }
-impl<'a, I> Analysis<'a, I> for SimpleCombDepth<'a, I>
+
+impl<'a, I> Analysis<'a, I> for CombDepthInfo<'a, I>
 where
     I: Instantiable,
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
         let mut results: HashMap<NetRef<I>, CombDepthResult> = HashMap::new();
+        let mut critical_par: HashMap<NetRef<I>, InputPort<I>> = HashMap::new();
+        let mut critical_ends: BinaryHeap<(_, NetRef<I>)> = BinaryHeap::new();
         let mut visiting: HashSet<NetRef<I>> = HashSet::new();
         let mut max_depth: Option<usize> = None;
 
@@ -167,6 +205,8 @@ where
             node: NetRef<I>,
             netlist: &Netlist<I>,
             results: &mut HashMap<NetRef<I>, CombDepthResult>,
+            critical_par: &mut HashMap<NetRef<I>, InputPort<I>>,
+            critical_ends: &mut BinaryHeap<(Reverse<usize>, NetRef<I>)>,
             visiting: &mut HashSet<NetRef<I>>,
         ) -> CombDepthResult {
             // Memoized result
@@ -192,6 +232,7 @@ where
             visiting.insert(node.clone());
 
             let mut max_depth = 0;
+            let mut crit: Option<InputPort<I>> = None;
             let mut is_undefined = false;
 
             for i in 0..node.get_num_input_ports() {
@@ -209,9 +250,19 @@ where
                     continue;
                 }
 
-                match compute(driver, netlist, results, visiting) {
+                match compute(
+                    driver,
+                    netlist,
+                    results,
+                    critical_par,
+                    critical_ends,
+                    visiting,
+                ) {
                     CombDepthResult::Depth(d) => {
-                        max_depth = max_depth.max(d);
+                        if d > max_depth {
+                            max_depth = d;
+                            crit = Some(node.get_input(i));
+                        }
                     }
                     CombDepthResult::Undefined => {
                         is_undefined = true;
@@ -229,7 +280,15 @@ where
             let r = if is_undefined {
                 CombDepthResult::Undefined
             } else {
-                CombDepthResult::Depth(max_depth + 1)
+                if let Some(crit) = crit {
+                    critical_par.insert(node.clone(), crit);
+                }
+                let d = max_depth + 1;
+                critical_ends.push((Reverse(d), node.clone()));
+                if critical_ends.len() > CombDepthInfo::<I>::SIZE_HEAP {
+                    critical_ends.pop();
+                }
+                CombDepthResult::Depth(d)
             };
             results.insert(node.clone(), r);
             r
@@ -237,7 +296,14 @@ where
 
         for (driven, _) in netlist.outputs() {
             let node = driven.unwrap();
-            let r = compute(node, netlist, &mut results, &mut visiting);
+            let r = compute(
+                node,
+                netlist,
+                &mut results,
+                &mut critical_par,
+                &mut critical_ends,
+                &mut visiting,
+            );
 
             if let CombDepthResult::Depth(d) = r {
                 max_depth = Some(max_depth.map_or(d, |m| m.max(d)));
@@ -252,7 +318,14 @@ where
                         continue;
                     }
 
-                    let r = compute(driver, netlist, &mut results, &mut visiting);
+                    let r = compute(
+                        driver,
+                        netlist,
+                        &mut results,
+                        &mut critical_par,
+                        &mut critical_ends,
+                        &mut visiting,
+                    );
                     if let CombDepthResult::Depth(d) = r {
                         max_depth = Some(max_depth.map_or(d, |m| m.max(d)));
                     }
@@ -260,9 +333,11 @@ where
             }
         }
 
-        Ok(SimpleCombDepth {
+        Ok(CombDepthInfo {
             _netlist: netlist,
             results,
+            critical_par,
+            critical_ends,
             max_depth,
         })
     }
