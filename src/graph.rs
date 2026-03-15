@@ -180,12 +180,8 @@ where
                 .get_driver(current, crit.get_input_num())
                 .unwrap();
         }
-        if path.is_empty() {
-            None
-        } else {
-            path.reverse();
-            Some(path)
-        }
+        path.push(current);
+        Some(path)
     }
 
     /// Returns the maximum logic level of the circuit.

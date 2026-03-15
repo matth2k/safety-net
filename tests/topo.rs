@@ -180,6 +180,14 @@ fn test_comb_depth_dag_shared_subgraph() {
         CombDepthResult::Depth(2)
     );
     assert_eq!(depth_info.get_max_depth(), Some(2));
+
+    let p = depth_info.get_crit_input(&or_node);
+    assert!(p.is_some());
+
+    let p = depth_info.build_critical_path().unwrap();
+    assert!(p.len() == 2);
+    assert_eq!(p[0], or_node);
+    assert_eq!(p[1], and);
 }
 
 #[test]

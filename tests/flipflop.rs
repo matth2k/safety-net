@@ -4,7 +4,8 @@
 #[cfg(feature = "derive")]
 mod flipflop {
     use bitvec::vec::BitVec;
-    use safety_net::{CombDepthResult, Gate, Netlist, SimpleCombDepth, dont_care, format_id};
+    use safety_net::graph::{CombDepthResult, SimpleCombDepth};
+    use safety_net::{Gate, Netlist, dont_care, format_id};
     use safety_net::{Identifier, Instantiable, Logic, Net, Parameter};
 
     #[derive(Debug, Clone, PartialEq, Eq)]
