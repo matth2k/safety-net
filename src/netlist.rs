@@ -1044,6 +1044,11 @@ where
     pub fn unwrap(self) -> NetRef<I> {
         self.netref
     }
+
+    /// Returns the index associated with this input port
+    pub fn get_input_num(&self) -> usize {
+        self.pos
+    }
 }
 
 impl<I> std::fmt::Display for InputPort<I>
