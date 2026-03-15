@@ -4,7 +4,7 @@
 #[cfg(feature = "derive")]
 mod flipflop {
     use bitvec::vec::BitVec;
-    use safety_net::graph::{CombDepthResult, SimpleCombDepth};
+    use safety_net::graph::{CombDepthInfo, CombDepthResult};
     use safety_net::{Gate, Netlist, dont_care, format_id};
     use safety_net::{Identifier, Instantiable, Logic, Net, Parameter};
 
@@ -525,7 +525,7 @@ mod flipflop {
         netlist.last().unwrap().expose_with_name("y".into());
 
         // === run analysis ===
-        let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+        let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
 
         // BEFORE reg1
         assert_eq!(
@@ -621,7 +621,7 @@ mod flipflop {
         assert!(netlist.verify().is_ok());
 
         // === run comb depth analysis ===
-        let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+        let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
 
         // inverter is combinational depth 1
         assert_eq!(
@@ -697,7 +697,7 @@ mod flipflop {
 
         assert!(netlist.verify().is_ok());
 
-        let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+        let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
 
         assert_eq!(
             depth_info.get_comb_depth(&inv1),
@@ -769,7 +769,7 @@ mod flipflop {
         inv_in.disconnect();
 
         // === run comb depth analysis ===
-        let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+        let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
 
         // inverter is combinational depth 1
         assert_eq!(
@@ -847,7 +847,7 @@ mod flipflop {
         let and_in1 = and2.get_input(0);
         and_in1.disconnect();
 
-        let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+        let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
 
         assert_eq!(
             depth_info.get_comb_depth(&inv1),
@@ -941,7 +941,7 @@ mod flipflop {
         let broken_input = and2.get_input(1);
         broken_input.disconnect();
 
-        let depth_info = netlist.get_analysis::<SimpleCombDepth<_>>().unwrap();
+        let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
 
         assert_eq!(
             depth_info.get_comb_depth(&and1),

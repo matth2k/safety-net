@@ -133,7 +133,7 @@ pub enum CombDepthResult {
 ///
 /// Each net is classified as having a defined depth, being undefined,
 /// or participating in a combinational cycle.
-pub struct SimpleCombDepth<'a, I: Instantiable> {
+pub struct CombDepthInfo<'a, I: Instantiable> {
     _netlist: &'a Netlist<I>,
     /// The total distance from a sequential element
     results: HashMap<NetRef<I>, CombDepthResult>,
@@ -145,7 +145,7 @@ pub struct SimpleCombDepth<'a, I: Instantiable> {
     max_depth: Option<usize>,
 }
 
-impl<I> SimpleCombDepth<'_, I>
+impl<I> CombDepthInfo<'_, I>
 where
     I: Instantiable,
 {
@@ -190,7 +190,7 @@ where
     }
 }
 
-impl<'a, I> Analysis<'a, I> for SimpleCombDepth<'a, I>
+impl<'a, I> Analysis<'a, I> for CombDepthInfo<'a, I>
 where
     I: Instantiable,
 {
@@ -285,7 +285,7 @@ where
                 }
                 let d = max_depth + 1;
                 critical_ends.push((Reverse(d), node.clone()));
-                if critical_ends.len() > SimpleCombDepth::<I>::SIZE_HEAP {
+                if critical_ends.len() > CombDepthInfo::<I>::SIZE_HEAP {
                     critical_ends.pop();
                 }
                 CombDepthResult::Depth(d)
@@ -333,7 +333,7 @@ where
             }
         }
 
-        Ok(SimpleCombDepth {
+        Ok(CombDepthInfo {
             _netlist: netlist,
             results,
             critical_par,
