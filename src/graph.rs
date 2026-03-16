@@ -311,6 +311,14 @@ where
         }
 
         for node in netlist.matches(|inst| inst.is_seq()) {
+            compute(
+                node.clone(),
+                netlist,
+                &mut results,
+                &mut critical_par,
+                &mut critical_ends,
+                &mut visiting,
+            );
             for i in 0..node.get_num_input_ports() {
                 if let Some(driver) = netlist.get_driver(node.clone(), i) {
                     if driver.get_instance_type().is_some_and(|inst| inst.is_seq()) {
