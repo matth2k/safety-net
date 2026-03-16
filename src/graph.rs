@@ -222,8 +222,8 @@ where
                 return CombDepthResult::CombCycle;
             }
 
-            // Input nodes have depth 0
-            if node.is_an_input() {
+            // Input nodes and reg have depth 0
+            if node.is_an_input() || node.get_instance_type().is_some_and(|inst| inst.is_seq()) {
                 let r = CombDepthResult::Depth(0);
                 results.insert(node.clone(), r);
                 return r;
@@ -311,7 +311,6 @@ where
         }
 
         for node in netlist.matches(|inst| inst.is_seq()) {
-            results.insert(node.clone(), CombDepthResult::Depth(0));
             for i in 0..node.get_num_input_ports() {
                 if let Some(driver) = netlist.get_driver(node.clone(), i) {
                     if driver.get_instance_type().is_some_and(|inst| inst.is_seq()) {
