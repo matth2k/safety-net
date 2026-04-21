@@ -41,4 +41,7 @@ pub enum Error {
     /// A net that was expected but not found
     #[error("Expected to find net {0} in netlist")]
     NetNotFound(Net),
+    /// A connection does not type check
+    #[error("Connection does not type check: {0}")]
+    TypeError(Net),
 }
