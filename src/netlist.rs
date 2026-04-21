@@ -2447,17 +2447,97 @@ where
     #[cfg(feature = "graph")]
     /// Converts the current configuration of the netlist to a graphviz string
     pub fn dot_string(&self) -> Result<String, Error> {
-        use super::graph::MultiDiGraph;
+        use super::graph::{Edge, MultiDiGraph, Node};
+        use petgraph::dot::{Config, Dot};
+        use petgraph::graph::{DiGraph, EdgeReference, NodeIndex};
         let analysis = self.get_analysis::<MultiDiGraph<_>>()?;
         let graph = analysis.get_graph();
-        let dot = petgraph::dot::Dot::with_config(graph, &[]);
-        Ok(dot.to_string())
+
+        fn node_impl<I: Instantiable>(
+            _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+            node: (NodeIndex, &Node<I, String>),
+        ) -> String {
+            let n = node.1;
+            let mut attr = String::new();
+
+            match n {
+                Node::NetRef(nr) if nr.get_instance_type().is_some() => attr += "shape=record, ",
+                _ => attr += "shape=circle, ",
+            }
+
+            match n {
+                Node::NetRef(nr) if let Some(inst_type) = nr.get_instance_type() => {
+                    let mut record = "{ { ".to_string();
+
+                    let l = nr.get_num_input_ports();
+                    for (i, port) in nr.inputs().enumerate() {
+                        let id = port.get_port().get_identifier().clone();
+                        record += &format!("{{ <{}> {} }}", id, id);
+
+                        if i != l - 1 {
+                            record += " | ";
+                        }
+                    }
+
+                    record += &format!(
+                        " }} | {}({}) }}",
+                        inst_type.get_name(),
+                        nr.get_instance_name().unwrap()
+                    );
+                    attr += &format!("label=\"{record}\"");
+                }
+                _ => attr += &format!("label=\"{n}\""),
+            }
+
+            attr
+        }
+
+        fn edge_impl<I: Instantiable>(
+            _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+            edge: EdgeReference<Edge<I, Net>>,
+        ) -> String {
+            match edge.weight() {
+                Edge::Connection(c) => {
+                    format!(", port=\"{}\"", c.target().get_port().get_identifier())
+                }
+                _ => String::new(),
+            }
+        }
+
+        let dot = Dot::with_attr_getters(
+            graph,
+            &[Config::NodeNoLabel],
+            &edge_impl::<I>,
+            &node_impl::<I>,
+        );
+
+        // Post-process to add port specifiers to the edges.
+        let mut result = String::new();
+        for line in dot.to_string().lines() {
+            if line.contains("->") && line.contains("port=") {
+                let port = line
+                    .split("port=\"")
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap();
+                let (l, r) = line.split_once("->").unwrap();
+                let (l, r) = (l, r.trim());
+                let (d, r) = r.split_once(" ").unwrap();
+                result += &format!("{l}-> {d}:{port} {r}\n");
+            } else {
+                result += line;
+                result += "\n";
+            }
+        }
+
+        Ok(result)
     }
 
     #[cfg(feature = "graph")]
     /// Dumps the current netlist to <module_name>.dot in the current working directory.
     pub fn dump_dot(&self) -> std::io::Result<()> {
-        use super::graph::MultiDiGraph;
         use std::io::Write;
         let mut dir = std::env::current_dir()?;
         let mod_name = format!("{}.dot", self.get_name());
@@ -2466,9 +2546,7 @@ where
         if let Err(e) = self.verify() {
             write!(file, "Netlist verification failed: {e}")
         } else {
-            let analysis = self.get_analysis::<MultiDiGraph<_>>().unwrap();
-            let graph = analysis.get_graph();
-            let dot = petgraph::dot::Dot::with_config(graph, &[]);
+            let dot = self.dot_string().unwrap();
             write!(file, "{dot}")
         }
     }
@@ -2497,7 +2575,7 @@ where
         }
 
         // Flatten the outputs to collect all (operand, net) pairs
-        let all_outputs: Vec<_> = outputs.iter().flat_map(|(_, nets)| nets.iter()).collect();
+        let all_outputs: Vec<_> = outputs.values().flat_map(|nets| nets.iter()).collect();
         for (i, net) in all_outputs.iter().enumerate() {
             if i == all_outputs.len() - 1 {
                 writeln!(f, "{}{}", indent, net.get_identifier().emit_name())?;
