@@ -2474,7 +2474,7 @@ where
 
             match n {
                 Node::NetRef(nr) if nr.get_instance_type().is_some() => attr += "shape=record, ",
-                _ => attr += "shape=circle, ",
+                _ => attr += "shape=ellipse, ",
             }
 
             match n {
