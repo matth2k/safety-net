@@ -1913,6 +1913,17 @@ where
         Ok(())
     }
 
+    fn connections_type_check(&self) -> Result<(), Error> {
+        for conn in self.connections() {
+            let target = *conn.target().get_port().get_type();
+            let source = *conn.src().as_net().get_type();
+            if target != source {
+                return Err(Error::TypeError(conn.src().as_net().clone()));
+            }
+        }
+        Ok(())
+    }
+
     /// Verifies that a netlist is well-formed.
     pub fn verify(&self) -> Result<(), Error> {
         if self.outputs.borrow().is_empty() {
@@ -1920,6 +1931,7 @@ where
         }
 
         self.nets_insts_unique()?;
+        self.connections_type_check()?;
 
         Ok(())
     }
@@ -2466,7 +2478,10 @@ where
             }
 
             match n {
-                Node::NetRef(nr) if let Some(inst_type) = nr.get_instance_type() => {
+                Node::NetRef(nr)
+                    if let Some(inst_type) = nr.get_instance_type()
+                        && !inst_type.is_driverless() =>
+                {
                     let mut record = "{ { ".to_string();
 
                     let l = nr.get_num_input_ports();
