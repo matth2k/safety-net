@@ -2493,7 +2493,7 @@ where
         }
 
         fn edge_impl<I: Instantiable>(
-            graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+            _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
             edge: EdgeReference<Edge<I, Net>>,
         ) -> String {
             String::new()
@@ -2548,7 +2548,7 @@ where
         }
 
         // Flatten the outputs to collect all (operand, net) pairs
-        let all_outputs: Vec<_> = outputs.iter().flat_map(|(_, nets)| nets.iter()).collect();
+        let all_outputs: Vec<_> = outputs.values().flat_map(|nets| nets.iter()).collect();
         for (i, net) in all_outputs.iter().enumerate() {
             if i == all_outputs.len() - 1 {
                 writeln!(f, "{}{}", indent, net.get_identifier().emit_name())?;
