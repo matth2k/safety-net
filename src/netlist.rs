@@ -2447,17 +2447,33 @@ where
     #[cfg(feature = "graph")]
     /// Converts the current configuration of the netlist to a graphviz string
     pub fn dot_string(&self) -> Result<String, Error> {
-        use super::graph::MultiDiGraph;
+        use super::graph::{Edge, MultiDiGraph, Node};
+        use petgraph::graph::{DiGraph, EdgeReference, NodeIndex};
         let analysis = self.get_analysis::<MultiDiGraph<_>>()?;
         let graph = analysis.get_graph();
-        let dot = petgraph::dot::Dot::with_config(graph, &[]);
+
+        fn edge_impl<I: Instantiable>(
+            graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+            edge: EdgeReference<Edge<I, Net>>,
+        ) -> String {
+            "todo".to_string()
+        }
+
+        fn node_impl<I: Instantiable>(
+            graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+            node: (NodeIndex, &Node<I, String>),
+        ) -> String {
+            "todo".to_string()
+        }
+
+        let dot =
+            petgraph::dot::Dot::with_attr_getters(graph, &[], &edge_impl::<I>, &node_impl::<I>);
         Ok(dot.to_string())
     }
 
     #[cfg(feature = "graph")]
     /// Dumps the current netlist to <module_name>.dot in the current working directory.
     pub fn dump_dot(&self) -> std::io::Result<()> {
-        use super::graph::MultiDiGraph;
         use std::io::Write;
         let mut dir = std::env::current_dir()?;
         let mod_name = format!("{}.dot", self.get_name());
@@ -2466,9 +2482,7 @@ where
         if let Err(e) = self.verify() {
             write!(file, "Netlist verification failed: {e}")
         } else {
-            let analysis = self.get_analysis::<MultiDiGraph<_>>().unwrap();
-            let graph = analysis.get_graph();
-            let dot = petgraph::dot::Dot::with_config(graph, &[]);
+            let dot = self.dot_string().unwrap();
             write!(file, "{dot}")
         }
     }
