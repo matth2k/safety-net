@@ -504,7 +504,7 @@ mod tests {
         let b = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
         let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
 
-        for (i, (a, b)) in a.into_iter().zip(b.into_iter()).enumerate() {
+        for (i, (a, b)) in a.into_iter().zip(b).enumerate() {
             // Instantiate a full adder for each bit
             let fa = netlist
                 .insert_gate(full_adder(), format_id!("fa_{i}"), &[carry, a, b])
