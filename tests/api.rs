@@ -116,13 +116,12 @@ fn test_get_input() {
 
     // TODO(matth2k):Eventually need to add type checking in this style
     let d0 = *last_fa.get_input(0).get_port().get_type();
-    let d1 = last_fa
+    let d1 = *last_fa
         .get_input(0)
         .get_driver()
         .unwrap()
         .as_net()
-        .get_type()
-        .clone();
+        .get_type();
     assert_eq!(d0, d1);
 }
 
