@@ -2496,7 +2496,12 @@ where
             _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
             edge: EdgeReference<Edge<I, Net>>,
         ) -> String {
-            String::new()
+            match edge.weight() {
+                Edge::Connection(c) => {
+                    format!(", port=\"{}\"", c.target().get_port().get_identifier())
+                }
+                _ => String::new(),
+            }
         }
 
         let dot = Dot::with_attr_getters(
@@ -2505,7 +2510,29 @@ where
             &edge_impl::<I>,
             &node_impl::<I>,
         );
-        Ok(dot.to_string())
+
+        // Post-process to add port specifiers to the edges.
+        let mut result = String::new();
+        for line in dot.to_string().lines() {
+            if line.contains("->") && line.contains("port=") {
+                let port = line
+                    .split("port=\"")
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap();
+                let (l, r) = line.split_once("->").unwrap();
+                let (l, r) = (l, r.trim());
+                let (d, r) = r.split_once(" ").unwrap();
+                result += &format!("{l}-> {d}:{port} {r}\n");
+            } else {
+                result += line;
+                result += "\n";
+            }
+        }
+
+        Ok(result)
     }
 
     #[cfg(feature = "graph")]
