@@ -107,6 +107,26 @@ fn test_io() {
 }
 
 #[test]
+fn test_get_input() {
+    let netlist = ripple_adder();
+    let last_fa = netlist.last().unwrap();
+    let d0 = last_fa.get_driver(0).unwrap();
+    let d1 = last_fa.get_input(0).get_driver().unwrap().unwrap();
+    assert_eq!(d0, d1);
+
+    // TODO(matth2k):Eventually need to add type checking in this style
+    let d0 = last_fa.get_input(0).get_port().get_type().clone();
+    let d1 = last_fa
+        .get_input(0)
+        .get_driver()
+        .unwrap()
+        .as_net()
+        .get_type()
+        .clone();
+    assert_eq!(d0, d1);
+}
+
+#[test]
 #[should_panic(expected = "Attempt to grab the net of a multi-output instance")]
 fn test_bad_access_1() {
     let netlist = ripple_adder();
