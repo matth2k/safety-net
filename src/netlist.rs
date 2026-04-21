@@ -2467,11 +2467,7 @@ where
 
             match n {
                 Node::NetRef(nr) if let Some(inst_type) = nr.get_instance_type() => {
-                    let mut record = format!(
-                        "{{ {}({}) | ",
-                        inst_type.get_name(),
-                        nr.get_instance_name().unwrap()
-                    );
+                    let mut record = "{ { ".to_string();
 
                     let l = nr.get_num_input_ports();
                     for (i, port) in nr.inputs().enumerate() {
@@ -2483,7 +2479,11 @@ where
                         }
                     }
 
-                    record += "}";
+                    record += &format!(
+                        " }} | {}({}) }}",
+                        inst_type.get_name(),
+                        nr.get_instance_name().unwrap()
+                    );
                     attr += &format!("label=\"{record}\"");
                 }
                 _ => attr += &format!("label=\"{n}\""),

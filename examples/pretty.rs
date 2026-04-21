@@ -11,6 +11,15 @@ fn nor() -> Gate {
 }
 
 #[allow(dead_code)]
+fn nor3() -> Gate {
+    Gate::new_logical(
+        "NOR3".into(),
+        vec!["A".into(), "B".into(), "C".into()],
+        "Y".into(),
+    )
+}
+
+#[allow(dead_code)]
 fn inv() -> Gate {
     Gate::new_logical("INV".into(), vec!["A".into()], "Y".into())
 }
@@ -24,10 +33,13 @@ fn circuit() -> Netlist<Gate> {
     let and = netlist.insert_gate(and(), "and_0".into(), &[a, b]).unwrap();
     let c = netlist.insert_input("c".into());
     let nor = netlist
-        .insert_gate(nor(), "nor_0".into(), &[and.into(), c])
+        .insert_gate(nor(), "nor_0".into(), &[and.clone().into(), c.clone()])
+        .unwrap();
+    let nor3 = netlist
+        .insert_gate(nor3(), "nor3_0".into(), &[and.into(), c, nor.into()])
         .unwrap();
 
-    nor.expose_as_output().unwrap();
+    nor3.expose_as_output().unwrap();
 
     netlist.reclaim().unwrap()
 }
