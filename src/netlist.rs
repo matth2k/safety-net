@@ -2448,26 +2448,63 @@ where
     /// Converts the current configuration of the netlist to a graphviz string
     pub fn dot_string(&self) -> Result<String, Error> {
         use super::graph::{Edge, MultiDiGraph, Node};
+        use petgraph::dot::{Config, Dot};
         use petgraph::graph::{DiGraph, EdgeReference, NodeIndex};
         let analysis = self.get_analysis::<MultiDiGraph<_>>()?;
         let graph = analysis.get_graph();
+
+        fn node_impl<I: Instantiable>(
+            _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+            node: (NodeIndex, &Node<I, String>),
+        ) -> String {
+            let n = node.1;
+            let mut attr = String::new();
+
+            match n {
+                Node::NetRef(nr) if nr.get_instance_type().is_some() => attr += "shape=record, ",
+                _ => attr += "shape=circle, ",
+            }
+
+            match n {
+                Node::NetRef(nr) if let Some(inst_type) = nr.get_instance_type() => {
+                    let mut record = format!(
+                        "{{ {}({}) | ",
+                        inst_type.get_name(),
+                        nr.get_instance_name().unwrap()
+                    );
+
+                    let l = nr.get_num_input_ports();
+                    for (i, port) in nr.inputs().enumerate() {
+                        let id = port.get_port().get_identifier().clone();
+                        record += &format!("{{ <{}> {} }}", id, id);
+
+                        if i != l - 1 {
+                            record += " | ";
+                        }
+                    }
+
+                    record += "}";
+                    attr += &format!("label=\"{record}\"");
+                }
+                _ => attr += &format!("label=\"{n}\""),
+            }
+
+            attr
+        }
 
         fn edge_impl<I: Instantiable>(
             graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
             edge: EdgeReference<Edge<I, Net>>,
         ) -> String {
-            "todo".to_string()
+            String::new()
         }
 
-        fn node_impl<I: Instantiable>(
-            graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
-            node: (NodeIndex, &Node<I, String>),
-        ) -> String {
-            "todo".to_string()
-        }
-
-        let dot =
-            petgraph::dot::Dot::with_attr_getters(graph, &[], &edge_impl::<I>, &node_impl::<I>);
+        let dot = Dot::with_attr_getters(
+            graph,
+            &[Config::NodeNoLabel],
+            &edge_impl::<I>,
+            &node_impl::<I>,
+        );
         Ok(dot.to_string())
     }
 
