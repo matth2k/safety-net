@@ -1,45 +1,47 @@
-use safety_net::{Gate, Netlist};
+use safety_net::format_id;
+use safety_net::{DrivenNet, Gate, Netlist};
 
 #[allow(dead_code)]
-fn and() -> Gate {
-    Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into())
-}
-
-#[allow(dead_code)]
-fn nor() -> Gate {
-    Gate::new_logical("NOR".into(), vec!["A".into(), "B".into()], "Y".into())
-}
-
-#[allow(dead_code)]
-fn nor3() -> Gate {
-    Gate::new_logical(
-        "NOR3".into(),
-        vec!["A".into(), "B".into(), "C".into()],
-        "Y".into(),
+fn full_adder() -> Gate {
+    Gate::new_logical_multi(
+        "FA".into(),
+        vec!["CIN".into(), "A".into(), "B".into()],
+        vec!["S".into(), "COUT".into()],
     )
 }
 
 #[allow(dead_code)]
-fn inv() -> Gate {
-    Gate::new_logical("INV".into(), vec!["A".into()], "Y".into())
-}
+fn ripple_adder() -> Netlist<Gate> {
+    let netlist = Netlist::new("ripple_adder".to_string());
+    let bitwidth = 4;
 
-#[allow(dead_code)]
-fn circuit() -> Netlist<Gate> {
-    let netlist = Netlist::new("circuit".to_string());
+    // Add the the inputs
+    let a_vec = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
+    let b_vec = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
+    let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
 
-    let a = netlist.insert_input("a".into());
-    let b = netlist.insert_input("b".into());
-    let and = netlist.insert_gate(and(), "and_0".into(), &[a, b]).unwrap();
-    let c = netlist.insert_input("c".into());
-    let nor = netlist
-        .insert_gate(nor(), "nor_0".into(), &[and.clone().into(), c.clone()])
-        .unwrap();
-    let nor3 = netlist
-        .insert_gate(nor3(), "nor3_0".into(), &[and.into(), c, nor.into()])
-        .unwrap();
+    for i in 0..bitwidth {
+        // Instantiate a full adder for each bit
+        let fa = netlist.insert_gate_disconnected(full_adder(), format_id!("fa_{i}"));
 
-    nor3.expose_as_output().unwrap();
+        // Connect A_i and B_i
+        fa.get_input(1).connect(a_vec[i].clone());
+        fa.get_input(2).connect(b_vec[i].clone());
+
+        // Connect with the prev carry
+        carry.connect(fa.get_input(0));
+
+        // Expose the sum
+        fa.expose_net(&fa.get_net(0)).unwrap();
+
+        carry = fa.get_output(1);
+
+        if i == bitwidth - 1 {
+            // Last full adder, expose the carry out
+            fa.get_net_mut(1).set_identifier("cout".into());
+            fa.expose_net(&fa.get_net(1)).unwrap();
+        }
+    }
 
     netlist.reclaim().unwrap()
 }
@@ -47,7 +49,8 @@ fn circuit() -> Netlist<Gate> {
 fn main() {
     #[cfg(feature = "graph")]
     {
-        let netlist = circuit();
+        let netlist = ripple_adder();
+        eprintln!("{netlist}");
         println!("{}", netlist.dot_string().unwrap());
     }
 }
