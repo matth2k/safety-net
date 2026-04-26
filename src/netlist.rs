@@ -2495,10 +2495,26 @@ where
                     }
 
                     record += &format!(
-                        " }} | {}({}) }}",
+                        " }} | {}({}) ",
                         inst_type.get_name(),
                         nr.get_instance_name().unwrap()
                     );
+
+                    let l = inst_type.get_output_ports().into_iter().count();
+                    if l > 0 {
+                        record += "| { ";
+                        for (i, port) in nr.outputs().enumerate() {
+                            let id = port.get_port().get_identifier().clone();
+                            record += &format!("{{ <{}> {} }}", id, id);
+
+                            if i != l - 1 {
+                                record += " | ";
+                            }
+                        }
+                        record += " } ";
+                    }
+
+                    record += "}";
                     attr += &format!("label=\"{record}\"");
                 }
                 _ => attr += &format!("label=\"{n}\""),
@@ -2513,7 +2529,16 @@ where
         ) -> String {
             match edge.weight() {
                 Edge::Connection(c) => {
-                    format!(", port=\"{}\"", c.target().get_port().get_identifier())
+                    let dst = c.target().get_port().get_identifier().clone();
+                    let src = c.src();
+                    if let Some(inst_type) = src.get_instance_type()
+                        && inst_type.get_output_ports().into_iter().count() > 1
+                    {
+                        let src = c.src().get_port().get_identifier().clone();
+                        format!(", driver=\"{src}\", port=\"{dst}\"")
+                    } else {
+                        format!(", port=\"{dst}\"")
+                    }
                 }
                 _ => String::new(),
             }
