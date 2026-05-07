@@ -857,14 +857,16 @@ where
     ///
     /// Panics if either `self` is a multi-output circuit node.
     /// Panics if the weak reference to the netlist is lost.
-    pub fn replace_uses_with(self, other: &DrivenNet<I>) -> Result<Object<I>, Error> {
+    pub fn replace_uses_with(self, other: &DrivenNet<I>) -> Result<NetRef<I>, Error> {
         let netlist = self
             .netref
             .borrow()
             .owner
             .upgrade()
             .expect("NetRef is unlinked from netlist");
-        netlist.replace_net_uses(self.into(), other)
+        netlist
+            .replace_net_uses(self.into(), other)
+            .map(|d| d.unwrap())
     }
 
     /// Clears the attribute with the given key on this circuit node.
@@ -1598,7 +1600,7 @@ where
         Ok(netref.unwrap().borrow().get().clone())
     }
 
-    /// Replaces the uses of a circuit node with another circuit node. The [Object] stored at `of` is returned.
+    /// Replaces the uses of a circuit node with another circuit node. `of` is returned and unused.
     ///
     /// # Panics
     /// `of` or `with` do not belong to this netlist
@@ -1606,7 +1608,7 @@ where
         &self,
         of: DrivenNet<I>,
         with: &DrivenNet<I>,
-    ) -> Result<Object<I>, Error> {
+    ) -> Result<DrivenNet<I>, Error> {
         {
             self.belongs(&of.clone().unwrap());
             self.belongs(&with.clone().unwrap());
@@ -1617,7 +1619,7 @@ where
 
         if of.clone().unwrap() == with.clone().unwrap() {
             if i == k {
-                return Ok(of.unwrap().unwrap().borrow().get().clone());
+                return Ok(of);
             }
 
             if Rc::strong_count(&unwrapped) > 4 {
@@ -1658,7 +1660,7 @@ where
                 .extend(outs);
         }
 
-        Ok(of.unwrap().unwrap().borrow().get().clone())
+        Ok(of)
     }
 }
 
