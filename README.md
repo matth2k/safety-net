@@ -8,7 +8,11 @@
 
 A Rust library for compiling and mutating netlists in a memory-safe way
 
-You can read the docs [here](https://matth2k.github.io/safety-net/).
+You can read the docs for the netlist library [here](https://matth2k.github.io/safety-net/), but you may also want to check out the cool side-projects using safety-net:
+
+- [nl-compiler](https://github.com/matth2k/nl-compiler) - Verilog frontend compilation into safety-net
+- [safety-pass](https://github.com/matth2k/safety-pass) - Build your own compiler pass pipelines that operate over safety-net netlists + provides a library of logic cells
+- [eqmap](https://github.com/cornell-zhang/eqmap) - uses equality saturation to superoptimize netlists
 
 ## Getting Started
 
