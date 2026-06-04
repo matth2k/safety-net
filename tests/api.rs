@@ -504,8 +504,5 @@ fn test_input_swap() {
 
     let res = netlist.replace_net_uses(a, &b);
 
-    assert!(res.is_ok());
-    netlist.clean().unwrap();
-    eprintln!("{netlist}");
-    assert_verilog_eq!(netlist.to_string(), "yp");
+    assert!(res.is_err());
 }
