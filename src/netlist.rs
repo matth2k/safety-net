@@ -1632,9 +1632,14 @@ where
         let old_index = of.get_operand();
 
         if let Some(nets) = self.outputs.borrow().get(&old_index)
-            && nets.contains(&*of.as_net())
+            && nets.contains(&of.as_net())
         {
-            return Err(Error::NonuniqueNets(nets.iter().cloned().collect()));
+            if of.is_an_input() {
+                return Err(Error::NonuniqueNets(nets.iter().cloned().collect()));
+            } else {
+                let id = of.as_net().get_identifier().clone() + "_replaced".into();
+                of.as_net_mut().set_identifier(id);
+            }
         }
 
         let new_index = with.get_operand();
