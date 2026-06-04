@@ -2189,6 +2189,7 @@ pub mod iter {
     /// ```
     pub struct DFSIterator<'a, I: Instantiable> {
         dfs: NetDFSIterator<'a, I>,
+        seen: HashSet<NetRef<I>>,
     }
 
     impl<'a, I> DFSIterator<'a, I>
@@ -2199,6 +2200,7 @@ pub mod iter {
         pub fn new(netlist: &'a Netlist<I>, from: NetRef<I>) -> Self {
             Self {
                 dfs: NetDFSIterator::new(netlist, DrivenNet::new(0, from)),
+                seen: HashSet::new(),
             }
         }
     }
@@ -2235,7 +2237,12 @@ pub mod iter {
         type Item = NetRef<I>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            self.dfs.next().map(|d| d.unwrap())
+            let d = self.dfs.next()?;
+            if self.seen.insert(d.clone().unwrap()) {
+                Some(d.unwrap())
+            } else {
+                self.next()
+            }
         }
     }
 
@@ -2246,6 +2253,7 @@ pub mod iter {
         netlist: &'a Netlist<I>,
         stacks: Vec<Walk<DrivenNet<I>>>,
         visited: HashSet<usize>,
+        visited_net: HashSet<(usize, usize)>,
         any_cycle: bool,
         root_cycle: bool,
         terminate: TermFn<I>,
@@ -2268,6 +2276,7 @@ pub mod iter {
                 netlist,
                 stacks: vec![s],
                 visited: HashSet::new(),
+                visited_net: HashSet::new(),
                 any_cycle: false,
                 root_cycle: false,
                 terminate: Box::new(terminate),
@@ -2338,6 +2347,7 @@ pub mod iter {
                 let item = walk.last().cloned();
                 let uw = item.clone().unwrap().unwrap().unwrap();
                 let index = uw.borrow().get_index();
+                let secondary = item.as_ref().unwrap().pos;
                 if self.visited.insert(index) {
                     if !(self.terminate)(item.as_ref().unwrap()) {
                         let operands = &uw.borrow().operands;
@@ -2350,6 +2360,11 @@ pub mod iter {
                             self.stacks.push(new_walk);
                         }
                     }
+                    self.visited_net.insert((index, secondary));
+                    return item;
+                }
+
+                if self.visited_net.insert((index, secondary)) {
                     return item;
                 }
 
@@ -2975,6 +2990,31 @@ mod tests {
         assert_eq!(dfs.next(), Some(d));
         assert_eq!(dfs.next(), Some(n3));
         assert_eq!(dfs.next(), None);
+    }
+
+    #[test]
+    fn test_dfs_convergence() {
+        let netlist = GateNetlist::new("example".to_string());
+        let gate = Gate::new_logical_multi(
+            "FA".into(),
+            vec!["A".into(), "B".into()],
+            vec!["S".into(), "COUT".into()],
+        );
+        let a = netlist.insert_input("a".into());
+        let b = netlist.insert_input("b".into());
+        let gate = netlist.insert_gate(gate, "g".into(), &[a, b]).unwrap();
+        let s = gate.get_output(0);
+        let c = gate.get_output(1);
+        let gate = Gate::new_logical("AND".into(), vec!["A".into(), "B".into()], "Y".into());
+        let d = netlist.insert_gate(gate, "h".into(), &[s, c]).unwrap();
+
+        let dfs = NetDFSIterator::new(&netlist, d.get_output(0));
+        let c = dfs.count();
+        assert_eq!(c, 5);
+
+        let dfs = DFSIterator::new(&netlist, d.clone());
+        let c = dfs.count();
+        assert_eq!(c, 4);
     }
 }
 #[cfg(feature = "serde")]
