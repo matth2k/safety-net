@@ -492,3 +492,17 @@ fn test_netlist_belongs() {
     let gate = netlist.last().unwrap();
     let _ = clone.delete_net_uses(gate);
 }
+
+#[test]
+fn test_input_swap() {
+    let netlist = GateNetlist::new("example".to_string());
+
+    let a = netlist.insert_input("a".into());
+    let b = netlist.insert_input("b".into());
+
+    a.clone().expose_with_name("a".into());
+
+    let res = netlist.replace_net_uses(a, &b);
+
+    assert!(res.is_err());
+}

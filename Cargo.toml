@@ -1,6 +1,6 @@
 [package]
 name = "safety-net"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 
@@ -39,11 +39,11 @@ readme = "README.md"
 repository = "https://github.com/matth2k/safety-net"
 
 [dependencies]
-thiserror = { version = "2.0.16" }
+thiserror = { version = "2.0.18" }
 bitvec = { version = "1.0.1" }
-petgraph = { version = "0.8.2", optional = true }
-serde = { version = "1.0.219", optional = true, features = ["derive"] }
-serde_json = { version = "1.0.141", optional = true }
+petgraph = { version = "0.8.3", optional = true }
+serde = { version = "1.0.228", optional = true, features = ["derive"] }
+serde_json = { version = "1.0.150", optional = true }
 inst_derive = { version = "0.1.2", optional = true }
 
 [features]
