@@ -8,11 +8,10 @@ use crate::circuit::{Instantiable, Net};
 use crate::error::Error;
 #[cfg(feature = "graph")]
 use crate::netlist::Connection;
-use crate::netlist::{InputPort, NetRef, Netlist};
+use crate::netlist::{DrivenNet, InputPort, NetRef, Netlist};
 #[cfg(feature = "graph")]
 use petgraph::graph::DiGraph;
 use std::cmp::Reverse;
-use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// A common trait of analyses than can be performed on a netlist.
@@ -31,6 +30,8 @@ pub struct FanOutTable<'a, I: Instantiable> {
     _netlist: &'a Netlist<I>,
     /// Maps a net to the list of nodes it drives
     net_fan_out: HashMap<Net, Vec<NetRef<I>>>,
+    /// Maps a driven net to a list of inputs it drives
+    dnet_fan_out: HashMap<DrivenNet<I>, Vec<InputPort<I>>>,
     /// Maps a node to the list of nodes it drives
     node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>>,
     /// Contains nets which are outputs
@@ -57,11 +58,25 @@ where
             .flat_map(|users| users.iter().cloned())
     }
 
+    /// Returns an iterator to the uses of `net`.
+    pub fn get_users(&self, net: &DrivenNet<I>) -> impl Iterator<Item = InputPort<I>> {
+        self.dnet_fan_out
+            .get(net)
+            .into_iter()
+            .flat_map(|users| users.iter().cloned())
+    }
+
     /// Returns `true` if the net has any used by any cells in the circuit
     /// This does incude nets that are only used as outputs.
     pub fn net_has_uses(&self, net: &Net) -> bool {
-        (self.net_fan_out.contains_key(net) && !self.net_fan_out.get(net).unwrap().is_empty())
+        (self.net_fan_out.contains_key(net) && !self.net_fan_out[net].is_empty())
             || self.is_an_output.contains(net)
+    }
+
+    /// Returns `true` if the net has any uses  in the circuit
+    pub fn has_uses(&self, net: &DrivenNet<I>) -> bool {
+        net.is_top_level_output()
+            || (self.dnet_fan_out.contains_key(net) && !self.dnet_fan_out[net].is_empty())
     }
 }
 
@@ -71,6 +86,7 @@ where
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
         let mut net_fan_out: HashMap<Net, Vec<NetRef<I>>> = HashMap::new();
+        let mut dnet_fan_out: HashMap<DrivenNet<I>, Vec<InputPort<I>>> = HashMap::new();
         let mut node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
 
@@ -83,23 +99,14 @@ where
         }
 
         for c in netlist.connections() {
-            if let Entry::Vacant(e) = net_fan_out.entry(c.net()) {
-                e.insert(vec![c.target().unwrap()]);
-            } else {
-                net_fan_out
-                    .get_mut(&c.net())
-                    .unwrap()
-                    .push(c.target().unwrap());
-            }
+            let e = net_fan_out.entry(c.net()).or_default();
+            e.push(c.target().unwrap());
 
-            if let Entry::Vacant(e) = node_fan_out.entry(c.src().unwrap()) {
-                e.insert(vec![c.target().unwrap()]);
-            } else {
-                node_fan_out
-                    .get_mut(&c.src().unwrap())
-                    .unwrap()
-                    .push(c.target().unwrap());
-            }
+            let e = dnet_fan_out.entry(c.src()).or_default();
+            e.push(c.target());
+
+            let e = node_fan_out.entry(c.src().unwrap()).or_default();
+            e.push(c.target().unwrap());
         }
 
         for (o, n) in netlist.outputs() {
@@ -110,6 +117,7 @@ where
         Ok(FanOutTable {
             _netlist: netlist,
             net_fan_out,
+            dnet_fan_out,
             node_fan_out,
             is_an_output,
         })
