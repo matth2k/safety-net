@@ -853,6 +853,9 @@ where
 
     /// Replaces the uses of this circuit node in the netlist with another circuit node.
     ///
+    /// # See also:
+    /// - [`NetMapper`](rewriter::NetMapper)
+    ///
     /// # Panics
     ///
     /// Panics if either `self` is a multi-output circuit node.
@@ -1602,6 +1605,9 @@ where
 
     /// Replaces the uses of a circuit node with another circuit node. `of` is returned and unused.
     ///
+    /// # See also:
+    /// - [`NetMapper`](rewriter::NetMapper)
+    ///
     /// # Panics
     /// `of` or `with` do not belong to this netlist
     pub fn replace_net_uses(
@@ -1981,6 +1987,141 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.net().fmt(f)
+    }
+}
+
+/// Strategies for fast batching netlist rewrites
+pub mod rewriter {
+    use super::{DrivenNet, Error, Instantiable, NetRef, Netlist, Operand};
+    use crate::graph::FanOutTable;
+    use std::collections::HashMap;
+    use std::rc::Rc;
+
+    /// Uses a union-find to batch replacements in a netlist closer to O(n) time.
+    /// The replacement only considers the uses of a net that existed at the time of creation of [NetMapper].
+    /// Connections created after the creation of the [NetMapper] will not be replaced.
+    pub struct NetMapper<'a, I: Instantiable> {
+        parent: HashMap<DrivenNet<I>, DrivenNet<I>>,
+        netlist: &'a Netlist<I>,
+        fanout: FanOutTable<'a, I>,
+    }
+
+    impl<'a, I: Instantiable> NetMapper<'a, I> {
+        /// Create a new empty mapper.
+        pub fn new(netlist: &'a Netlist<I>) -> Result<Self, Error> {
+            Ok(Self {
+                parent: HashMap::new(),
+                netlist,
+                fanout: netlist.get_analysis::<FanOutTable<I>>()?,
+            })
+        }
+
+        /// Get the final replacement for the net
+        pub fn find(&self, x: DrivenNet<I>) -> DrivenNet<I> {
+            let mut root = x;
+            while let Some(p) = self.parent.get(&root) {
+                root = p.clone();
+            }
+            root
+        }
+
+        /// Add a replacement to the mapper. Returns an error if the replacement creates a cycle.
+        ///
+        /// # Panics
+        /// If `of` was already mapped to `with`
+        pub fn replace(&mut self, of: DrivenNet<I>, with: DrivenNet<I>) {
+            let of_root = self.find(of.clone());
+            let with_root = self.find(with);
+            if of_root == with_root {
+                panic!("Already mapped by NetMapper: {of_root}");
+            }
+            self.parent.insert(of_root, with_root);
+        }
+
+        /// Apply the replacements to the netlist.
+        /// Returns the nets that were replaced.
+        pub fn apply(self) -> Result<Vec<DrivenNet<I>>, Error> {
+            // Build the one-pass map
+            let mut map: HashMap<Operand, Operand> = HashMap::new();
+            for k in self.parent.keys().cloned() {
+                let v = self.find(k.clone());
+                if k != v {
+                    map.insert(k.get_operand(), v.get_operand());
+                }
+            }
+
+            drop(self.parent);
+
+            // Check that replacements are all valid
+            for (of, with) in map.iter() {
+                let unwrapped = self.netlist.objects.borrow()[of.root()].clone();
+                let i = of.secondary();
+                let k = of.secondary();
+                let nr = NetRef::wrap(unwrapped.clone());
+
+                if of.root() == with.root() {
+                    if i == k {
+                        continue;
+                    }
+
+                    if Rc::strong_count(&unwrapped) - self.fanout.get_ref_count(&nr) > 4 {
+                        return Err(Error::DanglingReference(nr.nets().collect()));
+                    }
+                } else if Rc::strong_count(&unwrapped) - self.fanout.get_ref_count(&nr) > 3 {
+                    return Err(Error::DanglingReference(nr.nets().collect()));
+                }
+
+                let old_index = of;
+                let of = DrivenNet::new(i, nr);
+
+                if let Some(nets) = self.netlist.outputs.borrow().get(old_index)
+                    && nets.contains(&of.as_net())
+                {
+                    if of.is_an_input() {
+                        return Err(Error::NonuniqueNets(nets.iter().cloned().collect()));
+                    } else {
+                        let id = of.as_net().get_identifier().clone() + "_replaced".into();
+                        of.as_net_mut().set_identifier(id);
+                    }
+                }
+            }
+
+            let objects = self.netlist.objects.borrow();
+            for (of, &with) in map.iter() {
+                let of = DrivenNet::new(of.secondary(), NetRef::wrap(objects[of.root()].clone()));
+                for u in self.fanout.get_users(&of) {
+                    let place = u.pos;
+                    let u = u.unwrap().unwrap();
+                    let operands = &mut u.borrow_mut().operands;
+                    operands[place] = Some(with);
+                }
+            }
+
+            for (of, &with) in map.iter() {
+                // Move all the old outputs to the new key
+                let outs = self.netlist.outputs.borrow_mut().remove(of);
+                if let Some(outs) = outs {
+                    self.netlist
+                        .outputs
+                        .borrow_mut()
+                        .entry(with)
+                        .or_default()
+                        .extend(outs);
+                }
+            }
+
+            let res: Vec<_> = map
+                .into_keys()
+                .map(|operand| {
+                    DrivenNet::new(
+                        operand.secondary(),
+                        NetRef::wrap(self.netlist.objects.borrow()[operand.root()].clone()),
+                    )
+                })
+                .collect();
+
+            Ok(res)
+        }
     }
 }
 
