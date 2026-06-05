@@ -190,4 +190,7 @@ fn test_fanout_table() {
     let gate = netlist.last().unwrap();
     // Outputs don't have users that are nodes
     assert_eq!(fanout_table.get_node_users(&gate).count(), 0);
+    let net = gate.get_output(0);
+    assert_eq!(fanout_table.get_users(&net).count(), 0);
+    assert!(fanout_table.has_uses(&net));
 }
