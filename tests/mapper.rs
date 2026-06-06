@@ -1,5 +1,7 @@
 use safety_net::rewriter::NetMapper;
-use safety_net::{Identifier, Instantiable, Logic, Net, Netlist, Parameter, assert_verilog_eq};
+use safety_net::{
+    Identifier, Instantiable, Logic, Net, Netlist, Parameter, assert_verilog_eq, format_id,
+};
 
 #[derive(Debug, Clone)]
 enum Gate {
@@ -105,8 +107,7 @@ fn test_matches_macro() {
     for (i, net) in everything.into_iter().enumerate() {
         // Combine the net's base name (n) and i to to create unique instance names
         // across both repeated runs of this pass and nets with identical base names.
-        let inst_name =
-            net.as_net().get_identifier().clone() + n.to_string().into() + i.to_string().into();
+        let inst_name = net.as_net().get_identifier().clone() + format_id!("_{i}_{n}");
 
         let net_inv = netlist.insert_gate_disconnected(inv_gate(), inst_name.clone());
 
@@ -126,4 +127,57 @@ fn test_matches_macro() {
 
     let res = mapper.apply();
     assert!(res.is_ok());
+
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input a;
+           wire a;
+           input b;
+           wire b;
+           output y;
+           wire y;
+           wire inst_0_Y;
+           wire a__0_3_Y;
+           wire a__0_3_inv_Y;
+           wire b__1_3_Y;
+           wire b__1_3_inv_Y;
+           wire inst_0_Y__2_3_Y;
+           wire inst_0_Y__2_3_inv_Y;
+           AND inst_0 (
+             .A(a__0_3_inv_Y),
+             .B(b__1_3_inv_Y),
+             .Y(inst_0_Y)
+           );
+           INV a__0_3 (
+             .A(a),
+             .Y(a__0_3_Y)
+           );
+           INV a__0_3_inv (
+             .A(a__0_3_Y),
+             .Y(a__0_3_inv_Y)
+           );
+           INV b__1_3 (
+             .A(b),
+             .Y(b__1_3_Y)
+           );
+           INV b__1_3_inv (
+             .A(b__1_3_Y),
+             .Y(b__1_3_inv_Y)
+           );
+           INV inst_0_Y__2_3 (
+             .A(inst_0_Y),
+             .Y(inst_0_Y__2_3_Y)
+           );
+           INV inst_0_Y__2_3_inv (
+             .A(inst_0_Y__2_3_Y),
+             .Y(inst_0_Y__2_3_inv_Y)
+           );
+           assign y = inst_0_Y__2_3_inv_Y;
+         endmodule"
+    );
 }
