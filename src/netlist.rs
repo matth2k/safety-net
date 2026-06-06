@@ -2029,13 +2029,14 @@ pub mod rewriter {
         ///
         /// # Panics
         /// If `of` was already mapped to `with`
-        pub fn replace(&mut self, of: DrivenNet<I>, with: DrivenNet<I>) {
+        pub fn replace(&mut self, of: DrivenNet<I>, with: DrivenNet<I>) -> DrivenNet<I> {
             let of_root = self.find(of.clone());
             let with_root = self.find(with);
             if of_root == with_root {
-                panic!("Already mapped by NetMapper: {of_root}");
+                panic!("Already mapped by NetMapper: {of}");
             }
             self.parent.insert(of_root, with_root);
+            of
         }
 
         /// Apply the replacements to the netlist.
