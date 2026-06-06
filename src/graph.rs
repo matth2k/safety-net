@@ -34,6 +34,8 @@ pub struct FanOutTable<'a, I: Instantiable> {
     dnet_fan_out: HashMap<DrivenNet<I>, Vec<InputPort<I>>>,
     /// Maps a node to the list of nodes it drives
     node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>>,
+    /// The number of references held by all the  data structures
+    ref_count: HashMap<NetRef<I>, usize>,
     /// Contains nets which are outputs
     is_an_output: HashSet<Net>,
 }
@@ -66,6 +68,11 @@ where
             .flat_map(|users| users.iter().cloned())
     }
 
+    /// Get the number of reference held by this table
+    pub fn get_ref_count(&self, node: &NetRef<I>) -> usize {
+        self.ref_count.get(node).copied().unwrap_or(0)
+    }
+
     /// Returns `true` if the net has any used by any cells in the circuit
     /// This does incude nets that are only used as outputs.
     pub fn net_has_uses(&self, net: &Net) -> bool {
@@ -89,6 +96,7 @@ where
         let mut dnet_fan_out: HashMap<DrivenNet<I>, Vec<InputPort<I>>> = HashMap::new();
         let mut node_fan_out: HashMap<NetRef<I>, Vec<NetRef<I>>> = HashMap::new();
         let mut is_an_output: HashSet<Net> = HashSet::new();
+        let mut ref_count: HashMap<NetRef<I>, usize> = HashMap::new();
 
         // We can only build the fanout table if netlist is mostly intact
         if let Err(e) = netlist.verify() {
@@ -114,12 +122,33 @@ where
             is_an_output.insert(n);
         }
 
+        for v in net_fan_out.values() {
+            for nr in v {
+                *ref_count.entry(nr.clone()).or_insert(1) += 1;
+            }
+        }
+
+        for (k, v) in &dnet_fan_out {
+            for nr in v {
+                *ref_count.entry(nr.clone().unwrap()).or_insert(1) += 1;
+            }
+            *ref_count.entry(k.clone().unwrap()).or_insert(1) += 1;
+        }
+
+        for (k, v) in &node_fan_out {
+            for nr in v {
+                *ref_count.entry(nr.clone()).or_insert(1) += 1;
+            }
+            *ref_count.entry(k.clone()).or_insert(1) += 1;
+        }
+
         Ok(FanOutTable {
             _netlist: netlist,
             net_fan_out,
             dnet_fan_out,
             node_fan_out,
             is_an_output,
+            ref_count,
         })
     }
 }
