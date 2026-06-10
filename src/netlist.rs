@@ -1481,10 +1481,13 @@ where
     ///
     /// Panics if `index` is out of bounds
     /// The `netref` does not belong to this netlist
-    pub fn get_driver(&self, netref: NetRef<I>, index: usize) -> Option<NetRef<I>> {
+    pub fn get_driver(&self, netref: NetRef<I>, index: usize) -> Option<DrivenNet<I>> {
         self.belongs(&netref);
         let op = netref.unwrap().borrow().operands[index]?;
-        Some(NetRef::wrap(self.index_weak(&op.root()).clone()))
+        Some(DrivenNet::new(
+            op.secondary(),
+            NetRef::wrap(self.index_weak(&op.root()).clone()),
+        ))
     }
 
     /// Set an added object as a top-level output with a specific name.

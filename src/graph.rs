@@ -200,21 +200,21 @@ where
     }
 
     /// Returns the most critical endpoints in the circuit
-    pub fn get_critical_points(&self) -> impl IntoIterator<Item = &NetRef<I>> {
+    pub fn get_critical_points(&self) -> impl IntoIterator<Item = DrivenNet<I>> {
         let mut v = self.critical_ends.iter().collect::<Vec<_>>();
         v.sort_by_key(|(d, _)| *d);
-        v.into_iter().map(|(_, n)| n)
+        v.into_iter().flat_map(|(_, n)| n.outputs())
     }
 
     /// Builds the most critical path
-    pub fn build_critical_path(&self) -> Option<Vec<NetRef<I>>> {
+    pub fn build_critical_path(&self) -> Option<Vec<DrivenNet<I>>> {
         let mut path = Vec::new();
-        let mut current = self.get_critical_points().into_iter().next()?.clone();
-        while let Some(crit) = self.critical_par.get(&current) {
+        let mut current = self.get_critical_points().into_iter().next()?;
+        while let Some(crit) = self.critical_par.get(&current.clone().unwrap()) {
             path.push(current.clone());
             current = self
                 ._netlist
-                .get_driver(current, crit.get_input_num())
+                .get_driver(current.unwrap(), crit.get_input_num())
                 .unwrap();
         }
         path.push(current);
@@ -274,7 +274,7 @@ where
 
             for i in 0..node.get_num_input_ports() {
                 let driver = match netlist.get_driver(node.clone(), i) {
-                    Some(d) => d,
+                    Some(d) => d.unwrap(),
                     None => {
                         is_undefined = true;
                         continue;
@@ -363,7 +363,7 @@ where
                     }
 
                     let r = compute(
-                        driver,
+                        driver.unwrap(),
                         netlist,
                         &mut results,
                         &mut critical_par,

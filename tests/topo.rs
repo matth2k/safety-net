@@ -186,8 +186,8 @@ fn test_comb_depth_dag_shared_subgraph() {
 
     let p = depth_info.build_critical_path().unwrap();
     assert!(p.len() == 2);
-    assert_eq!(p[0], or_node);
-    assert_eq!(p[1], and);
+    assert_eq!(p[0], or_node.into());
+    assert_eq!(p[1], and.into());
 }
 
 #[test]
