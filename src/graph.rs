@@ -243,7 +243,6 @@ where
             netlist: &Netlist<I>,
             results: &mut HashMap<NetRef<I>, CombDepthResult>,
             critical_par: &mut HashMap<NetRef<I>, InputPort<I>>,
-            critical_ends: &mut BinaryHeap<(Reverse<usize>, NetRef<I>)>,
             visiting: &mut HashSet<NetRef<I>>,
         ) -> CombDepthResult {
             // Memoized result
@@ -287,14 +286,7 @@ where
                     continue;
                 }
 
-                match compute(
-                    driver,
-                    netlist,
-                    results,
-                    critical_par,
-                    critical_ends,
-                    visiting,
-                ) {
+                match compute(driver, netlist, results, critical_par, visiting) {
                     CombDepthResult::Depth(d) => {
                         if d > max_depth {
                             max_depth = d;
@@ -321,10 +313,6 @@ where
                     critical_par.insert(node.clone(), crit);
                 }
                 let d = max_depth + 1;
-                critical_ends.push((Reverse(d), node.clone()));
-                if critical_ends.len() > CombDepthInfo::<I>::SIZE_HEAP {
-                    critical_ends.pop();
-                }
                 CombDepthResult::Depth(d)
             };
             results.insert(node.clone(), r);
@@ -334,15 +322,18 @@ where
         for (driven, _) in netlist.outputs() {
             let node = driven.unwrap();
             let r = compute(
-                node,
+                node.clone(),
                 netlist,
                 &mut results,
                 &mut critical_par,
-                &mut critical_ends,
                 &mut visiting,
             );
 
             if let CombDepthResult::Depth(d) = r {
+                critical_ends.push((Reverse(d), node));
+                if critical_ends.len() > CombDepthInfo::<I>::SIZE_HEAP {
+                    critical_ends.pop();
+                }
                 max_depth = Some(max_depth.map_or(d, |m| m.max(d)));
             }
         }
@@ -353,7 +344,6 @@ where
                 netlist,
                 &mut results,
                 &mut critical_par,
-                &mut critical_ends,
                 &mut visiting,
             );
             for i in 0..node.get_num_input_ports() {
@@ -363,14 +353,17 @@ where
                     }
 
                     let r = compute(
-                        driver.unwrap(),
+                        driver.clone().unwrap(),
                         netlist,
                         &mut results,
                         &mut critical_par,
-                        &mut critical_ends,
                         &mut visiting,
                     );
                     if let CombDepthResult::Depth(d) = r {
+                        critical_ends.push((Reverse(d), driver.unwrap()));
+                        if critical_ends.len() > CombDepthInfo::<I>::SIZE_HEAP {
+                            critical_ends.pop();
+                        }
                         max_depth = Some(max_depth.map_or(d, |m| m.max(d)));
                     }
                 }
