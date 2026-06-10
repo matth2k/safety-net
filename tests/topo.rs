@@ -165,12 +165,15 @@ fn critical_points_only_include_timing_endpoints() {
     g3.clone().expose_with_name("y".into());
 
     let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
-    let critical_points = depth_info
+    let mut critical_points = depth_info
         .get_critical_points()
         .into_iter()
         .collect::<Vec<_>>();
 
-    assert_eq!(critical_points, vec![&g3]);
+    assert_eq!(critical_points.len(), 1);
+    let critical_point = critical_points.pop().unwrap();
+
+    assert_eq!(critical_point, g3.into());
 }
 
 #[test]
