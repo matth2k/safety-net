@@ -147,6 +147,33 @@ fn test_comb_depth() {
 }
 
 #[test]
+fn critical_points_only_include_timing_endpoints() {
+    let netlist = Netlist::new("critical_endpoints".to_string());
+
+    let a = netlist.insert_input("a".into());
+    let b = netlist.insert_input("b".into());
+    let c = netlist.insert_input("c".into());
+    let d = netlist.insert_input("d".into());
+
+    let g1 = netlist.insert_gate(and(), "g1".into(), &[a, b]).unwrap();
+    let g2 = netlist
+        .insert_gate(and(), "g2".into(), &[g1.get_output(0), c])
+        .unwrap();
+    let g3 = netlist
+        .insert_gate(and(), "g3".into(), &[g2.get_output(0), d])
+        .unwrap();
+    g3.clone().expose_with_name("y".into());
+
+    let depth_info = netlist.get_analysis::<CombDepthInfo<_>>().unwrap();
+    let critical_points = depth_info
+        .get_critical_points()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    assert_eq!(critical_points, vec![&g3]);
+}
+
+#[test]
 fn test_comb_depth_dag_shared_subgraph() {
     let netlist = Netlist::new("dag".to_string());
 
