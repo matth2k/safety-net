@@ -130,8 +130,8 @@ impl Identifier {
         vec
     }
 
-    /// Returns the name of the identifier
-    pub fn get_name(&self) -> &str {
+    /// Returns the stem of the identifier
+    pub fn get_stem(&self) -> &str {
         &self.name
     }
 
