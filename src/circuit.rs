@@ -40,26 +40,16 @@ impl DataType {
     }
 }
 
-/// The type of identifier labelling a circuit node
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-enum IdentifierType {
-    /// A normal identifier
-    Normal,
-    /// An identifier that is part of a wire bus
-    BitSlice(usize),
-    /// An identifier that is escaped, as defined by Verilog
-    Escaped,
-}
-
 /// An identifier of a node in a circuit
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Identifier {
     /// The name of the identifier
     name: String,
-    /// The type of identiefier
-    id_type: IdentifierType,
+    /// Is the identifier escaped
+    escaped: bool,
+    /// The bit index of the identifier, if it is part of a bus.
+    idx: Option<usize>,
 }
 
 impl Identifier {
@@ -72,7 +62,8 @@ impl Identifier {
         if let Some(root) = name.strip_prefix('\\') {
             return Identifier {
                 name: root.to_string(),
-                id_type: IdentifierType::Escaped,
+                escaped: true,
+                idx: None,
             };
         }
 
@@ -81,7 +72,8 @@ impl Identifier {
         if esc_chars.contains(&name.chars().next().unwrap()) {
             return Identifier {
                 name,
-                id_type: IdentifierType::Escaped,
+                escaped: true,
+                idx: None,
             };
         }
 
@@ -93,7 +85,8 @@ impl Identifier {
         if name.chars().any(|c| esc_chars.contains(&c)) {
             return Identifier {
                 name,
-                id_type: IdentifierType::Escaped,
+                escaped: true,
+                idx: None,
             };
         }
 
@@ -103,17 +96,38 @@ impl Identifier {
             let index_start = name_ind + 1;
             let slice = name[index_start..name.len() - 1].parse::<usize>();
             if let Ok(s) = slice {
-                return Identifier {
-                    name: rname.to_string(),
-                    id_type: IdentifierType::BitSlice(s),
-                };
+                let id = Identifier::new(rname.to_string());
+                if !id.is_sliced() {
+                    return Identifier { idx: Some(s), ..id };
+                }
             }
         }
 
         Identifier {
             name,
-            id_type: IdentifierType::Normal,
+            escaped: false,
+            idx: None,
         }
+    }
+
+    /// Returns a bus with length `bw`
+    ///
+    /// # Panics
+    ///
+    /// if `name` already includes slicing brackets
+    pub fn new_bus(name: String, bw: usize) -> Vec<Self> {
+        let mut vec = Vec::new();
+        let id = Identifier::new(name.clone());
+        if id.is_sliced() {
+            panic!("Cannot create a bus from an identifier that is sliced by string");
+        }
+        for i in 0..bw {
+            vec.push(Identifier {
+                idx: Some(i),
+                ..id.clone()
+            });
+        }
+        vec
     }
 
     /// Returns the name of the identifier
@@ -123,28 +137,28 @@ impl Identifier {
 
     /// Returns the bit index, if the identifier is a bit-slice
     pub fn get_bit_index(&self) -> Option<usize> {
-        match self.id_type {
-            IdentifierType::BitSlice(index) => Some(index),
-            _ => None,
-        }
+        self.idx
     }
 
     /// Returns `true` if the identifier is a slice of a wire bus
     pub fn is_sliced(&self) -> bool {
-        matches!(self.id_type, IdentifierType::BitSlice(_))
+        self.idx.is_some()
     }
 
     /// The identifier is escaped, as defined by Verilog
     pub fn is_escaped(&self) -> bool {
-        matches!(self.id_type, IdentifierType::Escaped)
+        self.escaped
     }
 
     /// Emit the name as suitable for an HDL like Verilog. This takes into account bit-slicing and escaped identifiers
     pub fn emit_name(&self) -> String {
-        match &self.id_type {
-            IdentifierType::Normal => self.name.clone(),
-            IdentifierType::BitSlice(index) => format!("{}[{}]", self.name, index),
-            IdentifierType::Escaped => format!("\\{} ", self.name),
+        let stem = match self.escaped {
+            false => self.name.clone(),
+            true => format!("\\{} ", self.name),
+        };
+        match self.idx {
+            Some(i) => format!("{stem}[{i}]"),
+            None => stem,
         }
     }
 }
@@ -155,27 +169,21 @@ impl std::ops::Add for &Identifier {
     fn add(self, rhs: Self) -> Identifier {
         let lname = self.name.as_str();
         let rname = rhs.name.as_str();
+        let escaped = self.escaped || rhs.escaped;
 
-        let new_type = match (self.id_type, rhs.id_type) {
-            (IdentifierType::Escaped, _)
-            | (_, IdentifierType::Escaped)
-            | (IdentifierType::BitSlice(_), _)
-            | (_, IdentifierType::BitSlice(_)) => IdentifierType::Escaped,
-            (IdentifierType::Normal, IdentifierType::Normal) => IdentifierType::Normal,
-        };
-
-        let new_name = match (self.id_type, rhs.id_type) {
-            (IdentifierType::BitSlice(l), IdentifierType::BitSlice(r)) => {
+        let new_name = match (self.idx, rhs.idx) {
+            (Some(l), Some(r)) => {
                 format!("{}_{}_{}_{}", lname, l, rname, r)
             }
-            (IdentifierType::BitSlice(l), _) => format!("{}_{}_{}", lname, l, rname),
-            (_, IdentifierType::BitSlice(r)) => format!("{}_{}_{}", lname, rname, r),
+            (Some(l), None) => format!("{}_{}_{}", lname, l, rname),
+            (None, Some(r)) => format!("{}_{}_{}", lname, rname, r),
             _ => format!("{}_{}", lname, rname),
         };
 
         Identifier {
             name: new_name,
-            id_type: new_type,
+            escaped,
+            idx: None,
         }
     }
 }
@@ -202,11 +210,17 @@ impl From<String> for Identifier {
 
 impl std::fmt::Display for Identifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.id_type {
-            IdentifierType::Normal => write!(f, "{}", self.name),
-            IdentifierType::BitSlice(index) => write!(f, "{}[{}]", self.name, index),
-            IdentifierType::Escaped => write!(f, "\\{} ", self.name),
+        if self.escaped {
+            write!(f, "\\")?;
         }
+        write!(f, "{}", self.name)?;
+        if self.escaped {
+            write!(f, " ")?;
+        }
+        if let Some(idx) = self.idx {
+            write!(f, "[{idx}]")?;
+        }
+        Ok(())
     }
 }
 
@@ -232,19 +246,12 @@ impl Net {
         Self::new(name, DataType::logic())
     }
 
-    /// Create a wire bus as escaped SystemVerilog signals
-    pub fn new_escaped_logic_bus(name: String, bw: usize) -> Vec<Self> {
-        let mut vec: Vec<Self> = Vec::with_capacity(bw);
-        for i in 0..bw {
-            vec.push(Self::new(
-                Identifier {
-                    name: format!("{name}[{i}]"),
-                    id_type: IdentifierType::Escaped,
-                },
-                DataType::logic(),
-            ));
-        }
-        vec
+    /// Create a wire bus
+    pub fn new_logic_bus(name: String, bw: usize) -> Vec<Self> {
+        let ids = Identifier::new_bus(name, bw);
+        ids.into_iter()
+            .map(|id| Self::new(id, DataType::logic()))
+            .collect()
     }
 
     /// Sets the identifier of the net
