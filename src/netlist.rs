@@ -1952,11 +1952,6 @@ where
         }
         for inst in self.objects() {
             if let Some(name) = inst.get_instance_name()
-                && !nets.insert(name.clone())
-            {
-                return Err(Error::NonuniqueInsts(vec![name]));
-            }
-            if let Some(name) = inst.get_instance_name()
                 && !stems.insert(name.get_stem().to_string())
             {
                 return Err(Error::NonuniqueInsts(vec![name]));
