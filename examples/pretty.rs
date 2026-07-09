@@ -18,6 +18,7 @@ fn ripple_adder() -> Netlist<Gate> {
     let a_vec = netlist.insert_input_logic_bus("a".to_string(), bitwidth);
     let b_vec = netlist.insert_input_logic_bus("b".to_string(), bitwidth);
     let s_vec = Identifier::new_bus("s".to_string(), bitwidth);
+    let c_vec = Identifier::new_bus("c".to_string(), bitwidth);
     let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
 
     for i in 0..bitwidth {
@@ -35,6 +36,7 @@ fn ripple_adder() -> Netlist<Gate> {
         fa.get_output(0).expose_with_name(s_vec[i].clone());
 
         carry = fa.get_output(1);
+        carry.as_net_mut().set_identifier(c_vec[i].clone());
 
         if i == bitwidth - 1 {
             // Last full adder, expose the carry out

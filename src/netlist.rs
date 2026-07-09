@@ -146,13 +146,36 @@ impl Gate {
 }
 
 /// An operand to an [Instantiable]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 enum Operand {
     /// An index into the list of objects
     DirectIndex(usize),
     /// An index into the list of objects, with an extra index on the cell/primitive
     CellIndex(usize, usize),
+}
+
+impl PartialOrd for Operand {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Operand::DirectIndex(a), Operand::DirectIndex(b)) => a.partial_cmp(b),
+            (Operand::CellIndex(a, b), Operand::CellIndex(c, d)) => (a, b).partial_cmp(&(c, d)),
+            (Operand::DirectIndex(a), Operand::CellIndex(c, d)) => {
+                if a == c && *d == 0 {
+                    Some(std::cmp::Ordering::Less)
+                } else {
+                    (a, &0).partial_cmp(&(c, d))
+                }
+            }
+            (Operand::CellIndex(a, b), Operand::DirectIndex(c)) => {
+                if a == c && *b == 0 {
+                    Some(std::cmp::Ordering::Greater)
+                } else {
+                    (a, b).partial_cmp(&(c, &0))
+                }
+            }
+        }
+    }
 }
 
 impl Operand {
@@ -973,7 +996,7 @@ where
     /// The list of objects in the netlist, such as inputs, modules, and primitives
     objects: RefCell<Vec<NetRefT<I>>>,
     /// Each operand can map to multiple nets, supporting output aliases.
-    outputs: RefCell<HashMap<Operand, BTreeSet<Net>>>,
+    outputs: RefCell<BTreeMap<Operand, BTreeSet<Net>>>,
 }
 
 /// Represent the input port of a primitive
@@ -1304,7 +1327,7 @@ where
         Rc::new(Self {
             name: RefCell::new(name),
             objects: RefCell::new(Vec::new()),
-            outputs: RefCell::new(HashMap::new()),
+            outputs: RefCell::new(BTreeMap::new()),
         })
     }
 
@@ -1910,14 +1933,25 @@ where
     /// Returns `true` if all the nets/insts are uniquely named
     fn nets_insts_unique(&self) -> Result<(), Error> {
         let mut nets = HashSet::new();
+        let mut stems = HashSet::new();
         for net in self {
             if !nets.insert(net.clone().take_identifier()) {
+                return Err(Error::NonuniqueNets(vec![net]));
+            }
+            if !stems.insert(net.get_identifier().get_stem().to_string())
+                && net.get_identifier().get_bit_index().is_none()
+            {
                 return Err(Error::NonuniqueNets(vec![net]));
             }
         }
         for inst in self.objects() {
             if let Some(name) = inst.get_instance_name()
                 && !nets.insert(name.clone())
+            {
+                return Err(Error::NonuniqueInsts(vec![name]));
+            }
+            if let Some(name) = inst.get_instance_name()
+                && !stems.insert(name.get_stem().to_string())
             {
                 return Err(Error::NonuniqueInsts(vec![name]));
             }
@@ -2744,6 +2778,7 @@ where
         // Print inputs and outputs
         let mut input_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
         let mut output_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
+        let mut net_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
 
         for oref in objects.iter() {
             let owned = oref.borrow();
@@ -2849,15 +2884,34 @@ where
                 && inst_type.get_constant().is_none()
             {
                 for net in nets.iter() {
-                    if !already_decl.contains(net.get_identifier().get_stem()) {
-                        if net.get_identifier().get_bit_index().is_some() {
-                            todo!("Only output ports can be part of a bus");
-                        }
-                        writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
-                        already_decl.insert(net.get_identifier().get_stem().to_string());
+                    if already_decl.contains(net.get_identifier().get_stem()) {
+                        continue;
+                    }
+                    let stem = net.get_identifier().get_stem();
+                    let entry = net_list
+                        .entry((stem.to_string(), net.get_identifier().is_escaped()))
+                        .or_default();
+                    if let Some(idx) = net.get_identifier().get_bit_index() {
+                        entry.0 = entry.0.min(idx);
+                        entry.1 = entry.1.max(idx);
                     }
                 }
             }
+        }
+
+        for ((id, escaped), (lsb, msb)) in net_list {
+            write!(f, "{}wire ", indent)?;
+            if lsb != msb {
+                write!(f, "[{}:{}] ", msb, lsb)?;
+            }
+            if escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ";")?;
         }
 
         for oref in objects.iter() {
