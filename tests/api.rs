@@ -209,12 +209,9 @@ fn test_change_gate_correct() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            OR inst_0 (
              .A(a),
@@ -243,12 +240,9 @@ fn test_find_net_mut() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire changed;
            AND inst_0 (
              .A(a),
@@ -335,12 +329,9 @@ fn test_netref_ids() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire new_id;
            AND inst_0 (
              .A(a),
@@ -448,12 +439,9 @@ fn test_replace_gate() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            OR inst_0 (
              .A(a),

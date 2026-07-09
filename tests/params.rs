@@ -135,12 +135,9 @@ fn param_verilog() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_O;
            LUT2 #(
              .INIT(4'h8)

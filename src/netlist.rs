@@ -13,7 +13,7 @@ use crate::{
 };
 use std::{
     cell::{Ref, RefCell, RefMut},
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     num::ParseIntError,
     rc::{Rc, Weak},
 };
@@ -155,6 +155,35 @@ enum Operand {
     CellIndex(usize, usize),
 }
 
+impl Ord for Operand {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Operand::DirectIndex(a), Operand::DirectIndex(b)) => a.cmp(b),
+            (Operand::CellIndex(a, b), Operand::CellIndex(c, d)) => (a, b).cmp(&(c, d)),
+            (Operand::DirectIndex(a), Operand::CellIndex(c, d)) => {
+                if a == c && *d == 0 {
+                    std::cmp::Ordering::Less
+                } else {
+                    (a, &0).cmp(&(c, d))
+                }
+            }
+            (Operand::CellIndex(a, b), Operand::DirectIndex(c)) => {
+                if a == c && *b == 0 {
+                    std::cmp::Ordering::Greater
+                } else {
+                    (a, b).cmp(&(c, &0))
+                }
+            }
+        }
+    }
+}
+
+impl PartialOrd for Operand {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Operand {
     /// Remap the node index of the operand to `x`.
     fn remap(self, x: usize) -> Self {
@@ -222,7 +251,7 @@ where
     /// The list of operands for the object
     operands: Vec<Option<Operand>>,
     /// A collection of attributes for the object
-    attributes: HashMap<AttributeKey, AttributeValue>,
+    attributes: BTreeMap<AttributeKey, AttributeValue>,
     /// The index of the object within the netlist/module
     index: usize,
 }
@@ -973,7 +1002,7 @@ where
     /// The list of objects in the netlist, such as inputs, modules, and primitives
     objects: RefCell<Vec<NetRefT<I>>>,
     /// Each operand can map to multiple nets, supporting output aliases.
-    outputs: RefCell<HashMap<Operand, BTreeSet<Net>>>,
+    outputs: RefCell<BTreeMap<Operand, BTreeSet<Net>>>,
 }
 
 /// Represent the input port of a primitive
@@ -1304,7 +1333,7 @@ where
         Rc::new(Self {
             name: RefCell::new(name),
             objects: RefCell::new(Vec::new()),
-            outputs: RefCell::new(HashMap::new()),
+            outputs: RefCell::new(BTreeMap::new()),
         })
     }
 
@@ -1363,7 +1392,7 @@ where
             object,
             owner: weak,
             operands,
-            attributes: HashMap::new(),
+            attributes: BTreeMap::new(),
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
@@ -1429,7 +1458,7 @@ where
             object,
             owner: weak,
             operands,
-            attributes: HashMap::new(),
+            attributes: BTreeMap::new(),
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
@@ -1910,16 +1939,29 @@ where
     /// Returns `true` if all the nets/insts are uniquely named
     fn nets_insts_unique(&self) -> Result<(), Error> {
         let mut nets = HashSet::new();
+        let mut stems = HashSet::new();
         for net in self {
             if !nets.insert(net.clone().take_identifier()) {
+                return Err(Error::NonuniqueNets(vec![net]));
+            }
+            if !stems.insert(net.get_identifier().get_stem().to_string())
+                && net.get_identifier().get_bit_index().is_none()
+            {
                 return Err(Error::NonuniqueNets(vec![net]));
             }
         }
         for inst in self.objects() {
             if let Some(name) = inst.get_instance_name()
-                && !nets.insert(name.clone())
+                && !stems.insert(name.get_stem().to_string())
             {
                 return Err(Error::NonuniqueInsts(vec![name]));
+            }
+            if let Some(name) = inst.get_instance_name()
+                && name.get_bit_index().is_some()
+            {
+                return Err(Error::InstantiableError(format!(
+                    "Instance identifier {name} cannot be indexed"
+                )));
             }
         }
         Ok(())
@@ -2742,47 +2784,107 @@ where
         writeln!(f, "module {} (", self.get_name())?;
 
         // Print inputs and outputs
-        let level = 2;
-        let indent = " ".repeat(level);
+        let mut input_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
+        let mut output_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
+        let mut net_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
+
         for oref in objects.iter() {
             let owned = oref.borrow();
             let obj = owned.get();
             if let Object::Input(net) = obj {
-                writeln!(f, "{}{},", indent, net.get_identifier().emit_name())?;
+                let stem = net.get_identifier().get_stem();
+                let entry = input_list
+                    .entry((stem.to_string(), net.get_identifier().is_escaped()))
+                    .or_default();
+                if let Some(idx) = net.get_identifier().get_bit_index() {
+                    entry.0 = entry.0.min(idx);
+                    entry.1 = entry.1.max(idx);
+                }
             }
         }
 
         // Flatten the outputs to collect all (operand, net) pairs
         let all_outputs: Vec<_> = outputs.values().flat_map(|nets| nets.iter()).collect();
-        for (i, net) in all_outputs.iter().enumerate() {
-            if i == all_outputs.len() - 1 {
-                writeln!(f, "{}{}", indent, net.get_identifier().emit_name())?;
-            } else {
-                writeln!(f, "{}{},", indent, net.get_identifier().emit_name())?;
+        for &net in &all_outputs {
+            let stem = net.get_identifier().get_stem();
+            if input_list.contains_key(&(stem.to_string(), net.get_identifier().is_escaped())) {
+                continue;
+            }
+            let entry = output_list
+                .entry((stem.to_string(), net.get_identifier().is_escaped()))
+                .or_default();
+            if let Some(idx) = net.get_identifier().get_bit_index() {
+                entry.0 = entry.0.min(idx);
+                entry.1 = entry.1.max(idx);
             }
         }
+
+        let level = 2;
+        let indent = " ".repeat(level);
+        for (id, escaped) in input_list.keys() {
+            write!(f, "{}", indent)?;
+            if *escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if *escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ",")?;
+        }
+
+        for (i, (id, escaped)) in output_list.keys().enumerate() {
+            write!(f, "{}", indent)?;
+            if *escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if *escaped {
+                write!(f, " ")?;
+            }
+            if i == output_list.len() - 1 {
+                writeln!(f)?;
+            } else {
+                writeln!(f, ",")?;
+            }
+        }
+
         writeln!(f, ");")?;
 
         // Make wire decls
         let mut already_decl = HashSet::new();
-        for oref in objects.iter() {
-            let owned = oref.borrow();
-            let obj = owned.get();
-            if let Object::Input(net) = obj {
-                writeln!(f, "{}input {};", indent, net.get_identifier().emit_name())?;
-                writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
-                already_decl.insert(net.clone());
+        for ((id, escaped), (lsb, msb)) in input_list {
+            write!(f, "{}input wire ", indent)?;
+            if lsb != msb {
+                write!(f, "[{}:{}] ", msb, lsb)?;
             }
-        }
-        for nets in outputs.values() {
-            for net in nets {
-                if !already_decl.contains(net) {
-                    writeln!(f, "{}output {};", indent, net.get_identifier().emit_name())?;
-                    writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
-                    already_decl.insert(net.clone());
-                }
+            if escaped {
+                write!(f, "\\")?;
             }
+            write!(f, "{}", id)?;
+            if escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ";")?;
+            already_decl.insert(id);
         }
+
+        for ((id, escaped), (lsb, msb)) in output_list {
+            write!(f, "{}output wire ", indent)?;
+            if lsb != msb {
+                write!(f, "[{}:{}] ", msb, lsb)?;
+            }
+            if escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ";")?;
+            already_decl.insert(id);
+        }
+
         for oref in objects.iter() {
             let owned = oref.borrow();
             let obj = owned.get();
@@ -2790,12 +2892,34 @@ where
                 && inst_type.get_constant().is_none()
             {
                 for net in nets.iter() {
-                    if !already_decl.contains(net) {
-                        writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
-                        already_decl.insert(net.clone());
+                    if already_decl.contains(net.get_identifier().get_stem()) {
+                        continue;
+                    }
+                    let stem = net.get_identifier().get_stem();
+                    let entry = net_list
+                        .entry((stem.to_string(), net.get_identifier().is_escaped()))
+                        .or_default();
+                    if let Some(idx) = net.get_identifier().get_bit_index() {
+                        entry.0 = entry.0.min(idx);
+                        entry.1 = entry.1.max(idx);
                     }
                 }
             }
+        }
+
+        for ((id, escaped), (lsb, msb)) in net_list {
+            write!(f, "{}wire ", indent)?;
+            if lsb != msb {
+                write!(f, "[{}:{}] ", msb, lsb)?;
+            }
+            if escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ";")?;
         }
 
         for oref in objects.iter() {
@@ -3157,6 +3281,14 @@ mod tests {
         let c = dfs.count();
         assert_eq!(c, 4);
     }
+
+    #[test]
+    fn test_operand_comparison() {
+        let a = Operand::CellIndex(3, 0);
+        let b = Operand::DirectIndex(3);
+        assert_eq!(a.cmp(&b), std::cmp::Ordering::Greater);
+        assert_eq!(b.cmp(&a), std::cmp::Ordering::Less);
+    }
 }
 #[cfg(feature = "serde")]
 /// Serde support for netlists
@@ -3169,7 +3301,7 @@ pub mod serde {
     use serde::{Deserialize, Serialize, de::DeserializeOwned};
     use std::cell::RefCell;
     use std::{
-        collections::{BTreeSet, HashMap},
+        collections::{BTreeMap, BTreeSet},
         rc::Rc,
     };
 
@@ -3183,7 +3315,7 @@ pub mod serde {
         /// The list of operands for the object
         operands: Vec<Option<Operand>>,
         /// A collection of attributes for the object
-        attributes: HashMap<AttributeKey, AttributeValue>,
+        attributes: BTreeMap<AttributeKey, AttributeValue>,
     }
 
     impl<I, O> From<OwnedObject<I, O>> for SerdeObject<I>
@@ -3230,7 +3362,7 @@ pub mod serde {
         /// The list of operands that point to objects which are outputs.
         /// Indices must be a string if we want to support JSON.
         /// Each operand can map to multiple nets, supporting output aliases.
-        outputs: HashMap<String, BTreeSet<Net>>,
+        outputs: BTreeMap<String, BTreeSet<Net>>,
     }
 
     impl<I> From<Netlist<I>> for SerdeNetlist<I>
@@ -3270,7 +3402,7 @@ pub mod serde {
         /// Convert the serialized netlist back into a reference-counted netlist.
         fn into_netlist(self) -> Rc<Netlist<I>> {
             let netlist = Netlist::new(self.name);
-            let outputs: HashMap<Operand, BTreeSet<Net>> = self
+            let outputs: BTreeMap<Operand, BTreeSet<Net>> = self
                 .outputs
                 .into_iter()
                 .map(|(k, v)| {

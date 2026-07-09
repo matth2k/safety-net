@@ -1,7 +1,6 @@
-use safety_net::format_id;
 #[cfg(feature = "graph")]
 use safety_net::graph::MultiDiGraph;
-use safety_net::{DrivenNet, Gate, Netlist};
+use safety_net::{DrivenNet, Gate, Identifier, Netlist, format_id};
 
 #[allow(dead_code)]
 fn full_adder() -> Gate {
@@ -20,6 +19,7 @@ fn ripple_adder() -> Netlist<Gate> {
     // Add the the inputs
     let a_vec = netlist.insert_input_logic_bus("a".to_string(), bitwidth);
     let b_vec = netlist.insert_input_logic_bus("b".to_string(), bitwidth);
+    let s_vec = Identifier::new_bus("s".to_string(), bitwidth);
     let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
 
     for i in 0..bitwidth {
@@ -34,14 +34,13 @@ fn ripple_adder() -> Netlist<Gate> {
         carry.connect(fa.get_input(0));
 
         // Expose the sum
-        fa.expose_net(&fa.get_net(0)).unwrap();
+        fa.get_output(0).expose_with_name(s_vec[i].clone());
 
         carry = fa.get_output(1);
 
         if i == bitwidth - 1 {
             // Last full adder, expose the carry out
-            fa.get_net_mut(1).set_identifier("cout".into());
-            fa.expose_net(&fa.get_net(1)).unwrap();
+            fa.get_output(1).expose_with_name("cout".into());
         }
     }
 

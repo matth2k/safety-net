@@ -368,14 +368,11 @@ fn test_replace() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
-           wire inst_0_Y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_O;
+           wire inst_0_Y;
            AND inst_0 (
              .A(inst_0_O),
              .B(b),
@@ -409,14 +406,11 @@ fn test_replace2() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
-           wire inst_0_Y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_O;
+           wire inst_0_Y;
            AND inst_0 (
              .A(a),
              .B(b),
@@ -458,12 +452,9 @@ fn test_replace_single_single() {
             b,
             y
           );
-            input a;
-            wire a;
-            input b;
-            wire b;
-            output y;
-            wire y;
+            input wire a;
+            input wire b;
+            output wire y;
             wire and_0_Y;
             wire or_0_Y;
             AND and_0 (
@@ -508,12 +499,9 @@ fn test_replace_single_multiple() {
           b,
           y
         );
-          input a;
-          wire a;
-          input b;
-          wire b;
-          output y;
-          wire y;
+          input wire a;
+          input wire b;
+          output wire y;
           wire and_0_Y;
           wire dup0_O0;
           wire dup0_O1;
@@ -560,12 +548,9 @@ fn test_replace_multiple_single() {
           b,
           y
           );
-          input a;
-          wire a;
-          input b;
-          wire b;
-          output y;
-          wire y;
+          input wire a;
+          input wire b;
+          output wire y;
           wire and_0_Y;
           wire dup0_O0;
           wire dup0_O1;
@@ -606,10 +591,8 @@ fn test_replace_multiple_multiple() {
             a,
             y
             );
-            input a;
-            wire a;
-            output y;
-            wire y;
+            input wire a;
+            output wire y;
             wire dup2_O0;
             wire dup2_O1;
             DUP dup2 (

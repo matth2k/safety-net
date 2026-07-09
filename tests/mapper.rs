@@ -135,17 +135,14 @@ fn test_matches_macro() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
-           wire inst_0_Y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire a__0_3_Y;
            wire a__0_3_inv_Y;
            wire b__1_3_Y;
            wire b__1_3_inv_Y;
+           wire inst_0_Y;
            wire inst_0_Y__2_3_Y;
            wire inst_0_Y__2_3_inv_Y;
            AND inst_0 (

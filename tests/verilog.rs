@@ -1,4 +1,4 @@
-use safety_net::{Gate, GateNetlist, Logic, Netlist, assert_verilog_eq};
+use safety_net::{Gate, GateNetlist, Identifier, Logic, Netlist, assert_verilog_eq};
 use std::rc::Rc;
 
 fn and_gate() -> Gate {
@@ -32,10 +32,8 @@ fn min_module() {
            a,
            y
          );
-           input a;
-           wire a;
-           output y;
-           wire y;
+           input wire a;
+           output wire y;
            assign y = a;
          endmodule\n"
     );
@@ -72,12 +70,9 @@ fn simple_gate_module() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            AND inst_0 (
              .A(a),
@@ -104,12 +99,9 @@ fn dont_touch_gate() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            (* dont_touch *)
            AND inst_0 (
@@ -136,12 +128,9 @@ fn simple_gate_attribute() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            AND inst_0 (
              .A(a),
@@ -165,8 +154,7 @@ fn constant_output() {
         "module top (
            y
          );
-           output y;
-           wire y;
+           output wire y;
            assign y = 1'b1;
          endmodule\n"
     );
@@ -188,8 +176,7 @@ fn constant_driver() {
         "module top (
            y
          );
-           output y;
-           wire y;
+           output wire y;
            wire inst_0_Y;
            NOT inst_0 (
              .A(1'b1),
@@ -212,14 +199,33 @@ fn double_output() {
            y,
            z
          );
-           input a;
-           wire a;
-           output y;
-           wire y;
-           output z;
-           wire z;
+           input wire a;
+           output wire y;
+           output wire z;
            assign y = a;
            assign z = a;
+         endmodule\n"
+    );
+}
+
+#[test]
+fn netlist_bus() {
+    let netlist = GateNetlist::new("top".to_string());
+    let a = netlist.insert_input_logic_bus("a".to_string(), 2);
+    let z = Identifier::new_bus("z".to_string(), 2);
+    for (j, k) in a.into_iter().zip(z) {
+        j.expose_with_name(k);
+    }
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module top (
+           a,
+           z
+         );
+           input wire [1:0] a;
+           output wire [1:0] z;
+           assign z[0] = a[0];
+           assign z[1] = a[1];
          endmodule\n"
     );
 }
