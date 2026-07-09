@@ -13,7 +13,7 @@ use crate::{
 };
 use std::{
     cell::{Ref, RefCell, RefMut},
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     num::ParseIntError,
     rc::{Rc, Weak},
 };
@@ -2742,47 +2742,106 @@ where
         writeln!(f, "module {} (", self.get_name())?;
 
         // Print inputs and outputs
-        let level = 2;
-        let indent = " ".repeat(level);
+        let mut input_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
+        let mut output_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
+
         for oref in objects.iter() {
             let owned = oref.borrow();
             let obj = owned.get();
             if let Object::Input(net) = obj {
-                writeln!(f, "{}{},", indent, net.get_identifier().emit_name())?;
+                let stem = net.get_identifier().get_stem();
+                let entry = input_list
+                    .entry((stem.to_string(), net.get_identifier().is_escaped()))
+                    .or_default();
+                if let Some(idx) = net.get_identifier().get_bit_index() {
+                    entry.0 = entry.0.min(idx);
+                    entry.1 = entry.1.max(idx);
+                }
             }
         }
 
         // Flatten the outputs to collect all (operand, net) pairs
         let all_outputs: Vec<_> = outputs.values().flat_map(|nets| nets.iter()).collect();
-        for (i, net) in all_outputs.iter().enumerate() {
-            if i == all_outputs.len() - 1 {
-                writeln!(f, "{}{}", indent, net.get_identifier().emit_name())?;
-            } else {
-                writeln!(f, "{}{},", indent, net.get_identifier().emit_name())?;
+        for &net in &all_outputs {
+            let stem = net.get_identifier().get_stem();
+            if input_list.contains_key(&(stem.to_string(), net.get_identifier().is_escaped())) {
+                continue;
+            }
+            let entry = output_list
+                .entry((stem.to_string(), net.get_identifier().is_escaped()))
+                .or_default();
+            if let Some(idx) = net.get_identifier().get_bit_index() {
+                entry.0 = entry.0.min(idx);
+                entry.1 = entry.1.max(idx);
             }
         }
+
+        let level = 2;
+        let indent = " ".repeat(level);
+        for (id, escaped) in input_list.keys() {
+            write!(f, "{}", indent)?;
+            if *escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if *escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ",")?;
+        }
+
+        for (i, (id, escaped)) in output_list.keys().enumerate() {
+            write!(f, "{}", indent)?;
+            if *escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if *escaped {
+                write!(f, " ")?;
+            }
+            if i == output_list.len() - 1 {
+                writeln!(f)?;
+            } else {
+                writeln!(f, ",")?;
+            }
+        }
+
         writeln!(f, ");")?;
 
         // Make wire decls
         let mut already_decl = HashSet::new();
-        for oref in objects.iter() {
-            let owned = oref.borrow();
-            let obj = owned.get();
-            if let Object::Input(net) = obj {
-                writeln!(f, "{}input {};", indent, net.get_identifier().emit_name())?;
-                writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
-                already_decl.insert(net.clone());
+        for ((id, escaped), (lsb, msb)) in input_list {
+            write!(f, "{}input wire ", indent)?;
+            if lsb != msb {
+                write!(f, "[{}:{}] ", msb, lsb)?;
             }
-        }
-        for nets in outputs.values() {
-            for net in nets {
-                if !already_decl.contains(net) {
-                    writeln!(f, "{}output {};", indent, net.get_identifier().emit_name())?;
-                    writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
-                    already_decl.insert(net.clone());
-                }
+            if escaped {
+                write!(f, "\\")?;
             }
+            write!(f, "{}", id)?;
+            if escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ";")?;
+            already_decl.insert(id);
         }
+
+        for ((id, escaped), (lsb, msb)) in output_list {
+            write!(f, "{}output wire ", indent)?;
+            if lsb != msb {
+                write!(f, "[{}:{}] ", msb, lsb)?;
+            }
+            if escaped {
+                write!(f, "\\")?;
+            }
+            write!(f, "{}", id)?;
+            if escaped {
+                write!(f, " ")?;
+            }
+            writeln!(f, ";")?;
+            already_decl.insert(id);
+        }
+
         for oref in objects.iter() {
             let owned = oref.borrow();
             let obj = owned.get();
@@ -2790,9 +2849,12 @@ where
                 && inst_type.get_constant().is_none()
             {
                 for net in nets.iter() {
-                    if !already_decl.contains(net) {
+                    if !already_decl.contains(net.get_identifier().get_stem()) {
+                        if net.get_identifier().get_bit_index().is_some() {
+                            todo!("Only output ports can be part of a bus");
+                        }
                         writeln!(f, "{}wire {};", indent, net.get_identifier().emit_name())?;
-                        already_decl.insert(net.clone());
+                        already_decl.insert(net.get_identifier().get_stem().to_string());
                     }
                 }
             }
