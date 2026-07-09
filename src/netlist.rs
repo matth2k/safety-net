@@ -1956,6 +1956,13 @@ where
             {
                 return Err(Error::NonuniqueInsts(vec![name]));
             }
+            if let Some(name) = inst.get_instance_name()
+                && name.get_bit_index().is_some()
+            {
+                return Err(Error::InstantiableError(format!(
+                    "Instance identifier {name} cannot be indexed"
+                )));
+            }
         }
         Ok(())
     }
