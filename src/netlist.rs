@@ -3281,6 +3281,14 @@ mod tests {
         let c = dfs.count();
         assert_eq!(c, 4);
     }
+
+    #[test]
+    fn test_operand_comparison() {
+        let a = Operand::CellIndex(3, 0);
+        let b = Operand::DirectIndex(3);
+        assert_eq!(a.cmp(&b), std::cmp::Ordering::Greater);
+        assert_eq!(b.cmp(&a), std::cmp::Ordering::Less);
+    }
 }
 #[cfg(feature = "serde")]
 /// Serde support for netlists
