@@ -213,7 +213,7 @@ fn netlist_bus() {
     let netlist = GateNetlist::new("top".to_string());
     let a = netlist.insert_input_logic_bus("a".to_string(), 2);
     let z = Identifier::new_bus("z".to_string(), 2);
-    for (j, k) in a.into_iter().zip(z.into_iter()) {
+    for (j, k) in a.into_iter().zip(z) {
         j.expose_with_name(k);
     }
     assert_verilog_eq!(
