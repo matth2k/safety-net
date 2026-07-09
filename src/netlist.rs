@@ -1377,12 +1377,8 @@ where
     }
 
     /// Inserts a four-state logic input port to the netlist
-    pub fn insert_input_escaped_logic_bus(
-        self: &Rc<Self>,
-        net: String,
-        bw: usize,
-    ) -> Vec<DrivenNet<I>> {
-        Net::new_escaped_logic_bus(net, bw)
+    pub fn insert_input_logic_bus(self: &Rc<Self>, net: String, bw: usize) -> Vec<DrivenNet<I>> {
+        Net::new_logic_bus(net, bw)
             .into_iter()
             .map(|n| self.insert_input(n))
             .collect()

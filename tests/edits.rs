@@ -86,17 +86,17 @@ fn test_multiple_output_aliases() {
     );
 
     // Verify that the outputs have the correct names
-    let output_names: Vec<&str> = outputs
+    let output_names: Vec<String> = outputs
         .iter()
-        .map(|net| net.get_identifier().get_name())
+        .map(|net| net.get_identifier().emit_name())
         .collect();
     assert!(
-        output_names.contains(&"y"),
+        output_names.contains(&"y".to_string()),
         "Expected output 'y' but got {:?}",
         output_names
     );
     assert!(
-        output_names.contains(&"z"),
+        output_names.contains(&"z".to_string()),
         "Expected output 'z' but got {:?}",
         output_names
     );
@@ -141,13 +141,13 @@ fn test_remove_output() {
     );
 
     // Verify the correct outputs remain
-    let output_names: Vec<&str> = outputs
+    let output_names: Vec<String> = outputs
         .iter()
-        .map(|net| net.get_identifier().get_name())
+        .map(|net| net.get_identifier().emit_name())
         .collect();
-    assert!(output_names.contains(&"y"));
-    assert!(!output_names.contains(&"z"));
-    assert!(output_names.contains(&"w"));
+    assert!(output_names.contains(&"y".to_string()));
+    assert!(!output_names.contains(&"z".to_string()));
+    assert!(output_names.contains(&"w".to_string()));
 
     // Try to remove a non-existent output
     let removed = instance.remove_output(&"nonexistent".into());

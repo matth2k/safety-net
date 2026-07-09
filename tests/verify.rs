@@ -25,15 +25,14 @@ fn test_bus_operations() {
     let netlist = GateNetlist::new("test_bus_operations".to_string());
 
     // Create a 4-bit input bus
-    let input_bus = netlist.insert_input_escaped_logic_bus("input_bus".to_string(), 4);
+    let input_bus = netlist.insert_input_logic_bus("input_bus".to_string(), 4);
 
     // Check that bus has been instantiated correctly
     assert_eq!(input_bus.len(), 4);
     for (i, bit) in input_bus.iter().enumerate() {
         assert!(bit.is_an_input());
         let identifier = bit.get_identifier();
-        assert!(identifier.is_escaped());
-        assert_eq!(identifier.get_name(), format!("input_bus[{i}]"));
+        assert_eq!(identifier.emit_name(), format!("input_bus[{i}]"));
     }
 
     // Test that we can connect bus bits to gates

@@ -25,8 +25,8 @@ fn ripple_adder() -> Rc<GateNetlist> {
     let bitwidth = 4;
 
     // Add the the inputs
-    let a = netlist.insert_input_escaped_logic_bus("a".to_string(), bitwidth);
-    let b = netlist.insert_input_escaped_logic_bus("b".to_string(), bitwidth);
+    let a = netlist.insert_input_logic_bus("a".to_string(), bitwidth);
+    let b = netlist.insert_input_logic_bus("b".to_string(), bitwidth);
     let mut carry: DrivenNet<Gate> = netlist.insert_input("cin".into());
 
     for (i, (a, b)) in a.into_iter().zip(b).enumerate() {
