@@ -32,10 +32,8 @@ fn min_module() {
            a,
            y
          );
-           input a;
-           wire a;
-           output y;
-           wire y;
+           input wire a;
+           output wire y;
            assign y = a;
          endmodule\n"
     );
@@ -72,12 +70,9 @@ fn simple_gate_module() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            AND inst_0 (
              .A(a),
@@ -104,12 +99,9 @@ fn dont_touch_gate() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            (* dont_touch *)
            AND inst_0 (
@@ -136,12 +128,9 @@ fn simple_gate_attribute() {
            b,
            y
          );
-           input a;
-           wire a;
-           input b;
-           wire b;
-           output y;
-           wire y;
+           input wire a;
+           input wire b;
+           output wire y;
            wire inst_0_Y;
            AND inst_0 (
              .A(a),
@@ -165,8 +154,7 @@ fn constant_output() {
         "module top (
            y
          );
-           output y;
-           wire y;
+           output wire y;
            assign y = 1'b1;
          endmodule\n"
     );
@@ -188,8 +176,7 @@ fn constant_driver() {
         "module top (
            y
          );
-           output y;
-           wire y;
+           output wire y;
            wire inst_0_Y;
            NOT inst_0 (
              .A(1'b1),
@@ -212,12 +199,9 @@ fn double_output() {
            y,
            z
          );
-           input a;
-           wire a;
-           output y;
-           wire y;
-           output z;
-           wire z;
+           input wire a;
+           output wire y;
+           output wire z;
            assign y = a;
            assign z = a;
          endmodule\n"
