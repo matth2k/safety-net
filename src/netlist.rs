@@ -146,7 +146,7 @@ impl Gate {
 }
 
 /// An operand to an [Instantiable]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 enum Operand {
     /// An index into the list of objects
@@ -155,26 +155,32 @@ enum Operand {
     CellIndex(usize, usize),
 }
 
-impl PartialOrd for Operand {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+impl Ord for Operand {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
-            (Operand::DirectIndex(a), Operand::DirectIndex(b)) => a.partial_cmp(b),
-            (Operand::CellIndex(a, b), Operand::CellIndex(c, d)) => (a, b).partial_cmp(&(c, d)),
+            (Operand::DirectIndex(a), Operand::DirectIndex(b)) => a.cmp(b),
+            (Operand::CellIndex(a, b), Operand::CellIndex(c, d)) => (a, b).cmp(&(c, d)),
             (Operand::DirectIndex(a), Operand::CellIndex(c, d)) => {
                 if a == c && *d == 0 {
-                    Some(std::cmp::Ordering::Less)
+                    std::cmp::Ordering::Less
                 } else {
-                    (a, &0).partial_cmp(&(c, d))
+                    (a, &0).cmp(&(c, d))
                 }
             }
             (Operand::CellIndex(a, b), Operand::DirectIndex(c)) => {
                 if a == c && *b == 0 {
-                    Some(std::cmp::Ordering::Greater)
+                    std::cmp::Ordering::Greater
                 } else {
-                    (a, b).partial_cmp(&(c, &0))
+                    (a, b).cmp(&(c, &0))
                 }
             }
         }
+    }
+}
+
+impl PartialOrd for Operand {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -245,7 +251,7 @@ where
     /// The list of operands for the object
     operands: Vec<Option<Operand>>,
     /// A collection of attributes for the object
-    attributes: HashMap<AttributeKey, AttributeValue>,
+    attributes: BTreeMap<AttributeKey, AttributeValue>,
     /// The index of the object within the netlist/module
     index: usize,
 }
@@ -1386,7 +1392,7 @@ where
             object,
             owner: weak,
             operands,
-            attributes: HashMap::new(),
+            attributes: BTreeMap::new(),
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
@@ -1452,7 +1458,7 @@ where
             object,
             owner: weak,
             operands,
-            attributes: HashMap::new(),
+            attributes: BTreeMap::new(),
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
@@ -3285,7 +3291,7 @@ pub mod serde {
     use serde::{Deserialize, Serialize, de::DeserializeOwned};
     use std::cell::RefCell;
     use std::{
-        collections::{BTreeSet, HashMap},
+        collections::{BTreeMap, BTreeSet},
         rc::Rc,
     };
 
@@ -3299,7 +3305,7 @@ pub mod serde {
         /// The list of operands for the object
         operands: Vec<Option<Operand>>,
         /// A collection of attributes for the object
-        attributes: HashMap<AttributeKey, AttributeValue>,
+        attributes: BTreeMap<AttributeKey, AttributeValue>,
     }
 
     impl<I, O> From<OwnedObject<I, O>> for SerdeObject<I>
@@ -3346,7 +3352,7 @@ pub mod serde {
         /// The list of operands that point to objects which are outputs.
         /// Indices must be a string if we want to support JSON.
         /// Each operand can map to multiple nets, supporting output aliases.
-        outputs: HashMap<String, BTreeSet<Net>>,
+        outputs: BTreeMap<String, BTreeSet<Net>>,
     }
 
     impl<I> From<Netlist<I>> for SerdeNetlist<I>
@@ -3386,7 +3392,7 @@ pub mod serde {
         /// Convert the serialized netlist back into a reference-counted netlist.
         fn into_netlist(self) -> Rc<Netlist<I>> {
             let netlist = Netlist::new(self.name);
-            let outputs: HashMap<Operand, BTreeSet<Net>> = self
+            let outputs: BTreeMap<Operand, BTreeSet<Net>> = self
                 .outputs
                 .into_iter()
                 .map(|(k, v)| {
