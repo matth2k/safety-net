@@ -6,7 +6,7 @@
 
 use crate::{
     attribute::{Attribute, AttributeKey, AttributeValue, Parameter},
-    circuit::{Identifier, Instantiable, Net, Object},
+    circuit::{ExtractType, Identifier, Instantiable, Net, Object},
     error::Error,
     graph::{Analysis, FanOutTable},
     logic::Logic,
@@ -948,6 +948,31 @@ where
     }
 }
 
+/// A NetRef that has holds a typed borrow to the instance type
+#[derive(Debug)]
+pub struct TypedNetRef<I: Instantiable + ExtractType<O>, O: Instantiable + Into<I>> {
+    netref: NetRef<I>,
+    _marker: std::marker::PhantomData<O>,
+}
+
+impl<I, O> TypedNetRef<I, O>
+where
+    I: Instantiable + ExtractType<O>,
+    O: Instantiable + Into<I>,
+{
+    /// Returns a borrow to the specific instance type of this circuit
+    pub fn get_type(&self) -> Ref<'_, O> {
+        Ref::map(self.netref.get_instance_type().unwrap(), |f| {
+            f.extract_type().unwrap()
+        })
+    }
+
+    /// Returns the underlying [NetRef] of this circuit node
+    pub fn unwrap(self) -> NetRef<I> {
+        self.netref
+    }
+}
+
 impl<I> From<NetRef<I>> for DrivenNet<I>
 where
     I: Instantiable,
@@ -1479,6 +1504,22 @@ where
         }));
         self.objects.borrow_mut().push(owned_object.clone());
         NetRef::wrap(owned_object)
+    }
+
+    /// Use a gate using the most specific typing information
+    pub fn insert_gate_typed<O: Instantiable + Into<I>>(
+        self: &Rc<Self>,
+        inst_type: O,
+        inst_name: Identifier,
+    ) -> TypedNetRef<I, O>
+    where
+        I: ExtractType<O>,
+    {
+        let netref = self.insert_gate_disconnected(inst_type.into(), inst_name);
+        TypedNetRef {
+            netref,
+            _marker: std::marker::PhantomData::<O>,
+        }
     }
 
     /// Inserts a constant [Logic] value to the netlist

@@ -393,6 +393,12 @@ pub trait Instantiable: Clone {
     }
 }
 
+/// Extract a subtype of gate from a generic/wrapper instantiable.
+pub trait ExtractType<O: Instantiable>: Instantiable {
+    /// Attempts to extract the underling gate type
+    fn extract_type(&self) -> Option<&O>;
+}
+
 /// A tagged union for objects in a digital circuit, which can be either an input net or an instance of a module or primitive.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
