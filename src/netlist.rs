@@ -563,18 +563,26 @@ where
         RefMut::map(self.netref.borrow_mut(), |f| f.as_net_mut())
     }
 
-    /// Returns a borrow to the output [Net] as position `idx`
+    /// Returns a borrow to the output [Net] at position `idx`
     pub fn get_net(&self, idx: usize) -> Ref<'_, Net> {
         Ref::map(self.netref.borrow(), |f| f.get_net(idx))
     }
 
-    /// Returns a mutable borrow to the output [Net] as position `idx`
+    /// Returns a mutable borrow to the output [Net] at position `idx`
     pub fn get_net_mut(&self, idx: usize) -> RefMut<'_, Net> {
         RefMut::map(self.netref.borrow_mut(), |f| f.get_net_mut(idx))
     }
 
-    /// Returns a borrow to the output [Net] as position `idx`
+    /// Returns a borrow to the output [Net] at position `idx`
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is out of bounds.
     pub fn get_output(&self, idx: usize) -> DrivenNet<I> {
+        let len = self.netref.borrow().get().get_nets().len();
+        if idx >= len {
+            panic!("Output index {idx} is out of bounds for circuit node with {len} outputs");
+        }
         DrivenNet::new(idx, self.clone())
     }
 
@@ -585,9 +593,17 @@ where
     }
 
     /// Returns an abstraction around the input connection
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is out of bounds
     pub fn get_input(&self, idx: usize) -> InputPort<I> {
         if self.is_an_input() {
             panic!("Principal inputs do not have inputs");
+        }
+        let len = self.netref.borrow().operands.len();
+        if idx >= len {
+            panic!("Input index {idx} is out of bounds for circuit node with {len} inputs");
         }
         InputPort::new(idx, self.clone())
     }
@@ -1936,7 +1952,7 @@ where
         Ok(removed)
     }
 
-    /// Returns `true` if all the nets/insts are uniquely named
+    /// Returns Ok if all the nets/insts are uniquely named
     fn nets_insts_unique(&self) -> Result<(), Error> {
         let mut nets = HashSet::new();
         let mut stems = HashSet::new();
@@ -1967,6 +1983,31 @@ where
         Ok(())
     }
 
+    /// Checks that check netref matches input and output size of instance
+    fn check_io(&self) -> Result<(), Error> {
+        for inst in self.objects() {
+            let unwrapped = inst.unwrap();
+
+            let olen = unwrapped.borrow().operands.len();
+            let nlen = unwrapped.borrow().get().get_nets().len();
+
+            if let Some(inst) = unwrapped.borrow().get().get_instance_type() {
+                let inlen = inst.get_input_ports().into_iter().count();
+                let outlen = inst.get_output_ports().into_iter().count();
+                if olen != inlen {
+                    return Err(Error::ArgumentMismatch(inlen, olen));
+                }
+
+                if nlen != outlen {
+                    return Err(Error::InstantiableError(format!(
+                        "Instantiable type has incorrect number of outputs. Expected {outlen}, found {nlen}"
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn connections_type_check(&self) -> Result<(), Error> {
         for conn in self.connections() {
             let target = *conn.target().get_port().get_type();
@@ -1984,6 +2025,7 @@ where
             return Err(Error::NoOutputs);
         }
 
+        self.check_io()?;
         self.nets_insts_unique()?;
         self.connections_type_check()?;
 
