@@ -612,3 +612,17 @@ fn test_rename() {
     let gate = netlist.last().unwrap();
     assert_eq!(gate.get_instance_name().unwrap(), "__1__".into());
 }
+
+#[test]
+fn test_bad_inst_swap() {
+    let netlist = get_simple_example();
+    let gate = netlist.last().unwrap();
+    let mut inst = gate.get_instance_type_mut().unwrap();
+    *inst = two_out_gate();
+
+    drop(inst);
+    let verify = netlist.verify();
+    assert!(verify.is_err());
+    let rsn = verify.err().unwrap();
+    assert!(matches!(rsn, safety_net::Error::ArgumentMismatch(1, 2)));
+}
