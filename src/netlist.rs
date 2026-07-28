@@ -2805,11 +2805,14 @@ where
         let mod_name = format!("{}.dot", self.get_name());
         dir.push(mod_name);
         let mut file = std::fs::File::create(dir)?;
-        if let Err(e) = self.verify() {
-            write!(file, "Netlist verification failed: {e}")
-        } else {
-            let dot = self.dot_string().unwrap();
-            write!(file, "{dot}")
+
+        match self.dot_string() {
+            Ok(dot) => {
+                write!(file, "{dot}")
+            }
+            Err(e) => {
+                write!(file, "Dot generation failed: {e}")
+            }
         }
     }
 }
