@@ -1371,12 +1371,13 @@ where
             .borrow()
             .iter()
             .map(|obj| {
+                let b = obj.borrow();
                 Rc::new(RefCell::new(OwnedObject {
-                    object: obj.borrow().object.clone(),
+                    object: b.object.clone(),
                     owner: Rc::downgrade(&dc),
-                    operands: obj.borrow().operands.clone(),
-                    attributes: obj.borrow().attributes.clone(),
-                    index: obj.borrow().index,
+                    operands: b.operands.clone(),
+                    attributes: b.attributes.clone(),
+                    index: b.index,
                 }))
             })
             .collect();
@@ -1834,13 +1835,20 @@ where
     /// ```
     pub fn rename_nets<F: Fn(&Identifier, usize) -> Identifier>(&self, f: F) -> Result<(), Error> {
         let mut i: usize = 0;
+        let mut set = HashSet::new();
+        let mut vec = Vec::new();
+        // Dry run
         for nr in self.objects() {
             if nr.is_an_input() {
                 continue;
             }
-            for mut net in nr.nets_mut() {
-                let rename = f(net.get_identifier(), i);
-                net.set_identifier(rename);
+            for net in nr.nets() {
+                let id = net.get_identifier().clone();
+                let rename = f(&id, i);
+                if !set.insert(rename.clone()) {
+                    return Err(Error::NonuniqueNets(vec![net]));
+                }
+                vec.push(rename);
                 i += 1;
             }
         }
@@ -1850,12 +1858,36 @@ where
                 continue;
             }
 
-            let rename = f(&nr.get_instance_name().unwrap(), i);
-            nr.set_instance_name(rename);
+            let id = nr.get_instance_name().unwrap();
+            let rename = f(&id, i);
+            if !set.insert(rename.clone()) {
+                return Err(Error::NonuniqueInsts(vec![id]));
+            }
+            vec.push(rename);
             i += 1;
         }
 
-        self.verify()
+        i = 0;
+        for nr in self.objects() {
+            if nr.is_an_input() {
+                continue;
+            }
+            for mut net in nr.nets_mut() {
+                net.set_identifier(vec[i].clone());
+                i += 1;
+            }
+        }
+
+        for nr in self.objects() {
+            if nr.is_an_input() {
+                continue;
+            }
+
+            nr.set_instance_name(vec[i].clone());
+            i += 1;
+        }
+
+        Ok(())
     }
 
     /// Retains the [DrivenNet]s in `set`, given they are used. Otherwise, they are cleaned and returned in a `Ok(vec)`.
@@ -2805,11 +2837,14 @@ where
         let mod_name = format!("{}.dot", self.get_name());
         dir.push(mod_name);
         let mut file = std::fs::File::create(dir)?;
-        if let Err(e) = self.verify() {
-            write!(file, "Netlist verification failed: {e}")
-        } else {
-            let dot = self.dot_string().unwrap();
-            write!(file, "{dot}")
+
+        match self.dot_string() {
+            Ok(dot) => {
+                write!(file, "{dot}")
+            }
+            Err(e) => {
+                write!(file, "Dot generation failed: {e}")
+            }
         }
     }
 }

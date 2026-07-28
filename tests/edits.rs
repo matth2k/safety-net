@@ -608,6 +608,7 @@ fn test_replace_multiple_multiple() {
 #[test]
 fn test_rename() {
     let netlist = get_simple_example();
+    assert!(netlist.rename_nets(|_, _| format_id!("__yo__")).is_err());
     assert!(netlist.rename_nets(|_, i| format_id!("__{i}__")).is_ok());
     let gate = netlist.last().unwrap();
     assert_eq!(gate.get_instance_name().unwrap(), "__1__".into());

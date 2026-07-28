@@ -99,11 +99,13 @@ where
         let mut ref_count: HashMap<NetRef<I>, usize> = HashMap::new();
 
         // We can only build the fanout table if netlist is mostly intact
-        if let Err(e) = netlist.verify() {
-            match e {
-                Error::NoOutputs => (),
-                _ => return Err(e),
-            }
+        if let Err(e) = netlist.verify()
+            && matches!(
+                e,
+                Error::NonuniqueNets(_) | Error::NonuniqueInsts(_) | Error::InstantiableError(_)
+            )
+        {
+            return Err(e);
         }
 
         for c in netlist.connections() {
@@ -480,19 +482,17 @@ where
     I: Instantiable,
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
-        // If we verify, we can hash by name
-        netlist.verify()?;
         let mut mapping = HashMap::new();
         let mut graph = DiGraph::new();
 
         for obj in netlist.objects() {
             let id = graph.add_node(Node::NetRef(obj.clone()));
-            mapping.insert(obj.to_string(), id);
+            mapping.insert(obj, id);
         }
 
         for connection in netlist.connections() {
-            let source = connection.src().unwrap().get_obj().to_string();
-            let target = connection.target().unwrap().get_obj().to_string();
+            let source = connection.src().unwrap();
+            let target = connection.target().unwrap();
             let s_id = mapping[&source];
             let t_id = mapping[&target];
             graph.add_edge(s_id, t_id, Edge::Connection(connection));
@@ -500,7 +500,7 @@ where
 
         // Finally, add the output connections
         for (o, n) in netlist.outputs() {
-            let s_id = mapping[&o.clone().unwrap().get_obj().to_string()];
+            let s_id = mapping[&o.clone().unwrap()];
             let t_id = graph.add_node(Node::Pseudo(format!("Output({n})")));
             graph.add_edge(s_id, t_id, Edge::Pseudo(o.as_net().clone()));
         }

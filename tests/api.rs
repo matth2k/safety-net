@@ -470,6 +470,8 @@ fn test_deep_clone() {
     let netlist = get_simple_example();
     let clone = netlist.deep_clone();
     assert_eq!(netlist.to_string(), clone.to_string());
+    clone.last().unwrap().set_instance_name("lol".into());
+    assert_ne!(netlist.to_string(), clone.to_string());
 }
 
 #[test]
