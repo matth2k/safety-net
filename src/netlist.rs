@@ -1371,12 +1371,13 @@ where
             .borrow()
             .iter()
             .map(|obj| {
+                let b = obj.borrow();
                 Rc::new(RefCell::new(OwnedObject {
-                    object: obj.borrow().object.clone(),
+                    object: b.object.clone(),
                     owner: Rc::downgrade(&dc),
-                    operands: obj.borrow().operands.clone(),
-                    attributes: obj.borrow().attributes.clone(),
-                    index: obj.borrow().index,
+                    operands: b.operands.clone(),
+                    attributes: b.attributes.clone(),
+                    index: b.index,
                 }))
             })
             .collect();
