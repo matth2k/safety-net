@@ -2107,8 +2107,8 @@ where
 
 /// Backend language emitters
 pub mod emitter {
-    use super::{Analysis, Error, Identifier, Instantiable, Netlist};
-    use std::collections::{BTreeMap, HashSet};
+    use super::{Analysis, Error, Identifier, Instantiable, NetRef, Netlist};
+    use std::collections::{BTreeMap, HashMap, HashSet};
 
     /// Options for the Verilog emitter
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2533,6 +2533,189 @@ pub mod emitter {
     impl<'a, I: Instantiable> std::fmt::Display for VerilogEmitter<'a, I> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             self.emit(f)
+        }
+    }
+
+    /// An RGB color struct
+    #[cfg(feature = "graph")]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct RGB {
+        /// Red channel
+        pub r: u8,
+        /// Green channel
+        pub g: u8,
+        /// Blue channel
+        pub b: u8,
+    }
+
+    #[cfg(feature = "graph")]
+    impl std::fmt::Display for RGB {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
+        }
+    }
+
+    /// A function that optionally maps an object to a color
+    #[cfg(feature = "graph")]
+    pub type ColorFunc<T> = dyn Fn(&T, Option<RGB>) -> Option<RGB>;
+
+    /// Emits a graphviz (dot) representation of the netlist
+    #[cfg(feature = "graph")]
+    pub struct DotEmitter<'a, I: Instantiable> {
+        netlist: &'a Netlist<I>,
+        overrides_netref: HashMap<NetRef<I>, RGB>,
+        color_netref: Box<ColorFunc<NetRef<I>>>,
+        color_inst: Box<ColorFunc<I>>,
+    }
+
+    #[cfg(feature = "graph")]
+    impl<'a, I: Instantiable> DotEmitter<'a, I> {
+        /// Create a new dot emitter for the given netlist
+        pub fn new(netlist: &'a Netlist<I>) -> Self {
+            Self {
+                netlist,
+                overrides_netref: HashMap::new(),
+                color_netref: Box::new(|_, _| None),
+                color_inst: Box::new(|_, _| None),
+            }
+        }
+
+        /// Override the color of a specific netref
+        pub fn override_color(&mut self, netref: NetRef<I>, color: RGB) {
+            self.overrides_netref.insert(netref, color);
+        }
+
+        /// Color nodes based on [NetRef] properties
+        pub fn with_net_coloring<F: Fn(&NetRef<I>, Option<RGB>) -> Option<RGB> + 'static>(
+            self,
+            f: F,
+        ) -> Self {
+            Self {
+                color_netref: Box::new(f),
+                ..self
+            }
+        }
+
+        /// Color nodes based on [Instantiable] properties
+        pub fn with_instance_coloring<F: Fn(&I, Option<RGB>) -> Option<RGB> + 'static>(
+            self,
+            f: F,
+        ) -> Self {
+            Self {
+                color_inst: Box::new(f),
+                ..self
+            }
+        }
+
+        fn get_color(&self, netref: &NetRef<I>) -> Option<RGB> {
+            if let Some(color) = self.overrides_netref.get(netref) {
+                return Some(*color);
+            }
+            let color = match netref.get_instance_type() {
+                Some(inst) => (self.color_inst)(&inst, None),
+                None => None,
+            };
+            (self.color_netref)(netref, color)
+        }
+
+        /// Emit the netlist as a graphviz / dot
+        pub fn emit(&self) -> String {
+            use super::super::graph::{Edge, MultiDiGraph, Node};
+            use super::Net;
+            use petgraph::dot::{Config, Dot};
+            use petgraph::graph::{DiGraph, EdgeReference, NodeIndex};
+            let analysis = MultiDiGraph::new(self.netlist);
+            let graph = analysis.get_graph();
+
+            let node_impl = |_graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+                             node: (NodeIndex, &Node<I, String>)| {
+                let n = node.1;
+                let mut attr = String::new();
+
+                match n {
+                    Node::NetRef(nr) if nr.get_instance_type().is_some() => {
+                        attr += "shape=record, ";
+                        if let Some(color) = self.get_color(nr) {
+                            attr += &format!("fillcolor=\"{color}\", ");
+                        }
+                    }
+                    _ => attr += "shape=ellipse, ",
+                }
+
+                match n {
+                    Node::NetRef(nr)
+                        if let Some(inst_type) = nr.get_instance_type()
+                            && !inst_type.is_driverless() =>
+                    {
+                        let mut record = "{ { ".to_string();
+
+                        let l = nr.get_num_input_ports();
+                        for (i, port) in nr.inputs().enumerate() {
+                            let id = port.get_port().get_identifier().clone();
+                            record += &format!("{{ <{}> {} }}", id, id);
+
+                            if i != l - 1 {
+                                record += " | ";
+                            }
+                        }
+
+                        record += &format!(
+                            " }} | {}({}) }}",
+                            inst_type.get_name(),
+                            nr.get_instance_name().unwrap()
+                        );
+                        attr += &format!("label=\"{record}\"");
+                    }
+                    _ => attr += &format!("label=\"{n}\""),
+                }
+
+                attr
+            };
+
+            fn edge_impl<I: Instantiable>(
+                _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
+                edge: EdgeReference<Edge<I, Net>>,
+            ) -> String {
+                match edge.weight() {
+                    Edge::Connection(c) => {
+                        format!(", port=\"{}\"", c.target().get_port().get_identifier())
+                    }
+                    _ => String::new(),
+                }
+            }
+
+            let dot =
+                Dot::with_attr_getters(graph, &[Config::NodeNoLabel], &edge_impl::<I>, &node_impl);
+
+            // Post-process to add port specifiers to the edges.
+            let mut result = String::new();
+            for line in dot.to_string().lines() {
+                if line.contains("->") && line.contains("port=") {
+                    let port = line
+                        .split("port=\"")
+                        .nth(1)
+                        .unwrap()
+                        .split('"')
+                        .next()
+                        .unwrap();
+                    let (l, r) = line.split_once("->").unwrap();
+                    let (l, r) = (l, r.trim());
+                    let (d, r) = r.split_once(" ").unwrap();
+                    result += &format!("{l}-> {d}:{port} {r}\n");
+                } else {
+                    result += line;
+                    result += "\n";
+                }
+            }
+
+            result
+        }
+    }
+
+    #[cfg(feature = "graph")]
+    impl<'a, I: Instantiable> std::fmt::Display for DotEmitter<'a, I> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.emit())
         }
     }
 }
@@ -3169,96 +3352,10 @@ where
 
     #[cfg(feature = "graph")]
     /// Converts the current configuration of the netlist to a graphviz string
-    pub fn dot_string(&self) -> Result<String, Error> {
-        use super::graph::{Edge, MultiDiGraph, Node};
-        use petgraph::dot::{Config, Dot};
-        use petgraph::graph::{DiGraph, EdgeReference, NodeIndex};
-        let analysis = self.get_analysis::<MultiDiGraph<_>>()?;
-        let graph = analysis.get_graph();
-
-        fn node_impl<I: Instantiable>(
-            _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
-            node: (NodeIndex, &Node<I, String>),
-        ) -> String {
-            let n = node.1;
-            let mut attr = String::new();
-
-            match n {
-                Node::NetRef(nr) if nr.get_instance_type().is_some() => attr += "shape=record, ",
-                _ => attr += "shape=ellipse, ",
-            }
-
-            match n {
-                Node::NetRef(nr)
-                    if let Some(inst_type) = nr.get_instance_type()
-                        && !inst_type.is_driverless() =>
-                {
-                    let mut record = "{ { ".to_string();
-
-                    let l = nr.get_num_input_ports();
-                    for (i, port) in nr.inputs().enumerate() {
-                        let id = port.get_port().get_identifier().clone();
-                        record += &format!("{{ <{}> {} }}", id, id);
-
-                        if i != l - 1 {
-                            record += " | ";
-                        }
-                    }
-
-                    record += &format!(
-                        " }} | {}({}) }}",
-                        inst_type.get_name(),
-                        nr.get_instance_name().unwrap()
-                    );
-                    attr += &format!("label=\"{record}\"");
-                }
-                _ => attr += &format!("label=\"{n}\""),
-            }
-
-            attr
-        }
-
-        fn edge_impl<I: Instantiable>(
-            _graph: &DiGraph<Node<I, String>, Edge<I, Net>>,
-            edge: EdgeReference<Edge<I, Net>>,
-        ) -> String {
-            match edge.weight() {
-                Edge::Connection(c) => {
-                    format!(", port=\"{}\"", c.target().get_port().get_identifier())
-                }
-                _ => String::new(),
-            }
-        }
-
-        let dot = Dot::with_attr_getters(
-            graph,
-            &[Config::NodeNoLabel],
-            &edge_impl::<I>,
-            &node_impl::<I>,
-        );
-
-        // Post-process to add port specifiers to the edges.
-        let mut result = String::new();
-        for line in dot.to_string().lines() {
-            if line.contains("->") && line.contains("port=") {
-                let port = line
-                    .split("port=\"")
-                    .nth(1)
-                    .unwrap()
-                    .split('"')
-                    .next()
-                    .unwrap();
-                let (l, r) = line.split_once("->").unwrap();
-                let (l, r) = (l, r.trim());
-                let (d, r) = r.split_once(" ").unwrap();
-                result += &format!("{l}-> {d}:{port} {r}\n");
-            } else {
-                result += line;
-                result += "\n";
-            }
-        }
-
-        Ok(result)
+    pub fn dot_string(&self) -> String {
+        use emitter::DotEmitter;
+        let emitter = DotEmitter::new(self);
+        emitter.emit()
     }
 
     #[cfg(feature = "graph")]
@@ -3269,15 +3366,8 @@ where
         let mod_name = format!("{}.dot", self.get_name());
         dir.push(mod_name);
         let mut file = std::fs::File::create(dir)?;
-
-        match self.dot_string() {
-            Ok(dot) => {
-                write!(file, "{dot}")
-            }
-            Err(e) => {
-                write!(file, "Dot generation failed: {e}")
-            }
-        }
+        let dot = self.dot_string();
+        write!(file, "{dot}")
     }
 }
 

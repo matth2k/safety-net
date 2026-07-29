@@ -438,10 +438,41 @@ pub struct MultiDiGraph<'a, I: Instantiable> {
 }
 
 #[cfg(feature = "graph")]
-impl<I> MultiDiGraph<'_, I>
+impl<'a, I> MultiDiGraph<'a, I>
 where
     I: Instantiable,
 {
+    /// Create a new petgraph representation of the netlist
+    pub fn new(netlist: &'a Netlist<I>) -> Self {
+        let mut mapping = HashMap::new();
+        let mut graph = DiGraph::new();
+
+        for obj in netlist.objects() {
+            let id = graph.add_node(Node::NetRef(obj.clone()));
+            mapping.insert(obj, id);
+        }
+
+        for connection in netlist.connections() {
+            let source = connection.src().unwrap();
+            let target = connection.target().unwrap();
+            let s_id = mapping[&source];
+            let t_id = mapping[&target];
+            graph.add_edge(s_id, t_id, Edge::Connection(connection));
+        }
+
+        // Finally, add the output connections
+        for (o, n) in netlist.outputs() {
+            let s_id = mapping[&o.clone().unwrap()];
+            let t_id = graph.add_node(Node::Pseudo(format!("Output({n})")));
+            graph.add_edge(s_id, t_id, Edge::Pseudo(o.as_net().clone()));
+        }
+
+        Self {
+            _netlist: netlist,
+            graph,
+        }
+    }
+
     /// Return a reference to the graph constructed by this analysis
     pub fn get_graph(&self) -> &DiGraph<Node<I, String>, Edge<I, Net>> {
         &self.graph
@@ -482,33 +513,7 @@ where
     I: Instantiable,
 {
     fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
-        let mut mapping = HashMap::new();
-        let mut graph = DiGraph::new();
-
-        for obj in netlist.objects() {
-            let id = graph.add_node(Node::NetRef(obj.clone()));
-            mapping.insert(obj, id);
-        }
-
-        for connection in netlist.connections() {
-            let source = connection.src().unwrap();
-            let target = connection.target().unwrap();
-            let s_id = mapping[&source];
-            let t_id = mapping[&target];
-            graph.add_edge(s_id, t_id, Edge::Connection(connection));
-        }
-
-        // Finally, add the output connections
-        for (o, n) in netlist.outputs() {
-            let s_id = mapping[&o.clone().unwrap()];
-            let t_id = graph.add_node(Node::Pseudo(format!("Output({n})")));
-            graph.add_edge(s_id, t_id, Edge::Pseudo(o.as_net().clone()));
-        }
-
-        Ok(Self {
-            _netlist: netlist,
-            graph,
-        })
+        Ok(Self::new(netlist))
     }
 }
 

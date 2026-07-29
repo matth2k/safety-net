@@ -52,6 +52,6 @@ fn main() {
     {
         let netlist = ripple_adder();
         eprintln!("{netlist}");
-        println!("{}", netlist.dot_string().unwrap());
+        println!("{}", netlist.dot_string());
     }
 }
