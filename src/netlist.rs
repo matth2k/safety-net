@@ -2640,7 +2640,7 @@ pub mod emitter {
                     Node::NetRef(nr) if nr.get_instance_type().is_some() => {
                         attr += "shape=record, ";
                         if let Some(color) = self.get_color(nr) {
-                            attr += &format!("fillcolor=\"{color}\", ");
+                            attr += &format!("style=filled, fillcolor=\"{color}\", ");
                         }
                     }
                     _ => attr += "shape=ellipse, ",
