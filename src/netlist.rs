@@ -2168,7 +2168,10 @@ pub mod emitter {
     }
 
     impl<'a, I: Instantiable> VerilogEmitter<'a, I> {
-        fn get_nets(nl: &'a Netlist<I>) -> (Vec<VerilogNet>, Vec<VerilogNet>, Vec<VerilogNet>) {
+        fn get_nets(
+            nl: &'a Netlist<I>,
+            emit_consts: bool,
+        ) -> (Vec<VerilogNet>, Vec<VerilogNet>, Vec<VerilogNet>) {
             let mut seen: HashSet<Identifier> = HashSet::new();
             let mut inputs: BTreeMap<Identifier, (usize, usize)> = BTreeMap::new();
             let mut outputs: BTreeMap<Identifier, (usize, usize)> = BTreeMap::new();
@@ -2197,6 +2200,15 @@ pub mod emitter {
             }
 
             for obj in nl.objects() {
+                if !emit_consts
+                    && obj
+                        .get_instance_type()
+                        .and_then(|i| i.get_constant())
+                        .is_some()
+                {
+                    continue;
+                }
+
                 for net in obj.nets() {
                     let id = net.get_identifier();
                     let stem = id.get_stem();
@@ -2248,7 +2260,7 @@ pub mod emitter {
 
         /// Create a new Verilog emitter for the given netlist
         pub fn new(netlist: &'a Netlist<I>, config: VerilogEmitterConfig) -> Self {
-            let (inputs, outputs, others) = Self::get_nets(netlist);
+            let (inputs, outputs, others) = Self::get_nets(netlist, config.emit_const_cells);
             Self {
                 netlist,
                 config,
@@ -2460,13 +2472,15 @@ pub mod emitter {
             let indent = self.get_indent(1);
             for (operand, net) in self.netlist.outputs() {
                 if operand.get_identifier() != *net.get_identifier() {
-                    writeln!(
-                        f,
-                        "{}assign {} = {};",
-                        indent,
-                        net.get_identifier(),
-                        operand.get_identifier()
-                    )?;
+                    let rhs = if !self.config.emit_const_cells
+                        && let Some(logic) =
+                            operand.get_instance_type().and_then(|i| i.get_constant())
+                    {
+                        logic.to_string()
+                    } else {
+                        operand.get_identifier().to_string()
+                    };
+                    writeln!(f, "{}assign {} = {};", indent, net.get_identifier(), rhs)?;
                 }
             }
             writeln!(f)
