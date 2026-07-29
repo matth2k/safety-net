@@ -2339,11 +2339,11 @@ pub mod emitter {
             writeln!(f, "module {} (", self.netlist.get_name())?;
             let indent = self.get_indent(1);
             for input in &self.inputs {
-                writeln!(f, "{}input {},", indent, input)?;
+                writeln!(f, "{}{},", indent, input)?;
             }
             let l = self.outputs.len();
             for (i, output) in self.outputs.iter().enumerate() {
-                write!(f, "{}output {}", indent, output)?;
+                write!(f, "{}{}", indent, output)?;
                 if i != l - 1 {
                     writeln!(f, ",")?;
                 }
