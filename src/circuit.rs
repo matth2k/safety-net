@@ -131,8 +131,12 @@ impl Identifier {
     }
 
     /// Returns the stem of the identifier
-    pub fn get_stem(&self) -> &str {
-        &self.name
+    pub fn get_stem(&self) -> Identifier {
+        Identifier {
+            name: self.name.clone(),
+            escaped: self.escaped,
+            idx: None,
+        }
     }
 
     /// Returns the bit index, if the identifier is a bit-slice
