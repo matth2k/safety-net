@@ -2107,8 +2107,12 @@ where
 
 /// Backend language emitters
 pub mod emitter {
-    use super::{Analysis, Error, Identifier, Instantiable, NetRef, Netlist};
-    use std::collections::{BTreeMap, HashMap, HashSet};
+    #[cfg(feature = "graph")]
+    use super::NetRef;
+    use super::{Analysis, Error, Identifier, Instantiable, Netlist};
+    #[cfg(feature = "graph")]
+    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashSet};
 
     /// Options for the Verilog emitter
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
