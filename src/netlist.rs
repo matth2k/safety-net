@@ -2123,12 +2123,24 @@ pub mod emitter {
         pub emit_const_cells: bool,
     }
 
+    impl VerilogEmitterConfig {
+        /// Return a config that is roughly equivalent to the old emitter
+        pub fn legacy() -> Self {
+            Self {
+                indent_char: ' ',
+                indent_width: 2,
+                ansi_style: false,
+                emit_const_cells: false,
+            }
+        }
+    }
+
     impl Default for VerilogEmitterConfig {
         fn default() -> Self {
             Self {
                 indent_char: ' ',
                 indent_width: 2,
-                ansi_style: false,
+                ansi_style: true,
                 emit_const_cells: false,
             }
         }
@@ -2309,7 +2321,7 @@ pub mod emitter {
         }
 
         /// Use ANSI style module declaration
-        pub fn ansi_style(self) -> Self {
+        pub fn with_ansi_style(self) -> Self {
             Self {
                 config: VerilogEmitterConfig {
                     ansi_style: true,
@@ -2320,10 +2332,21 @@ pub mod emitter {
         }
 
         /// Use non-ANSI style module declaration
-        pub fn nonansi_style(self) -> Self {
+        pub fn with_nonansi_style(self) -> Self {
             Self {
                 config: VerilogEmitterConfig {
                     ansi_style: false,
+                    ..self.config
+                },
+                ..self
+            }
+        }
+
+        /// Emit constants as cells instead of literals
+        pub fn with_emitted_constants(self) -> Self {
+            Self {
+                config: VerilogEmitterConfig {
+                    emit_const_cells: true,
                     ..self.config
                 },
                 ..self
@@ -3263,7 +3286,8 @@ where
     I: Instantiable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let emitter = emitter::VerilogEmitter::new_default(self);
+        use emitter::{VerilogEmitter, VerilogEmitterConfig};
+        let emitter = VerilogEmitter::new(self, VerilogEmitterConfig::legacy());
         emitter.fmt(f)
     }
 }
