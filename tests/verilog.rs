@@ -161,6 +161,30 @@ fn constant_output() {
 }
 
 #[test]
+fn constant_output_emitted() {
+    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let vdd = netlist.insert_constant(Logic::True, "emitted".into());
+    assert!(vdd.is_ok());
+    let vdd = vdd.unwrap();
+    vdd.expose_with_name("y".into());
+    let emitter =
+        safety_net::emitter::VerilogEmitter::new_default(&netlist).with_emitted_constants();
+    assert_verilog_eq!(
+        emitter.to_string(),
+        "module top (
+           output wire y
+         );
+
+           VDD emitted (
+             .Y(emitted_Y)
+           );
+
+           assign y = emitted_Y;
+         endmodule\n"
+    );
+}
+
+#[test]
 fn constant_driver() {
     let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
     let vdd = netlist.insert_constant(Logic::True, "unemitted".into());
@@ -202,6 +226,26 @@ fn double_output() {
            input wire a;
            output wire y;
            output wire z;
+           assign y = a;
+           assign z = a;
+         endmodule\n"
+    );
+}
+
+#[test]
+fn emitter_ansi() {
+    let netlist = GateNetlist::new("top".to_string());
+    let a = netlist.insert_input("a".into());
+    a.clone().expose_with_name("y".into());
+    a.expose_with_name("z".into());
+    let emitter = safety_net::emitter::VerilogEmitter::new_default(&netlist).with_ansi_style();
+    assert_verilog_eq!(
+        emitter.to_string(),
+        "module top (
+           input wire a,
+           output wire y,
+           output wire z
+         );
            assign y = a;
            assign z = a;
          endmodule\n"

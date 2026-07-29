@@ -2105,6 +2105,438 @@ where
     }
 }
 
+/// Backend language emitters
+pub mod emitter {
+    use super::{Analysis, Error, Identifier, Instantiable, Netlist};
+    use std::collections::{BTreeMap, HashSet};
+
+    /// Options for the Verilog emitter
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct VerilogEmitterConfig {
+        /// The character used to indent the code(e.g. space, tab)
+        pub indent_char: char,
+        /// The number of characters used to change the indentation level
+        pub indent_width: usize,
+        /// Whether to use ANSI style module decl
+        pub ansi_style: bool,
+        /// Whether to emit constants as cells or literals
+        pub emit_const_cells: bool,
+    }
+
+    impl VerilogEmitterConfig {
+        /// Return a config that is roughly equivalent to the old emitter
+        pub fn legacy() -> Self {
+            Self {
+                indent_char: ' ',
+                indent_width: 2,
+                ansi_style: false,
+                emit_const_cells: false,
+            }
+        }
+    }
+
+    impl Default for VerilogEmitterConfig {
+        fn default() -> Self {
+            Self {
+                indent_char: ' ',
+                indent_width: 2,
+                ansi_style: true,
+                emit_const_cells: false,
+            }
+        }
+    }
+
+    enum VerilogNet {
+        Net(Identifier),
+        Bus(Identifier, (usize, usize)),
+    }
+
+    impl VerilogNet {
+        fn id(&self) -> &Identifier {
+            match self {
+                VerilogNet::Net(id) => id,
+                VerilogNet::Bus(id, _) => id,
+            }
+        }
+    }
+
+    impl std::fmt::Display for VerilogNet {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "wire ")?;
+            match self {
+                VerilogNet::Net(net) => write!(f, "{}", net.get_stem()),
+                VerilogNet::Bus(net, (h, l)) => write!(f, "[{}:{}] {}", h, l, net.get_stem()),
+            }
+        }
+    }
+
+    /// A Verilog emitter for a netlist
+    pub struct VerilogEmitter<'a, I: Instantiable> {
+        netlist: &'a Netlist<I>,
+        config: VerilogEmitterConfig,
+        inputs: Vec<VerilogNet>,
+        outputs: Vec<VerilogNet>,
+        others: Vec<VerilogNet>,
+    }
+
+    impl<'a, I: Instantiable> VerilogEmitter<'a, I> {
+        fn get_nets(
+            nl: &'a Netlist<I>,
+            emit_consts: bool,
+        ) -> (Vec<VerilogNet>, Vec<VerilogNet>, Vec<VerilogNet>) {
+            let mut seen: HashSet<Identifier> = HashSet::new();
+            let mut inputs: BTreeMap<Identifier, (usize, usize)> = BTreeMap::new();
+            let mut outputs: BTreeMap<Identifier, (usize, usize)> = BTreeMap::new();
+            let mut others: BTreeMap<Identifier, (usize, usize)> = BTreeMap::new();
+
+            for (_, output) in nl.outputs() {
+                let output = output.take_identifier();
+                let stem = output.get_stem();
+                seen.insert(stem.clone());
+                let entry = outputs.entry(stem.clone()).or_default();
+                if let Some(idx) = output.get_bit_index() {
+                    entry.1 = entry.1.min(idx);
+                    entry.0 = entry.0.max(idx);
+                }
+            }
+
+            for input in nl.inputs() {
+                let input = input.get_identifier();
+                let stem = input.get_stem();
+                seen.insert(stem.clone());
+                let entry = inputs.entry(stem.clone()).or_default();
+                if let Some(idx) = input.get_bit_index() {
+                    entry.1 = entry.1.min(idx);
+                    entry.0 = entry.0.max(idx);
+                }
+            }
+
+            for obj in nl.objects() {
+                if !emit_consts
+                    && obj
+                        .get_instance_type()
+                        .and_then(|i| i.get_constant())
+                        .is_some()
+                {
+                    continue;
+                }
+
+                for net in obj.nets() {
+                    let id = net.get_identifier();
+                    let stem = id.get_stem();
+                    if !seen.contains(&stem) {
+                        let entry = others.entry(stem.clone()).or_default();
+                        if let Some(idx) = id.get_bit_index() {
+                            entry.1 = entry.1.min(idx);
+                            entry.0 = entry.0.max(idx);
+                        }
+                    }
+                }
+            }
+
+            let inputs = inputs
+                .into_iter()
+                .map(|(id, (h, l))| {
+                    if h == l {
+                        VerilogNet::Net(id)
+                    } else {
+                        VerilogNet::Bus(id, (h, l))
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let outputs = outputs
+                .into_iter()
+                .map(|(id, (h, l))| {
+                    if h == l {
+                        VerilogNet::Net(id)
+                    } else {
+                        VerilogNet::Bus(id, (h, l))
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let others = others
+                .into_iter()
+                .map(|(id, (h, l))| {
+                    if h == l {
+                        VerilogNet::Net(id)
+                    } else {
+                        VerilogNet::Bus(id, (h, l))
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            (inputs, outputs, others)
+        }
+
+        /// Create a new Verilog emitter for the given netlist
+        pub fn new(netlist: &'a Netlist<I>, config: VerilogEmitterConfig) -> Self {
+            let (inputs, outputs, others) = Self::get_nets(netlist, config.emit_const_cells);
+            Self {
+                netlist,
+                config,
+                inputs,
+                outputs,
+                others,
+            }
+        }
+
+        /// Create a new Verilog emitter for the given netlist with the default options
+        pub fn new_default(netlist: &'a Netlist<I>) -> Self {
+            Self::new(netlist, VerilogEmitterConfig::default())
+        }
+
+        /// Use spaces to indent the Verilog
+        pub fn with_spaces(self) -> Self {
+            Self {
+                config: VerilogEmitterConfig {
+                    indent_char: ' ',
+                    ..self.config
+                },
+                ..self
+            }
+        }
+
+        /// Use tabs to indent the Verilog
+        pub fn with_tabs(self) -> Self {
+            Self {
+                config: VerilogEmitterConfig {
+                    indent_char: '\t',
+                    ..self.config
+                },
+                ..self
+            }
+        }
+
+        /// Set the indentation level
+        pub fn with_indent(self, width: usize) -> Self {
+            Self {
+                config: VerilogEmitterConfig {
+                    indent_width: width,
+                    ..self.config
+                },
+                ..self
+            }
+        }
+
+        /// Use ANSI style module declaration
+        pub fn with_ansi_style(self) -> Self {
+            Self {
+                config: VerilogEmitterConfig {
+                    ansi_style: true,
+                    ..self.config
+                },
+                ..self
+            }
+        }
+
+        /// Use non-ANSI style module declaration
+        pub fn with_nonansi_style(self) -> Self {
+            Self {
+                config: VerilogEmitterConfig {
+                    ansi_style: false,
+                    ..self.config
+                },
+                ..self
+            }
+        }
+
+        /// Emit constants as cells instead of literals
+        pub fn with_emitted_constants(self) -> Self {
+            Self {
+                config: VerilogEmitterConfig {
+                    emit_const_cells: true,
+                    ..self.config
+                },
+                ..self
+            }
+        }
+    }
+
+    impl<'a, I: Instantiable> Analysis<'a, I> for VerilogEmitter<'a, I> {
+        fn build(netlist: &'a Netlist<I>) -> Result<Self, Error> {
+            Ok(Self::new_default(netlist))
+        }
+    }
+
+    impl<'a, I: Instantiable> VerilogEmitter<'a, I> {
+        fn get_indent(&self, level: usize) -> String {
+            self.config
+                .indent_char
+                .to_string()
+                .repeat(self.config.indent_width * level)
+        }
+
+        fn emit_ansi_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            assert!(self.config.ansi_style);
+
+            writeln!(f, "module {} (", self.netlist.get_name())?;
+            let indent = self.get_indent(1);
+            for input in &self.inputs {
+                writeln!(f, "{}input {},", indent, input)?;
+            }
+            let l = self.outputs.len();
+            for (i, output) in self.outputs.iter().enumerate() {
+                write!(f, "{}output {}", indent, output)?;
+                if i != l - 1 {
+                    writeln!(f, ",")?;
+                }
+            }
+            writeln!(f)?;
+            writeln!(f, ");")
+        }
+
+        fn emit_nonansi_header(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            assert!(!self.config.ansi_style);
+
+            writeln!(f, "module {} (", self.netlist.get_name())?;
+            let indent = self.get_indent(1);
+            for input in &self.inputs {
+                writeln!(f, "{}{},", indent, input.id())?;
+            }
+            let l = self.outputs.len();
+            for (i, output) in self.outputs.iter().enumerate() {
+                write!(f, "{}{}", indent, output.id())?;
+                if i != l - 1 {
+                    writeln!(f, ",")?;
+                }
+            }
+            writeln!(f)?;
+            writeln!(f, ");")
+        }
+
+        fn emit_net_decls(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let indent = self.get_indent(1);
+            if !self.config.ansi_style {
+                for net in &self.inputs {
+                    writeln!(f, "{}input {};", indent, net)?;
+                }
+                for net in &self.outputs {
+                    writeln!(f, "{}output {};", indent, net)?;
+                }
+            }
+
+            for net in &self.others {
+                writeln!(f, "{}{};", indent, net)?;
+            }
+            writeln!(f)
+        }
+
+        fn emit_instances(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let indent = self.get_indent(1);
+            for nr in self
+                .netlist
+                .matches(|i| self.config.emit_const_cells || i.get_constant().is_none())
+            {
+                for attribute in nr.attributes() {
+                    if let Some(value) = attribute.value() {
+                        writeln!(f, "{}(* {} = \"{}\" *)", indent, attribute.key(), value)?;
+                    } else {
+                        writeln!(f, "{}(* {} *)", indent, attribute.key())?;
+                    }
+                }
+                let inst = nr.get_instance_type().unwrap().clone();
+                write!(f, "{}{} ", indent, inst.get_name())?;
+                let params = inst.parameters().collect::<Vec<_>>();
+                if !params.is_empty() {
+                    writeln!(f, "#(")?;
+                    let indent = self.get_indent(2);
+                    let l = params.len();
+                    for (i, (k, v)) in params.into_iter().enumerate() {
+                        write!(f, "{}.{}({})", indent, k, v)?;
+                        if i != l - 1 {
+                            writeln!(f, ",")?;
+                        }
+                    }
+                    writeln!(f)?;
+                    let indent = self.get_indent(1);
+                    write!(f, "{}) ", indent)?;
+                }
+                writeln!(f, "{} (", nr.get_instance_name().unwrap())?;
+                let indent = self.get_indent(2);
+                for input in nr.inputs() {
+                    if let Some(driver) = self.netlist.get_driver(nr.clone(), input.get_input_num())
+                    {
+                        let rhs = if !self.config.emit_const_cells
+                            && let Some(logic) =
+                                driver.get_instance_type().and_then(|i| i.get_constant())
+                        {
+                            logic.to_string()
+                        } else {
+                            driver.get_identifier().to_string()
+                        };
+
+                        writeln!(f, "{}.{}({}),", indent, input.get_port(), rhs)?;
+                    }
+                }
+                let outputs = nr.outputs().collect::<Vec<_>>();
+                let l = outputs.len();
+                for (i, output) in outputs.into_iter().enumerate() {
+                    write!(
+                        f,
+                        "{}.{}({})",
+                        indent,
+                        output.get_port(),
+                        output.get_identifier()
+                    )?;
+                    if i != l - 1 {
+                        writeln!(f, ",")?;
+                    }
+                }
+                let indent = self.get_indent(1);
+                writeln!(f)?;
+                writeln!(f, "{});", indent)?;
+            }
+            writeln!(f)
+        }
+
+        fn emit_output_assignments(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let indent = self.get_indent(1);
+            for (operand, net) in self.netlist.outputs() {
+                if operand.get_identifier() != *net.get_identifier() {
+                    let rhs = if !self.config.emit_const_cells
+                        && let Some(logic) =
+                            operand.get_instance_type().and_then(|i| i.get_constant())
+                    {
+                        logic.to_string()
+                    } else {
+                        operand.get_identifier().to_string()
+                    };
+                    writeln!(f, "{}assign {} = {};", indent, net.get_identifier(), rhs)?;
+                }
+            }
+            writeln!(f)
+        }
+
+        /// Emit the netlist as a Verilog module
+        pub fn emit(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if self.config.ansi_style {
+                self.emit_ansi_header(f)?;
+            } else {
+                self.emit_nonansi_header(f)?;
+            }
+
+            self.emit_net_decls(f)?;
+            self.emit_instances(f)?;
+            self.emit_output_assignments(f)?;
+
+            writeln!(f, "endmodule")
+        }
+
+        /// Emit the netlist to a Verilog string
+        pub fn emit_to_string(&self) -> String {
+            self.to_string()
+        }
+    }
+
+    impl<'a, I: Instantiable> std::fmt::Display for VerilogEmitter<'a, I> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            self.emit(f)
+        }
+    }
+}
+
 /// Strategies for fast batching netlist rewrites
 pub mod rewriter {
     use super::{DrivenNet, Error, Instantiable, NetRef, Netlist, Operand};
@@ -2854,273 +3286,9 @@ where
     I: Instantiable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Borrow everything first
-        let objects = self.objects.borrow();
-        let outputs = self.outputs.borrow();
-
-        writeln!(f, "module {} (", self.get_name())?;
-
-        // Print inputs and outputs
-        let mut input_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
-        let mut output_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
-        let mut net_list: BTreeMap<(String, bool), (usize, usize)> = BTreeMap::new();
-
-        for oref in objects.iter() {
-            let owned = oref.borrow();
-            let obj = owned.get();
-            if let Object::Input(net) = obj {
-                let stem = net.get_identifier().get_stem();
-                let entry = input_list
-                    .entry((stem.to_string(), net.get_identifier().is_escaped()))
-                    .or_default();
-                if let Some(idx) = net.get_identifier().get_bit_index() {
-                    entry.0 = entry.0.min(idx);
-                    entry.1 = entry.1.max(idx);
-                }
-            }
-        }
-
-        // Flatten the outputs to collect all (operand, net) pairs
-        let all_outputs: Vec<_> = outputs.values().flat_map(|nets| nets.iter()).collect();
-        for &net in &all_outputs {
-            let stem = net.get_identifier().get_stem();
-            if input_list.contains_key(&(stem.to_string(), net.get_identifier().is_escaped())) {
-                continue;
-            }
-            let entry = output_list
-                .entry((stem.to_string(), net.get_identifier().is_escaped()))
-                .or_default();
-            if let Some(idx) = net.get_identifier().get_bit_index() {
-                entry.0 = entry.0.min(idx);
-                entry.1 = entry.1.max(idx);
-            }
-        }
-
-        let level = 2;
-        let indent = " ".repeat(level);
-        for (id, escaped) in input_list.keys() {
-            write!(f, "{}", indent)?;
-            if *escaped {
-                write!(f, "\\")?;
-            }
-            write!(f, "{}", id)?;
-            if *escaped {
-                write!(f, " ")?;
-            }
-            writeln!(f, ",")?;
-        }
-
-        for (i, (id, escaped)) in output_list.keys().enumerate() {
-            write!(f, "{}", indent)?;
-            if *escaped {
-                write!(f, "\\")?;
-            }
-            write!(f, "{}", id)?;
-            if *escaped {
-                write!(f, " ")?;
-            }
-            if i == output_list.len() - 1 {
-                writeln!(f)?;
-            } else {
-                writeln!(f, ",")?;
-            }
-        }
-
-        writeln!(f, ");")?;
-
-        // Make wire decls
-        let mut already_decl = HashSet::new();
-        for ((id, escaped), (lsb, msb)) in input_list {
-            write!(f, "{}input wire ", indent)?;
-            if lsb != msb {
-                write!(f, "[{}:{}] ", msb, lsb)?;
-            }
-            if escaped {
-                write!(f, "\\")?;
-            }
-            write!(f, "{}", id)?;
-            if escaped {
-                write!(f, " ")?;
-            }
-            writeln!(f, ";")?;
-            already_decl.insert(id);
-        }
-
-        for ((id, escaped), (lsb, msb)) in output_list {
-            write!(f, "{}output wire ", indent)?;
-            if lsb != msb {
-                write!(f, "[{}:{}] ", msb, lsb)?;
-            }
-            if escaped {
-                write!(f, "\\")?;
-            }
-            write!(f, "{}", id)?;
-            if escaped {
-                write!(f, " ")?;
-            }
-            writeln!(f, ";")?;
-            already_decl.insert(id);
-        }
-
-        for oref in objects.iter() {
-            let owned = oref.borrow();
-            let obj = owned.get();
-            if let Object::Instance(nets, _, inst_type) = obj
-                && inst_type.get_constant().is_none()
-            {
-                for net in nets.iter() {
-                    if already_decl.contains(net.get_identifier().get_stem()) {
-                        continue;
-                    }
-                    let stem = net.get_identifier().get_stem();
-                    let entry = net_list
-                        .entry((stem.to_string(), net.get_identifier().is_escaped()))
-                        .or_default();
-                    if let Some(idx) = net.get_identifier().get_bit_index() {
-                        entry.0 = entry.0.min(idx);
-                        entry.1 = entry.1.max(idx);
-                    }
-                }
-            }
-        }
-
-        for ((id, escaped), (lsb, msb)) in net_list {
-            write!(f, "{}wire ", indent)?;
-            if lsb != msb {
-                write!(f, "[{}:{}] ", msb, lsb)?;
-            }
-            if escaped {
-                write!(f, "\\")?;
-            }
-            write!(f, "{}", id)?;
-            if escaped {
-                write!(f, " ")?;
-            }
-            writeln!(f, ";")?;
-        }
-
-        for oref in objects.iter() {
-            let owned = oref.borrow();
-            let obj = owned.get();
-
-            // Skip emitting constants as their uses will be hard-wired
-            if let Some(inst_type) = obj.get_instance_type()
-                && inst_type.get_constant().is_some()
-            {
-                continue;
-            }
-
-            if let Object::Instance(nets, inst_name, inst_type) = obj {
-                for (k, v) in owned.attributes.iter() {
-                    if let Some(value) = v {
-                        writeln!(f, "{indent}(* {k} = \"{value}\" *)")?;
-                    } else {
-                        writeln!(f, "{indent}(* {k} *)")?;
-                    }
-                }
-
-                write!(f, "{}{} ", indent, inst_type.get_name())?;
-                if inst_type.is_parameterized() {
-                    writeln!(f, "#(")?;
-                    let level = 4;
-                    let indent = " ".repeat(level);
-                    let params: Vec<_> = inst_type.parameters().collect();
-                    for (i, (k, v)) in params.iter().enumerate() {
-                        if i == params.len() - 1 {
-                            writeln!(f, "{indent}.{k}({v})")?;
-                        } else {
-                            writeln!(f, "{indent}.{k}({v}),")?;
-                        }
-                    }
-                    let level = 2;
-                    let indent = " ".repeat(level);
-                    write!(f, "{indent}) ")?;
-                }
-                writeln!(f, "{} (", inst_name.emit_name())?;
-                let level = 4;
-                let indent = " ".repeat(level);
-                for (idx, port) in inst_type.get_input_ports().into_iter().enumerate() {
-                    let port_name = port.get_identifier().emit_name();
-                    if let Some(operand) = owned.operands[idx].as_ref() {
-                        let operand_net = match operand {
-                            Operand::DirectIndex(idx) => objects[*idx].borrow().as_net().clone(),
-                            Operand::CellIndex(idx, j) => {
-                                objects[*idx].borrow().get_net(*j).clone()
-                            }
-                        };
-
-                        let operand_str = if let Some(inst_type) =
-                            objects[operand.root()].borrow().get().get_instance_type()
-                            && let Some(logic) = inst_type.get_constant()
-                        {
-                            logic.to_string()
-                        } else {
-                            operand_net.get_identifier().emit_name()
-                        };
-
-                        writeln!(f, "{}.{}({}),", indent, port_name, operand_str)?;
-                    }
-                }
-
-                for (idx, net) in nets.iter().enumerate() {
-                    let port_name = inst_type.get_output_port(idx).get_identifier().emit_name();
-                    if idx == nets.len() - 1 {
-                        writeln!(
-                            f,
-                            "{}.{}({})",
-                            indent,
-                            port_name,
-                            net.get_identifier().emit_name()
-                        )?;
-                    } else {
-                        writeln!(
-                            f,
-                            "{}.{}({}),",
-                            indent,
-                            port_name,
-                            net.get_identifier().emit_name()
-                        )?;
-                    }
-                }
-
-                let level = 2;
-                let indent = " ".repeat(level);
-                writeln!(f, "{indent});")?;
-            }
-        }
-
-        for (driver, nets) in outputs.iter() {
-            for net in nets {
-                let driver_net = match driver {
-                    Operand::DirectIndex(idx) => self.index_weak(idx).borrow().as_net().clone(),
-                    Operand::CellIndex(idx, j) => self.index_weak(idx).borrow().get_net(*j).clone(),
-                };
-
-                let driver_str = if let Some(inst_type) = self
-                    .index_weak(&driver.root())
-                    .borrow()
-                    .get()
-                    .get_instance_type()
-                    && let Some(logic) = inst_type.get_constant()
-                {
-                    logic.to_string()
-                } else {
-                    driver_net.get_identifier().emit_name()
-                };
-
-                if net.get_identifier() != driver_net.get_identifier() {
-                    writeln!(
-                        f,
-                        "{}assign {} = {};",
-                        indent,
-                        net.get_identifier().emit_name(),
-                        driver_str
-                    )?;
-                }
-            }
-        }
-
-        writeln!(f, "endmodule")
+        use emitter::{VerilogEmitter, VerilogEmitterConfig};
+        let emitter = VerilogEmitter::new(self, VerilogEmitterConfig::legacy());
+        emitter.fmt(f)
     }
 }
 
