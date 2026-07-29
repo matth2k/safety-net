@@ -2128,7 +2128,7 @@ pub mod emitter {
             Self {
                 indent_char: ' ',
                 indent_width: 2,
-                ansi_style: true,
+                ansi_style: false,
                 emit_const_cells: false,
             }
         }
@@ -2339,11 +2339,11 @@ pub mod emitter {
             writeln!(f, "module {} (", self.netlist.get_name())?;
             let indent = self.get_indent(1);
             for input in &self.inputs {
-                writeln!(f, "{}{},", indent, input)?;
+                writeln!(f, "{}input {},", indent, input)?;
             }
             let l = self.outputs.len();
             for (i, output) in self.outputs.iter().enumerate() {
-                write!(f, "{}{}", indent, output)?;
+                write!(f, "{}output {}", indent, output)?;
                 if i != l - 1 {
                     writeln!(f, ",")?;
                 }
@@ -2358,11 +2358,11 @@ pub mod emitter {
             writeln!(f, "module {} (", self.netlist.get_name())?;
             let indent = self.get_indent(1);
             for input in &self.inputs {
-                writeln!(f, "{}input {},", indent, input.id())?;
+                writeln!(f, "{}{},", indent, input.id())?;
             }
             let l = self.outputs.len();
             for (i, output) in self.outputs.iter().enumerate() {
-                write!(f, "{}output {}", indent, output.id())?;
+                write!(f, "{}{}", indent, output.id())?;
                 if i != l - 1 {
                     writeln!(f, ",")?;
                 }
