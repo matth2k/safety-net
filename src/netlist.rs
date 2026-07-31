@@ -781,18 +781,6 @@ where
         self.netref.borrow().get_driver_net(index)
     }
 
-    /// Returns a request to mutably borrow the operand net
-    /// This requires another borrow in the form of [MutBorrowReq]
-    ///
-    /// # Panics
-    ///
-    /// Panics if the reference to the netlist is lost.
-    pub fn req_driver_net(&self, index: usize) -> Option<MutBorrowReq<I>> {
-        let net = self.get_driver_net(index)?;
-        let operand = self.get_driver(index).unwrap();
-        Some(MutBorrowReq::new(operand, net))
-    }
-
     /// Returns the number of input ports for this circuit node.
     pub fn get_num_input_ports(&self) -> usize {
         if let Some(inst_type) = self.get_instance_type() {
@@ -969,41 +957,6 @@ where
             panic!("Cannot convert a multi-output netref to an output port");
         }
         DrivenNet::new(0, val.clone())
-    }
-}
-
-/// Facilitates mutable borrows to driver nets
-pub struct MutBorrowReq<I: Instantiable> {
-    from: NetRef<I>,
-    ind: Net,
-}
-
-impl<I> MutBorrowReq<I>
-where
-    I: Instantiable,
-{
-    /// Creates a new mutable borrow request
-    fn new(from: NetRef<I>, ind: Net) -> Self {
-        Self { from, ind }
-    }
-
-    /// Mutably borrows the requested net from the circuit node
-    pub fn borrow_mut(&self) -> RefMut<'_, Net> {
-        self.from.find_net_mut(&self.ind).unwrap()
-    }
-
-    /// Returns `true` if the circuit node is an input
-    pub fn is_an_input(&self) -> bool {
-        self.from.is_an_input()
-    }
-
-    /// Attempts to borrow the net mutably if the condition `f` is satisfied.
-    pub fn borrow_mut_if(&self, f: impl Fn(&NetRef<I>) -> bool) -> Option<RefMut<'_, Net>> {
-        if f(&self.from) {
-            Some(self.borrow_mut())
-        } else {
-            None
-        }
     }
 }
 
