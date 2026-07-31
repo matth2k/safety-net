@@ -238,7 +238,25 @@ fn emitter_ansi() {
     let a = netlist.insert_input("a".into());
     a.clone().expose_with_name("y".into());
     a.expose_with_name("z".into());
-    let emitter = safety_net::emitter::VerilogEmitter::new_default(&netlist).with_ansi_style();
+    let emitter = safety_net::emitter::VerilogEmitter::new_default(&netlist)
+        .with_ansi_style()
+        .with_spaces();
+    assert_verilog_eq!(
+        emitter.to_string(),
+        "module top (
+           input wire a,
+           output wire y,
+           output wire z
+         );
+           assign y = a;
+           assign z = a;
+         endmodule\n"
+    );
+
+    let emitter = safety_net::emitter::VerilogEmitter::new_default(&netlist)
+        .with_ansi_style()
+        .with_indent(4)
+        .with_tabs();
     assert_verilog_eq!(
         emitter.to_string(),
         "module top (
