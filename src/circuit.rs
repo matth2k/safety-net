@@ -101,12 +101,32 @@ impl Identifier {
                     return Identifier { idx: Some(s), ..id };
                 }
             }
+            return Identifier {
+                name,
+                escaped: true,
+                idx: None,
+            };
         }
 
         Identifier {
             name,
             escaped: false,
             idx: None,
+        }
+    }
+
+    /// Add an index to the identifier
+    ///
+    /// # Panics
+    ///
+    /// if self has an index already
+    pub fn with_index(self, index: usize) -> Self {
+        if self.idx.is_some() {
+            panic!("Cannot add an index to an identifier that already has one");
+        }
+        Identifier {
+            idx: Some(index),
+            ..self
         }
     }
 
