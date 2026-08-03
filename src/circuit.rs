@@ -270,7 +270,7 @@ impl Net {
         Self::new(name, DataType::logic())
     }
 
-    /// Create a wire bus
+    /// Create a four-valued logic bus
     pub fn new_logic_bus(name: String, bw: usize) -> Vec<Self> {
         let ids = Identifier::new_bus(name, bw);
         ids.into_iter()
