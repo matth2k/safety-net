@@ -372,7 +372,7 @@ mod flipflop {
 
     #[test]
     fn insert_cell_test() {
-        let netlist = Netlist::new("test_netlist".to_string());
+        let netlist = Netlist::new("test_netlist".into());
 
         let clk = netlist.insert_input("clk".into());
         let ce = netlist.insert_input("ce".into());
@@ -437,7 +437,7 @@ mod flipflop {
 
     #[test]
     fn test_seq_comb_depth_pipeline() {
-        let netlist = Netlist::<Cell>::new("seq_pipeline".to_string());
+        let netlist = Netlist::<Cell>::new("seq_pipeline".into());
 
         // === inputs ===
         let a = netlist.insert_input("a".into());
@@ -585,7 +585,7 @@ mod flipflop {
 
     #[test]
     fn test_clk_div2_simple() {
-        let netlist = Netlist::<Cell>::new("clk_div2".to_string());
+        let netlist = Netlist::<Cell>::new("clk_div2".into());
 
         // === inputs ===
         let clk = netlist.insert_input("clk".into());
@@ -637,7 +637,7 @@ mod flipflop {
     }
     #[test]
     fn test_complex_seq_circuit() {
-        let netlist = Netlist::<Cell>::new("complex_circuit".to_string());
+        let netlist = Netlist::<Cell>::new("complex_circuit".into());
 
         // === inputs ===
         let clk = netlist.insert_input("clk".into());
@@ -734,7 +734,7 @@ mod flipflop {
 
     #[test]
     fn test_clk_div2_disconnected() {
-        let netlist = Netlist::<Cell>::new("clk_div2".to_string());
+        let netlist = Netlist::<Cell>::new("clk_div2".into());
 
         // === inputs ===
         let clk = netlist.insert_input("clk".into());
@@ -786,7 +786,7 @@ mod flipflop {
 
     #[test]
     fn test_complex_seq_circuit_broken() {
-        let netlist = Netlist::<Cell>::new("complex_circuit".to_string());
+        let netlist = Netlist::<Cell>::new("complex_circuit".into());
 
         // === inputs ===
         let clk = netlist.insert_input("clk".into());
@@ -884,7 +884,7 @@ mod flipflop {
 
     #[test]
     fn test_two_sequential_loops_partial_break() {
-        let netlist = Netlist::<Cell>::new("two_seq_loops".to_string());
+        let netlist = Netlist::<Cell>::new("two_seq_loops".into());
 
         let clk = netlist.insert_input("clk".into());
         let ce = netlist.insert_input("ce".into());
