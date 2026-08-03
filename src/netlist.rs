@@ -3585,7 +3585,7 @@ mod tests {
 #[cfg(feature = "serde")]
 /// Serde support for netlists
 pub mod serde {
-    use super::{Netlist, Operand, OwnedObject, WeakIndex};
+    use super::{Identifier, Netlist, Operand, OwnedObject, WeakIndex};
     use crate::{
         attribute::{AttributeKey, AttributeValue},
         circuit::{Instantiable, Net, Object},
@@ -3648,7 +3648,7 @@ pub mod serde {
         I: Instantiable + Serialize,
     {
         /// The name of the netlist
-        name: String,
+        name: Identifier,
         /// The list of objects in the netlist, such as inputs, modules, and primitives
         objects: Vec<SerdeObject<I>>,
         /// The list of operands that point to objects which are outputs.

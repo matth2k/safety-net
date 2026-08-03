@@ -69,7 +69,7 @@ fn test_basic_serialize() {
     use safety_net::serde::netlist_deserialize;
     use std::{io::Cursor, rc::Rc};
 
-    let netlist = GateNetlist::new("top".to_string());
+    let netlist = GateNetlist::new("top".into());
     {
         let input = netlist.insert_input(Net::new_logic("in".into()));
         netlist.expose_net_with_name(input, "out".into());
