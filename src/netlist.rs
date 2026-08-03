@@ -452,7 +452,7 @@ where
         self.attributes.insert(k, None);
     }
 
-    fn insert_attribute(&mut self, k: AttributeKey, v: String) -> Option<AttributeValue> {
+    fn insert_attribute(&mut self, k: AttributeKey, v: Parameter) -> Option<AttributeValue> {
         self.attributes.insert(k, Some(v))
     }
 
@@ -916,7 +916,7 @@ where
     }
 
     /// Insert an attribute on this node with a value
-    pub fn insert_attribute(&self, k: AttributeKey, v: String) -> Option<AttributeValue> {
+    pub fn insert_attribute(&self, k: AttributeKey, v: Parameter) -> Option<AttributeValue> {
         self.netref.borrow_mut().insert_attribute(k, v)
     }
 
@@ -2388,7 +2388,7 @@ pub mod emitter {
             {
                 for attribute in nr.attributes() {
                     if let Some(value) = attribute.value() {
-                        writeln!(f, "{}(* {} = \"{}\" *)", indent, attribute.key(), value)?;
+                        writeln!(f, "{}(* {} = {} *)", indent, attribute.key(), value)?;
                     } else {
                         writeln!(f, "{}(* {} *)", indent, attribute.key())?;
                     }

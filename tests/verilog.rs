@@ -1,4 +1,4 @@
-use safety_net::{Gate, GateNetlist, Identifier, Logic, Netlist, assert_verilog_eq};
+use safety_net::{Gate, GateNetlist, Identifier, Logic, Netlist, Parameter, assert_verilog_eq};
 use std::rc::Rc;
 
 fn and_gate() -> Gate {
@@ -119,7 +119,7 @@ fn simple_gate_attribute() {
     let netlist = get_simple_example();
     assert!(netlist.verify().is_ok());
     let gate = netlist.last().unwrap();
-    gate.insert_attribute("dont_touch".to_string(), "true".to_string());
+    gate.insert_attribute("dont_touch".to_string(), Parameter::get_str("true"));
     gate.clear_attribute(&"dont_touch".to_string());
     assert_verilog_eq!(
         netlist.to_string(),
