@@ -140,6 +140,30 @@ fn simple_gate_attribute() {
            assign y = inst_0_Y;
          endmodule\n"
     );
+    gate.insert_attribute(
+        "dont_touch".to_string(),
+        Parameter::string("true".to_string()),
+    );
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input wire a;
+           input wire b;
+           output wire y;
+           wire inst_0_Y;
+           (* dont_touch = \"true\" *)
+           AND inst_0 (
+             .A(a),
+             .B(b),
+             .Y(inst_0_Y)
+           );
+           assign y = inst_0_Y;
+         endmodule\n"
+    );
 }
 
 #[test]
