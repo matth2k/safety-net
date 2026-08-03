@@ -531,7 +531,7 @@ mod tests {
     }
 
     fn ripple_adder() -> GateNetlist {
-        let netlist = Netlist::new("ripple_adder".to_string());
+        let netlist = Netlist::new("ripple_adder".into());
         let bitwidth = 4;
 
         // Add the the inputs

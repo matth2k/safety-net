@@ -967,7 +967,7 @@ where
     I: Instantiable,
 {
     /// The name of the netlist
-    name: RefCell<String>,
+    name: RefCell<Identifier>,
     /// The list of objects in the netlist, such as inputs, modules, and primitives
     objects: RefCell<Vec<NetRefT<I>>>,
     /// Each operand can map to multiple nets, supporting output aliases.
@@ -1298,7 +1298,7 @@ where
     I: Instantiable,
 {
     /// Creates a new netlist with the given name
-    pub fn new(name: String) -> Rc<Self> {
+    pub fn new(name: Identifier) -> Rc<Self> {
         Rc::new(Self {
             name: RefCell::new(name),
             objects: RefCell::new(Vec::new()),
@@ -1678,7 +1678,7 @@ where
     I: Instantiable,
 {
     /// Returns the name of the netlist module
-    pub fn get_name(&self) -> Ref<'_, String> {
+    pub fn get_name(&self) -> Ref<'_, Identifier> {
         self.name.borrow()
     }
 
@@ -1686,7 +1686,7 @@ where
     /// # Panics
     ///
     /// Panics if the module name cannot be borrowed mutably.
-    pub fn set_name(&self, name: String) {
+    pub fn set_name(&self, name: Identifier) {
         *self.name.borrow_mut() = name;
     }
 
@@ -1777,7 +1777,7 @@ where
     /// use safety_net::format_id;
     /// use safety_net::{Gate, GateNetlist};
     ///
-    /// let netlist = GateNetlist::new("example".to_string());
+    /// let netlist = GateNetlist::new("example".into());
     /// let inv = Gate::new_logical("INV".into(), vec!["A".into()], "Y".into());
     /// let foo = netlist.insert_input("foo".into());
     /// let nr = netlist.insert_gate(inv, "bar".into(), &[foo]).unwrap();
@@ -3005,7 +3005,7 @@ pub mod iter {
     /// use safety_net::iter::DFSIterator;
     /// use safety_net::GateNetlist;
     ///
-    /// let netlist = GateNetlist::new("example".to_string());
+    /// let netlist = GateNetlist::new("example".into());
     /// netlist.insert_input("input1".into());
     /// let mut nodes = Vec::new();
     /// let mut dfs = DFSIterator::new(&netlist, netlist.last().unwrap());
@@ -3350,7 +3350,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_delete_netlist() {
-        let netlist = Netlist::new("simple_example".to_string());
+        let netlist = Netlist::new("simple_example".into());
 
         // Add the the two inputs
         let input1 = netlist.insert_input("input1".into());
@@ -3402,14 +3402,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "out of bounds for netref")]
     fn test_bad_output() {
-        let netlist = GateNetlist::new("min_module".to_string());
+        let netlist = GateNetlist::new("min_module".into());
         let a = netlist.insert_input("a".into());
         DrivenNet::new(1, a.unwrap());
     }
 
     #[test]
     fn test_netdfsiterator() {
-        let netlist = Netlist::new("dfs_netlist".to_string());
+        let netlist = Netlist::new("dfs_netlist".into());
 
         // inputs
         let a = netlist.insert_input("a".into());
@@ -3469,7 +3469,7 @@ mod tests {
 
     #[test]
     fn test_dfs_cycles() {
-        let netlist = Netlist::new("dfs_cycles".to_string());
+        let netlist = Netlist::new("dfs_cycles".into());
 
         // inputs
         let a = netlist.insert_input("a".into());
@@ -3494,7 +3494,7 @@ mod tests {
 
     #[test]
     fn test_netdfsiterator_with_boundary() {
-        let netlist = Netlist::new("dfs_netlist".to_string());
+        let netlist = Netlist::new("dfs_netlist".into());
 
         // inputs
         let a = netlist.insert_input("a".into());
@@ -3551,7 +3551,7 @@ mod tests {
 
     #[test]
     fn test_dfs_convergence() {
-        let netlist = GateNetlist::new("example".to_string());
+        let netlist = GateNetlist::new("example".into());
         let gate = Gate::new_logical_multi(
             "FA".into(),
             vec!["A".into(), "B".into()],

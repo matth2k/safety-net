@@ -22,7 +22,7 @@ fn two_out_gate() -> Gate {
 }
 
 fn get_simple_example() -> Rc<GateNetlist> {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -58,7 +58,7 @@ fn test_clean() {
 
 #[test]
 fn test_multiple_output_aliases() {
-    let netlist = GateNetlist::new("passthru_example".to_string());
+    let netlist = GateNetlist::new("passthru_example".into());
 
     // Add the input
     let b = netlist.insert_input("b".into());
@@ -104,7 +104,7 @@ fn test_multiple_output_aliases() {
 
 #[test]
 fn test_remove_output() {
-    let netlist = GateNetlist::new("remove_output_test".to_string());
+    let netlist = GateNetlist::new("remove_output_test".into());
 
     // Add the input
     let b = netlist.insert_input("b".into());
@@ -163,7 +163,7 @@ fn test_remove_output() {
 
 #[test]
 fn test_remove_all_outputs() {
-    let netlist = GateNetlist::new("remove_all_outputs_test".to_string());
+    let netlist = GateNetlist::new("remove_all_outputs_test".into());
 
     // Add the input
     let b = netlist.insert_input("b".into());
@@ -210,7 +210,7 @@ fn test_remove_all_outputs() {
 
 #[test]
 fn test_driven_net_remove_output() {
-    let netlist = GateNetlist::new("driven_net_remove_test".to_string());
+    let netlist = GateNetlist::new("driven_net_remove_test".into());
 
     // Add inputs
     let a = netlist.insert_input("a".into());
@@ -256,7 +256,7 @@ fn test_driven_net_remove_output() {
 
 #[test]
 fn test_netlist_remove_output_by_operand() {
-    let netlist = GateNetlist::new("netlist_remove_test".to_string());
+    let netlist = GateNetlist::new("netlist_remove_test".into());
 
     // Add inputs
     let a = netlist.insert_input("a".into());
@@ -298,7 +298,7 @@ fn test_netlist_remove_output_by_operand() {
 
 #[test]
 fn test_netlist_clear_outputs() {
-    let netlist = GateNetlist::new("clear_outputs_test".to_string());
+    let netlist = GateNetlist::new("clear_outputs_test".into());
 
     // Add inputs
     let a = netlist.insert_input("a".into());

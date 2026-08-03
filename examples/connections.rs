@@ -13,7 +13,7 @@ fn full_adder() -> Gate {
 
 #[allow(dead_code)]
 fn ripple_adder() -> Netlist<Gate> {
-    let netlist = Netlist::new("ripple_adder".to_string());
+    let netlist = Netlist::new("ripple_adder".into());
     let bitwidth = 4;
 
     // Add the the inputs

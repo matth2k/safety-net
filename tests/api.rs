@@ -21,7 +21,7 @@ fn full_adder() -> Gate {
 }
 
 fn ripple_adder() -> Rc<GateNetlist> {
-    let netlist = Netlist::new("ripple_adder".to_string());
+    let netlist = Netlist::new("ripple_adder".into());
     let bitwidth = 4;
 
     // Add the the inputs
@@ -49,7 +49,7 @@ fn ripple_adder() -> Rc<GateNetlist> {
 }
 
 fn get_simple_example() -> Rc<GateNetlist> {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -345,7 +345,7 @@ fn test_netref_ids() {
 
 #[test]
 fn test_bad_gate_creation() {
-    let netlist = GateNetlist::new("example".to_string());
+    let netlist = GateNetlist::new("example".into());
     let gate = netlist.insert_gate(and_gate(), "yo".into(), &[]);
     assert!(gate.is_err());
 }
@@ -456,13 +456,13 @@ fn test_replace_gate() {
 #[test]
 fn test_simple_example() {
     let netlist = get_simple_example();
-    assert_eq!(netlist.get_name().clone(), "example");
+    assert_eq!(netlist.get_name().to_string(), "example");
     assert_eq!(netlist.get_input_ports().count(), 2);
     assert_eq!(netlist.get_output_ports().len(), 1);
     let objects: Vec<_> = netlist.objects().collect();
     assert_eq!(objects.len(), 3); // 2 inputs + 1 gate
-    netlist.set_name("new_name".to_string());
-    assert_eq!(netlist.get_name().clone(), "new_name");
+    netlist.set_name("new_name".into());
+    assert_eq!(netlist.get_name().to_string(), "new_name");
 }
 
 #[test]
@@ -485,7 +485,7 @@ fn test_netlist_belongs() {
 
 #[test]
 fn test_input_swap() {
-    let netlist = GateNetlist::new("example".to_string());
+    let netlist = GateNetlist::new("example".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());

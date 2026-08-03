@@ -6,7 +6,7 @@ fn and_gate() -> Gate {
 }
 
 fn get_simple_example() -> GateNetlist {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -22,7 +22,7 @@ fn get_simple_example() -> GateNetlist {
 
 #[test]
 fn min_module() {
-    let netlist = GateNetlist::new("min_module".to_string());
+    let netlist = GateNetlist::new("min_module".into());
     let a = netlist.insert_input("a".into());
     a.expose_with_name("y".into());
     assert!(netlist.verify().is_ok());
@@ -41,7 +41,7 @@ fn min_module() {
 
 #[test]
 fn test_netlist_first() {
-    let netlist = GateNetlist::new("min_module".to_string());
+    let netlist = GateNetlist::new("min_module".into());
     let a = netlist.insert_input("a".into());
     a.clone().expose_with_name("y".into());
     let a_too = netlist.last().unwrap();
@@ -52,7 +52,7 @@ fn test_netlist_first() {
 
 #[test]
 fn test_netlist_find() {
-    let netlist = GateNetlist::new("min_module".to_string());
+    let netlist = GateNetlist::new("min_module".into());
     let a = netlist.insert_input("a".into());
     a.expose_with_name("y".into());
     assert!(netlist.find_net(&"a".into()).is_some());
@@ -144,7 +144,7 @@ fn simple_gate_attribute() {
 
 #[test]
 fn constant_output() {
-    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let netlist: Rc<GateNetlist> = Netlist::new("top".into());
     let vdd = netlist.insert_constant(Logic::True, "unemitted".into());
     assert!(vdd.is_ok());
     let vdd = vdd.unwrap();
@@ -162,7 +162,7 @@ fn constant_output() {
 
 #[test]
 fn constant_output_emitted() {
-    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let netlist: Rc<GateNetlist> = Netlist::new("top".into());
     let vdd = netlist.insert_constant(Logic::True, "emitted".into());
     assert!(vdd.is_ok());
     let vdd = vdd.unwrap();
@@ -186,7 +186,7 @@ fn constant_output_emitted() {
 
 #[test]
 fn constant_driver() {
-    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let netlist: Rc<GateNetlist> = Netlist::new("top".into());
     let vdd = netlist.insert_constant(Logic::True, "unemitted".into());
     assert!(vdd.is_ok());
     let vdd = vdd.unwrap();
@@ -212,7 +212,7 @@ fn constant_driver() {
 
 #[test]
 fn double_output() {
-    let netlist = GateNetlist::new("top".to_string());
+    let netlist = GateNetlist::new("top".into());
     let a = netlist.insert_input("a".into());
     a.clone().expose_with_name("y".into());
     a.expose_with_name("z".into());
@@ -234,7 +234,7 @@ fn double_output() {
 
 #[test]
 fn emitter_ansi() {
-    let netlist = GateNetlist::new("top".to_string());
+    let netlist = GateNetlist::new("top".into());
     let a = netlist.insert_input("a".into());
     a.clone().expose_with_name("y".into());
     a.expose_with_name("z".into());
@@ -272,7 +272,7 @@ fn emitter_ansi() {
 
 #[test]
 fn netlist_bus() {
-    let netlist = GateNetlist::new("top".to_string());
+    let netlist = GateNetlist::new("top".into());
     let a = netlist.insert_input_logic_bus("a".to_string(), 2);
     let z = Identifier::new_bus("z".to_string(), 2);
     for (j, k) in a.into_iter().zip(z) {

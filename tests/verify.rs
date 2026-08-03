@@ -7,7 +7,7 @@ use safety_net::Net;
 
 #[test]
 fn inputs_w_same_name() {
-    let netlist = GateNetlist::new("inputs_w_same_name".to_string());
+    let netlist = GateNetlist::new("inputs_w_same_name".into());
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("a".into());
     // Errors because both inputs have the same identifier
@@ -22,7 +22,7 @@ fn inputs_w_same_name() {
 
 #[test]
 fn test_bus_operations() {
-    let netlist = GateNetlist::new("test_bus_operations".to_string());
+    let netlist = GateNetlist::new("test_bus_operations".into());
 
     // Create a 4-bit input bus
     let input_bus = netlist.insert_input_logic_bus("input_bus".to_string(), 4);
@@ -94,7 +94,7 @@ fn test_basic_serialize() {
 
 #[test]
 fn test_empty_netlist() {
-    let netlist = GateNetlist::new("min_module".to_string());
+    let netlist = GateNetlist::new("min_module".into());
     let a = netlist.insert_input("a".into());
     // The designed behavior here should maybe change.
     // Should the output get delete alongside the driving netref?
