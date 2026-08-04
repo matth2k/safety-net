@@ -75,6 +75,31 @@ fn test_netref_printing() {
 }
 
 #[test]
+fn test_netref_replace() {
+    let netlist = get_simple_example();
+    {
+        let gate = netlist.last().unwrap();
+        let input = netlist.first().unwrap();
+        let res = gate.replace_uses_with(&input.into());
+        assert!(res.is_ok());
+    }
+    netlist.clean().unwrap();
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input wire a;
+           input wire b;
+           output wire y;
+           assign y = a;
+         endmodule\n"
+    );
+}
+
+#[test]
 fn test_io() {
     let netlist = get_simple_example();
     let netlist = netlist.reclaim().unwrap();
