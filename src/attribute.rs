@@ -16,7 +16,7 @@ use crate::{
 /// A Verilog attribute assigned to a net or gate in the netlist: (* dont_touch *)
 pub type AttributeKey = String;
 /// A Verilog attribute can be assigned a string value: bitvec = (* dont_touch = true *)
-pub type AttributeValue = Option<String>;
+pub type AttributeValue = Option<Parameter>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -72,6 +72,8 @@ pub enum Parameter {
     BitVec(BitVec),
     /// A four-state logic parameter
     Logic(Logic),
+    /// String parameter, like for attributes
+    String(String),
 }
 
 impl Eq for Parameter {}
@@ -88,20 +90,16 @@ impl std::fmt::Display for Parameter {
                         let val: u8 = n.load();
                         write!(f, "{:x}", val)?;
                     }
-                    Ok(())
                 } else {
-                    write!(
-                        f,
-                        "{}'b{}",
-                        bv.len(),
-                        bv.iter()
-                            .rev()
-                            .map(|b| if *b { '1' } else { '0' })
-                            .collect::<String>()
-                    )
+                    write!(f, "{}'b", bv.len())?;
+                    for v in bv.iter().rev() {
+                        write!(f, "{}", if *v { '1' } else { '0' })?;
+                    }
                 }
+                Ok(())
             }
             Parameter::Logic(l) => write!(f, "{l}"),
+            Parameter::String(s) => write!(f, "\"{s}\""),
         }
     }
 }
@@ -136,6 +134,16 @@ impl Parameter {
     /// Create a new Logic parameter from bool
     pub fn from_bool(b: bool) -> Self {
         Self::Logic(Logic::from_bool(b))
+    }
+
+    /// Create a new String parameter
+    pub fn string(s: String) -> Self {
+        Self::String(s)
+    }
+
+    /// Create a String parameter from a &str
+    pub fn get_str(s: &str) -> Self {
+        Self::String(s.to_string())
     }
 }
 
@@ -216,14 +224,14 @@ mod tests {
     #[test]
     fn attribute_iter() {
         let attributes: [(AttributeKey, AttributeValue); 2] = [
-            ("dont_touch".to_string(), Some("true".to_string())),
+            ("dont_touch".to_string(), Some(Parameter::get_str("true"))),
             ("synthesizable".to_string(), None),
         ];
         let real_attrs: Vec<Attribute> = Attribute::from_pairs(attributes.into_iter()).collect();
         assert_eq!(real_attrs.len(), 2);
         assert_eq!(
             real_attrs.first().unwrap().to_string(),
-            "(* dont_touch = true *)"
+            "(* dont_touch = \"true\" *)"
         );
         assert_eq!(real_attrs.first().unwrap().key(), "dont_touch");
         assert_eq!(

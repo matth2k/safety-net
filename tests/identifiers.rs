@@ -35,3 +35,16 @@ fn aig_id() {
     assert_eq!(Identifier::new("\\1_inv".to_string()), id2);
     assert!(id2.is_escaped());
 }
+
+#[test]
+fn test_double_slice() {
+    let id = Identifier::new("id[[1]]".to_string());
+    assert!(id.is_escaped());
+}
+
+#[test]
+#[should_panic(expected = "already")]
+fn test_double_index() {
+    let id = Identifier::new("id[1]".to_string());
+    let _id = id.with_index(2);
+}

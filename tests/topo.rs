@@ -21,7 +21,7 @@ fn inv() -> Gate {
 }
 
 fn get_simple_example() -> Rc<GateNetlist> {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -36,7 +36,7 @@ fn get_simple_example() -> Rc<GateNetlist> {
 }
 
 fn get_comb_loop() -> Rc<GateNetlist> {
-    let netlist = GateNetlist::new("comb_loop".to_string());
+    let netlist = GateNetlist::new("comb_loop".into());
 
     let a = netlist.insert_input("a".into());
 
@@ -51,7 +51,7 @@ fn get_comb_loop() -> Rc<GateNetlist> {
 
 /// Returns the netlist and a map of expected combinational depths
 fn get_dag() -> (Rc<GateNetlist>, HashMap<Net, CombDepthResult>) {
-    let netlist = GateNetlist::new("comb_loop".to_string());
+    let netlist = GateNetlist::new("comb_loop".into());
     let mut map = HashMap::new();
 
     let a = netlist.insert_input("a".into());
@@ -148,7 +148,7 @@ fn test_comb_depth() {
 
 #[test]
 fn critical_points_only_include_timing_endpoints() {
-    let netlist = Netlist::new("critical_endpoints".to_string());
+    let netlist = Netlist::new("critical_endpoints".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -178,7 +178,7 @@ fn critical_points_only_include_timing_endpoints() {
 
 #[test]
 fn test_comb_depth_dag_shared_subgraph() {
-    let netlist = Netlist::new("dag".to_string());
+    let netlist = Netlist::new("dag".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -222,7 +222,7 @@ fn test_comb_depth_dag_shared_subgraph() {
 
 #[test]
 fn test_comb_depth_incomplete() {
-    let netlist = Netlist::new("incomplete".to_string());
+    let netlist = Netlist::new("incomplete".into());
 
     let a = netlist.insert_input("a".into());
 
@@ -245,7 +245,7 @@ fn test_comb_depth_incomplete() {
 
 #[test]
 fn test_comb_depth_cycle() {
-    let netlist = Netlist::new("cycle".to_string());
+    let netlist = Netlist::new("cycle".into());
 
     let inv = netlist.insert_gate_disconnected(
         Gate::new_logical("INV".into(), vec!["I".into()], "O".into()),

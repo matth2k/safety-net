@@ -63,7 +63,7 @@ fn and_gate() -> Gate {
 
 #[test]
 fn test_matches_macro() {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     // Add the the two inputs
     let a = netlist.insert_input("a".into());

@@ -110,7 +110,7 @@ impl Instantiable for Lut {
 
 #[test]
 fn param_verilog() {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     // Add the the two inputs
     let a = netlist.insert_input("a".into());

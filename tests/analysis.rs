@@ -17,7 +17,7 @@ fn reg() -> Gate {
 }
 
 fn get_simple_example() -> Rc<GateNetlist> {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -31,7 +31,7 @@ fn get_simple_example() -> Rc<GateNetlist> {
     netlist
 }
 fn divider_netlist() -> Rc<GateNetlist> {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     // Add the the input
     let a = netlist.insert_input("a".into());
@@ -88,7 +88,7 @@ fn test_detect_cycles2() {
 
 #[test]
 fn test_attr_filter() {
-    let netlist = GateNetlist::new("example".to_string());
+    let netlist = GateNetlist::new("example".into());
 
     let a: Vec<_> = (0..4)
         .map(|i| netlist.insert_input(Net::new_logic(format_id!("input_{}", i))))

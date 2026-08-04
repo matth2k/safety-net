@@ -1,4 +1,4 @@
-use safety_net::{Gate, GateNetlist, Identifier, Logic, Netlist, assert_verilog_eq};
+use safety_net::{Gate, GateNetlist, Identifier, Logic, Netlist, Parameter, assert_verilog_eq};
 use std::rc::Rc;
 
 fn and_gate() -> Gate {
@@ -6,7 +6,7 @@ fn and_gate() -> Gate {
 }
 
 fn get_simple_example() -> GateNetlist {
-    let netlist = Netlist::new("example".to_string());
+    let netlist = Netlist::new("example".into());
 
     let a = netlist.insert_input("a".into());
     let b = netlist.insert_input("b".into());
@@ -22,7 +22,7 @@ fn get_simple_example() -> GateNetlist {
 
 #[test]
 fn min_module() {
-    let netlist = GateNetlist::new("min_module".to_string());
+    let netlist = GateNetlist::new("min_module".into());
     let a = netlist.insert_input("a".into());
     a.expose_with_name("y".into());
     assert!(netlist.verify().is_ok());
@@ -41,7 +41,7 @@ fn min_module() {
 
 #[test]
 fn test_netlist_first() {
-    let netlist = GateNetlist::new("min_module".to_string());
+    let netlist = GateNetlist::new("min_module".into());
     let a = netlist.insert_input("a".into());
     a.clone().expose_with_name("y".into());
     let a_too = netlist.last().unwrap();
@@ -52,7 +52,7 @@ fn test_netlist_first() {
 
 #[test]
 fn test_netlist_find() {
-    let netlist = GateNetlist::new("min_module".to_string());
+    let netlist = GateNetlist::new("min_module".into());
     let a = netlist.insert_input("a".into());
     a.expose_with_name("y".into());
     assert!(netlist.find_net(&"a".into()).is_some());
@@ -119,7 +119,7 @@ fn simple_gate_attribute() {
     let netlist = get_simple_example();
     assert!(netlist.verify().is_ok());
     let gate = netlist.last().unwrap();
-    gate.insert_attribute("dont_touch".to_string(), "true".to_string());
+    gate.insert_attribute("dont_touch".to_string(), Parameter::get_str("true"));
     gate.clear_attribute(&"dont_touch".to_string());
     assert_verilog_eq!(
         netlist.to_string(),
@@ -140,11 +140,35 @@ fn simple_gate_attribute() {
            assign y = inst_0_Y;
          endmodule\n"
     );
+    gate.insert_attribute(
+        "dont_touch".to_string(),
+        Parameter::string("true".to_string()),
+    );
+    assert_verilog_eq!(
+        netlist.to_string(),
+        "module example (
+           a,
+           b,
+           y
+         );
+           input wire a;
+           input wire b;
+           output wire y;
+           wire inst_0_Y;
+           (* dont_touch = \"true\" *)
+           AND inst_0 (
+             .A(a),
+             .B(b),
+             .Y(inst_0_Y)
+           );
+           assign y = inst_0_Y;
+         endmodule\n"
+    );
 }
 
 #[test]
 fn constant_output() {
-    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let netlist: Rc<GateNetlist> = Netlist::new("top".into());
     let vdd = netlist.insert_constant(Logic::True, "unemitted".into());
     assert!(vdd.is_ok());
     let vdd = vdd.unwrap();
@@ -162,7 +186,7 @@ fn constant_output() {
 
 #[test]
 fn constant_output_emitted() {
-    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let netlist: Rc<GateNetlist> = Netlist::new("top".into());
     let vdd = netlist.insert_constant(Logic::True, "emitted".into());
     assert!(vdd.is_ok());
     let vdd = vdd.unwrap();
@@ -186,7 +210,7 @@ fn constant_output_emitted() {
 
 #[test]
 fn constant_driver() {
-    let netlist: Rc<GateNetlist> = Netlist::new("top".to_string());
+    let netlist: Rc<GateNetlist> = Netlist::new("top".into());
     let vdd = netlist.insert_constant(Logic::True, "unemitted".into());
     assert!(vdd.is_ok());
     let vdd = vdd.unwrap();
@@ -212,7 +236,7 @@ fn constant_driver() {
 
 #[test]
 fn double_output() {
-    let netlist = GateNetlist::new("top".to_string());
+    let netlist = GateNetlist::new("top".into());
     let a = netlist.insert_input("a".into());
     a.clone().expose_with_name("y".into());
     a.expose_with_name("z".into());
@@ -234,7 +258,7 @@ fn double_output() {
 
 #[test]
 fn emitter_ansi() {
-    let netlist = GateNetlist::new("top".to_string());
+    let netlist = GateNetlist::new("top".into());
     let a = netlist.insert_input("a".into());
     a.clone().expose_with_name("y".into());
     a.expose_with_name("z".into());
@@ -272,7 +296,7 @@ fn emitter_ansi() {
 
 #[test]
 fn netlist_bus() {
-    let netlist = GateNetlist::new("top".to_string());
+    let netlist = GateNetlist::new("top".into());
     let a = netlist.insert_input_logic_bus("a".to_string(), 2);
     let z = Identifier::new_bus("z".to_string(), 2);
     for (j, k) in a.into_iter().zip(z) {
