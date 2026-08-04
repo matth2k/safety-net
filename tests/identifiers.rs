@@ -48,3 +48,10 @@ fn test_double_index() {
     let id = Identifier::new("id[1]".to_string());
     let _id = id.with_index(2);
 }
+
+#[test]
+fn test_with_index() {
+    let id = Identifier::new("id".to_string());
+    let id = id.with_index(2);
+    assert_eq!(Identifier::new("id[2]".to_string()), id);
+}
