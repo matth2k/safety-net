@@ -17,7 +17,7 @@ fn get_simple_example() -> GateNetlist {
 
     instance.expose_with_name("y".into());
 
-    netlist.reclaim().unwrap()
+    netlist.try_unlink().unwrap()
 }
 
 #[test]

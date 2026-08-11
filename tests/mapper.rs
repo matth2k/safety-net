@@ -16,14 +16,14 @@ impl Instantiable for Gate {
         }
     }
 
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_input_ports(&self) -> &[Net] {
         match self {
             Gate::And(_, inputs, _) => inputs,
             Gate::Inv(_, input, _) => std::slice::from_ref(input),
         }
     }
 
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_output_ports(&self) -> &[Net] {
         match self {
             Gate::And(_, _, output) => std::slice::from_ref(output),
             Gate::Inv(_, _, output) => std::slice::from_ref(output),
@@ -39,11 +39,11 @@ impl Instantiable for Gate {
     }
 
     fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
-        None
+        panic!("Gate does not support parameters");
     }
 
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        std::iter::empty()
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        Vec::new()
     }
 
     fn from_constant(_val: Logic) -> Option<Self> {

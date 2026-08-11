@@ -34,11 +34,11 @@ impl Instantiable for Lut {
         &self.id
     }
 
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_input_ports(&self) -> &[Net] {
         &self.inputs
     }
 
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_output_ports(&self) -> &[Net] {
         std::slice::from_ref(&self.output)
     }
 
@@ -56,7 +56,7 @@ impl Instantiable for Lut {
 
     fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
         if !self.has_parameter(id) {
-            return None;
+            panic!("LUT can only have the INIT parameter");
         }
 
         let old = Some(Parameter::BitVec(self.lookup_table.clone()));
@@ -70,11 +70,11 @@ impl Instantiable for Lut {
         old
     }
 
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        std::iter::once((
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        vec![(
             Identifier::new("INIT".to_string()),
             Parameter::BitVec(self.lookup_table.clone()),
-        ))
+        )]
     }
 
     fn from_constant(val: Logic) -> Option<Self> {

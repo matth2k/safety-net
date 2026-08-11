@@ -330,10 +330,10 @@ pub trait Instantiable: Clone {
     fn get_name(&self) -> &Identifier;
 
     /// Returns the input ports of the primitive
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net>;
+    fn get_input_ports(&self) -> &[Net];
 
     /// Returns the output ports of the primitive
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net>;
+    fn get_output_ports(&self) -> &[Net];
 
     /// Returns `true` if the type intakes a parameter with this name.
     fn has_parameter(&self, id: &Identifier) -> bool;
@@ -342,10 +342,14 @@ pub trait Instantiable: Clone {
     fn get_parameter(&self, id: &Identifier) -> Option<Parameter>;
 
     /// Returns the old parameter value for the given key, if it existed.
+    ///
+    /// # Panics
+    ///
+    /// If the parameter does not exist in the primitive.
     fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter>;
 
     /// Returns an iterator over the parameters of the primitive.
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)>;
+    fn parameters(&self) -> Vec<(Identifier, Parameter)>;
 
     /// Creates the primitive used to represent a constant value, like VDD or GND.
     /// If the implementer does not support the specific constant, `None` is returned.
@@ -359,17 +363,15 @@ pub trait Instantiable: Clone {
 
     /// Returns `true` if the primitive is parameterized (has at least one parameter).
     fn is_parameterized(&self) -> bool {
-        self.parameters().next().is_some()
+        !self.parameters().is_empty()
     }
 
     /// Returns the single output port of the primitive.
     fn get_single_output_port(&self) -> &Net {
-        let mut iter = self.get_output_ports().into_iter();
-        let ret = iter.next().expect("Primitive has no output ports");
-        if iter.next().is_some() {
+        if self.get_output_ports().len() > 1 {
             panic!("Primitive has more than one output port");
         }
-        ret
+        &self.get_output_ports()[0]
     }
 
     /// Returns the output port at the given index.
@@ -377,10 +379,7 @@ pub trait Instantiable: Clone {
     ///
     /// If the index is out of bounds.
     fn get_output_port(&self, index: usize) -> &Net {
-        self.get_output_ports()
-            .into_iter()
-            .nth(index)
-            .expect("Index out of bounds for output ports")
+        &self.get_output_ports()[index]
     }
 
     /// Returns the input port at the given index.
@@ -388,17 +387,14 @@ pub trait Instantiable: Clone {
     ///
     /// If the index is out of bounds.
     fn get_input_port(&self, index: usize) -> &Net {
-        self.get_input_ports()
-            .into_iter()
-            .nth(index)
-            .expect("Index out of bounds for output ports")
+        &self.get_input_ports()[index]
     }
 
     /// Returns the index of the input port with the given identifier, if it exists.
     /// **This method should be overriden if the implemenation is capable of O(1) lookup.**
     fn find_input(&self, id: &Identifier) -> Option<usize> {
         self.get_input_ports()
-            .into_iter()
+            .iter()
             .position(|n| n.get_identifier() == id)
     }
 
@@ -406,14 +402,24 @@ pub trait Instantiable: Clone {
     /// **This method should be overriden if the implemenation is capable of O(1) lookup.**
     fn find_output(&self, id: &Identifier) -> Option<usize> {
         self.get_output_ports()
-            .into_iter()
+            .iter()
             .position(|n| n.get_identifier() == id)
     }
 
     /// Returns `true` if the primitive has no input ports. In most cases, this means the cell represents a constant.
     /// **This method should be overriden if the implemenation of `get_input_ports()` is expensive.**
     fn is_driverless(&self) -> bool {
-        self.get_input_ports().into_iter().next().is_none()
+        self.get_input_ports().is_empty()
+    }
+
+    /// Returns the number of input ports of the primitive.
+    fn get_num_input_ports(&self) -> usize {
+        self.get_input_ports().len()
+    }
+
+    /// Returns the number of output ports of the primitive.
+    fn get_num_output_ports(&self) -> usize {
+        self.get_output_ports().len()
     }
 }
 

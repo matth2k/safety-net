@@ -44,11 +44,11 @@ impl Instantiable for Gate {
         &self.name
     }
 
-    fn get_input_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_input_ports(&self) -> &[Net] {
         &self.inputs
     }
 
-    fn get_output_ports(&self) -> impl IntoIterator<Item = &Net> {
+    fn get_output_ports(&self) -> &[Net] {
         &self.outputs
     }
 
@@ -61,11 +61,11 @@ impl Instantiable for Gate {
     }
 
     fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
-        None
+        panic!("Gate does not support parameters");
     }
 
-    fn parameters(&self) -> impl Iterator<Item = (Identifier, Parameter)> {
-        std::iter::empty()
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        Vec::new()
     }
 
     fn from_constant(val: Logic) -> Option<Self> {
@@ -784,7 +784,7 @@ where
     /// Returns the number of input ports for this circuit node.
     pub fn get_num_input_ports(&self) -> usize {
         if let Some(inst_type) = self.get_instance_type() {
-            inst_type.get_input_ports().into_iter().count()
+            inst_type.get_input_ports().iter().count()
         } else {
             0
         }
@@ -1306,9 +1306,9 @@ where
         })
     }
 
-    /// Attempts to reclaim the netlist, returning [Some] if successful.
-    pub fn reclaim(self: Rc<Self>) -> Option<Self> {
-        Rc::try_unwrap(self).ok()
+    /// Attempts to reclaim the netlist and unlink the nodes, returning [Some] if successful.
+    pub fn try_unlink(self: Rc<Self>) -> Result<Self, Rc<Self>> {
+        Rc::try_unwrap(self)
     }
 
     /// Creates a deep clone of the netlist.
@@ -1392,10 +1392,10 @@ where
     ) -> Result<NetRef<I>, Error> {
         let nets = inst_type
             .get_output_ports()
-            .into_iter()
+            .iter()
             .map(|pnet| pnet.with_name(&inst_name + pnet.get_identifier()))
             .collect::<Vec<_>>();
-        let input_count = inst_type.get_input_ports().into_iter().count();
+        let input_count = inst_type.get_input_ports().iter().count();
         if operands.len() != input_count {
             return Err(Error::ArgumentMismatch(input_count, operands.len()));
         }
@@ -1411,7 +1411,7 @@ where
     ) -> NetRef<I> {
         let nets = inst_type
             .get_output_ports()
-            .into_iter()
+            .iter()
             .map(|pnet| pnet.with_name(&inst_name + pnet.get_identifier()))
             .collect::<Vec<_>>();
         let object = Object::Instance(nets, inst_name, inst_type);
@@ -1421,7 +1421,7 @@ where
             .get_instance_type()
             .unwrap()
             .get_input_ports()
-            .into_iter()
+            .iter()
             .count();
         let operands = vec![None; input_count];
         let owned_object = Rc::new(RefCell::new(OwnedObject {
@@ -1977,8 +1977,8 @@ where
             let nlen = unwrapped.borrow().get().get_nets().len();
 
             if let Some(inst) = unwrapped.borrow().get().get_instance_type() {
-                let inlen = inst.get_input_ports().into_iter().count();
-                let outlen = inst.get_output_ports().into_iter().count();
+                let inlen = inst.get_input_ports().iter().count();
+                let outlen = inst.get_output_ports().iter().count();
                 if olen != inlen {
                     return Err(Error::ArgumentMismatch(inlen, olen));
                 }
@@ -2395,7 +2395,7 @@ pub mod emitter {
                 }
                 let inst = nr.get_instance_type().unwrap().clone();
                 write!(f, "{}{} ", indent, inst.get_name())?;
-                let params = inst.parameters().collect::<Vec<_>>();
+                let params = inst.parameters();
                 if !params.is_empty() {
                     writeln!(f, "#(")?;
                     let indent = self.get_indent(2);

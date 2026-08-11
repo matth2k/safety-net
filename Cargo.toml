@@ -44,11 +44,9 @@ bitvec = { version = "1.0.1" }
 petgraph = { version = "0.8.3", optional = true }
 serde = { version = "1.0.228", optional = true, features = ["derive"] }
 serde_json = { version = "1.0.150", optional = true }
-inst_derive = { version = "0.1.2", optional = true }
 
 [features]
 default = [ ]
 # default = [ "graph", "serde" ]
 graph = [ "petgraph" ]
 serde = [ "dep:serde", "serde_json", "bitvec/serde" ]
-derive = [ "inst_derive" ]

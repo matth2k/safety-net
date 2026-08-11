@@ -44,7 +44,7 @@ fn ripple_adder() -> Netlist<Gate> {
         }
     }
 
-    netlist.reclaim().unwrap()
+    netlist.try_unlink().unwrap()
 }
 
 fn main() {

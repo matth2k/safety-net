@@ -556,7 +556,7 @@ mod tests {
             }
         }
 
-        netlist.reclaim().unwrap()
+        netlist.try_unlink().unwrap()
     }
 
     #[test]

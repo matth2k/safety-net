@@ -102,7 +102,7 @@ fn test_netref_replace() {
 #[test]
 fn test_io() {
     let netlist = get_simple_example();
-    let netlist = netlist.reclaim().unwrap();
+    let netlist = netlist.try_unlink().unwrap();
 
     assert_eq!(netlist.inputs().count(), 2);
     assert_eq!(netlist.outputs().len(), 1);
@@ -183,7 +183,7 @@ fn test_bad_access_3() {
 #[test]
 #[should_panic(expected = "Input port is unlinked from netlist")]
 fn test_unlinked_1() {
-    let netlist = ripple_adder().reclaim().unwrap();
+    let netlist = ripple_adder().try_unlink().unwrap();
     let last_fa = netlist.last().unwrap();
     last_fa.get_input(0).get_driver();
 }
@@ -191,7 +191,7 @@ fn test_unlinked_1() {
 #[test]
 #[should_panic(expected = "NetRef is unlinked from netlist")]
 fn test_unlinked_2() {
-    let netlist = ripple_adder().reclaim().unwrap();
+    let netlist = ripple_adder().try_unlink().unwrap();
     let last_fa = netlist.last().unwrap();
     last_fa.expose_with_name("no".into());
 }

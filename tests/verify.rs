@@ -76,7 +76,7 @@ fn test_basic_serialize() {
     }
 
     let mut buf: Vec<u8> = Vec::new();
-    let netlist = netlist.reclaim().unwrap();
+    let netlist = netlist.try_unlink().unwrap();
     assert!(netlist.serialize(&mut buf).is_ok());
 
     let reader = Cursor::new(buf);
