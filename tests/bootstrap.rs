@@ -1,6 +1,7 @@
 use safety_net::{
     Gate, Identifier, Instantiable, ModInst, ModOrCell, Net, Netlist, assert_verilog_eq,
 };
+use std::collections::HashMap;
 use std::rc::Rc;
 
 type Inst = ModOrCell<Gate>;
@@ -59,6 +60,34 @@ fn test_nesting() {
          
            assign y = inst_y;
          
+         endmodule"
+            .to_string()
+    );
+}
+
+#[test]
+fn test_clone_into() {
+    let outer: Rc<Netlist<Inst>> = passthru_nl("outer".into());
+    let inner: Rc<Netlist<Inst>> = passthru_nl("inner".into());
+
+    let input = inner.first().unwrap();
+    let clone = outer.clone_into(&input, None, &mut HashMap::new());
+    clone.as_net_mut().set_identifier("myclone".into());
+
+    assert_verilog_eq!(
+        outer.to_string(),
+        "module outer (
+           myclone,
+           x,
+           y
+         );
+           input wire myclone;
+           input wire x;
+           output wire y;
+
+
+           assign y = x;
+
          endmodule"
             .to_string()
     );
