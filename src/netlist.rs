@@ -145,6 +145,182 @@ impl Gate {
     }
 }
 
+/// A uniquified netlist instantiated as a module
+#[derive(Debug)]
+pub struct ModInst<I: Instantiable> {
+    name: Identifier,
+    inputs: Vec<Net>,
+    outputs: Vec<Net>,
+    seq: bool,
+    netlist: Rc<Netlist<I>>,
+}
+
+impl<I: Instantiable> ModInst<I> {
+    /// Uniquify a netlist that can be instantiated.
+    /// **This deep clones the netlist**
+    pub fn new(netlist: &Netlist<I>) -> Self {
+        let name = netlist.get_name().clone();
+        let inputs = netlist.get_input_ports().collect();
+        let outputs = netlist.get_output_ports();
+        let seq = netlist
+            .objects()
+            .any(|obj| obj.get_instance_type().is_some_and(|i| i.is_seq()));
+        Self {
+            name,
+            inputs,
+            outputs,
+            seq,
+            netlist: netlist.deep_clone(),
+        }
+    }
+
+    /// Unwraps the instantiable into the underlying netlist.
+    pub fn unwrap(self) -> Rc<Netlist<I>> {
+        self.netlist
+    }
+}
+
+impl<I: Instantiable> Clone for ModInst<I> {
+    fn clone(&self) -> Self {
+        Self::new(&self.netlist)
+    }
+}
+
+impl<I: Instantiable> Instantiable for ModInst<I> {
+    fn get_name(&self) -> &Identifier {
+        &self.name
+    }
+
+    fn get_input_ports(&self) -> &[Net] {
+        &self.inputs
+    }
+
+    fn get_output_ports(&self) -> &[Net] {
+        &self.outputs
+    }
+
+    fn has_parameter(&self, _id: &Identifier) -> bool {
+        false
+    }
+
+    fn get_parameter(&self, _id: &Identifier) -> Option<Parameter> {
+        None
+    }
+
+    fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
+        panic!("Cannot set parameter on a module instance");
+    }
+
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        Vec::new()
+    }
+
+    fn from_constant(_val: Logic) -> Option<Self> {
+        None
+    }
+
+    fn get_constant(&self) -> Option<Logic> {
+        None
+    }
+
+    fn is_seq(&self) -> bool {
+        self.seq
+    }
+}
+
+/// An instance wrapper enum around primitive or other netlists
+#[derive(Debug, Clone)]
+pub enum ModOrCell<I: Instantiable> {
+    /// An instantiation of a unique netlist
+    ModInst(ModInst<ModOrCell<I>>),
+    /// A primitive cell
+    Cell(I),
+}
+
+impl<I: Instantiable> From<I> for ModOrCell<I>
+where
+    I: Instantiable,
+{
+    fn from(cell: I) -> Self {
+        Self::Cell(cell)
+    }
+}
+
+impl<I: Instantiable> From<&Netlist<ModOrCell<I>>> for ModOrCell<I> {
+    fn from(netlist: &Netlist<ModOrCell<I>>) -> Self {
+        Self::ModInst(ModInst::new(netlist))
+    }
+}
+
+impl<I: Instantiable> Instantiable for ModOrCell<I> {
+    fn get_name(&self) -> &Identifier {
+        match self {
+            Self::ModInst(m) => m.get_name(),
+            Self::Cell(c) => c.get_name(),
+        }
+    }
+
+    fn get_input_ports(&self) -> &[Net] {
+        match self {
+            Self::ModInst(m) => m.get_input_ports(),
+            Self::Cell(c) => c.get_input_ports(),
+        }
+    }
+
+    fn get_output_ports(&self) -> &[Net] {
+        match self {
+            Self::ModInst(m) => m.get_output_ports(),
+            Self::Cell(c) => c.get_output_ports(),
+        }
+    }
+
+    fn has_parameter(&self, id: &Identifier) -> bool {
+        match self {
+            Self::ModInst(m) => m.has_parameter(id),
+            Self::Cell(c) => c.has_parameter(id),
+        }
+    }
+
+    fn get_parameter(&self, id: &Identifier) -> Option<Parameter> {
+        match self {
+            Self::ModInst(m) => m.get_parameter(id),
+            Self::Cell(c) => c.get_parameter(id),
+        }
+    }
+
+    fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter> {
+        match self {
+            Self::ModInst(m) => m.set_parameter(id, val),
+            Self::Cell(c) => c.set_parameter(id, val),
+        }
+    }
+
+    fn parameters(&self) -> Vec<(Identifier, Parameter)> {
+        match self {
+            Self::ModInst(m) => m.parameters(),
+            Self::Cell(c) => c.parameters(),
+        }
+    }
+
+    fn from_constant(val: Logic) -> Option<Self> {
+        I::from_constant(val).map(Self::Cell)
+    }
+
+    fn get_constant(&self) -> Option<Logic> {
+        match self {
+            Self::ModInst(m) => m.get_constant(),
+            Self::Cell(c) => c.get_constant(),
+        }
+    }
+
+    fn is_seq(&self) -> bool {
+        match self {
+            Self::ModInst(m) => m.is_seq(),
+            Self::Cell(c) => c.is_seq(),
+        }
+    }
+}
+
 /// An operand to an [Instantiable]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
@@ -1312,7 +1488,7 @@ where
     }
 
     /// Creates a deep clone of the netlist.
-    pub fn deep_clone(self: &Rc<Self>) -> Rc<Self> {
+    pub fn deep_clone(&self) -> Rc<Self> {
         let dc = Rc::new(Self {
             name: self.name.clone(),
             objects: RefCell::new(Vec::new()),
