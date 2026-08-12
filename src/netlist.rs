@@ -1705,17 +1705,26 @@ where
     /// The operands of `netref` are remapped according to `map`.
     /// `prefix` is used to rename the instance name.
     /// **For operands that do not exist in the map, the cloned node is disconnected.**
-    pub fn clone_into(
+    pub fn clone_into<O: Instantiable + Into<I>>(
         self: &Rc<Self>,
-        netref: &NetRef<I>,
-        prefix: Identifier,
-        map: &mut HashMap<DrivenNet<I>, DrivenNet<I>>,
+        netref: &NetRef<O>,
+        prefix: Option<Identifier>,
+        map: &mut HashMap<DrivenNet<O>, DrivenNet<I>>,
     ) -> NetRef<I> {
         let mut object = netref.get_obj().clone();
-        if let Object::Instance(_, name, _) = &mut object {
+        if let Some(prefix) = prefix
+            && let Object::Instance(_, name, _) = &mut object
+        {
             let update = prefix + name.clone();
             *name = update;
         }
+
+        let object = match object {
+            Object::Input(a) => Object::Input(a),
+            Object::Instance(nets, name, inst_type) => {
+                Object::Instance(nets, name, inst_type.into())
+            }
+        };
 
         let mapped: Vec<Option<DrivenNet<I>>> = netref
             .inputs()
