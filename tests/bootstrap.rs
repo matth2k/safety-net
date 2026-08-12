@@ -71,17 +71,16 @@ fn test_clone_into() {
     let inner: Rc<Netlist<Inst>> = passthru_nl("inner".into());
 
     let input = inner.first().unwrap();
-    let clone = outer.clone_into(&input, None, &mut HashMap::new());
-    clone.as_net_mut().set_identifier("myclone".into());
+    let _clone = outer.clone_into(&input, Some("myclone".into()), &mut HashMap::new());
 
     assert_verilog_eq!(
         outer.to_string(),
         "module outer (
-           myclone,
+           myclone_x,
            x,
            y
          );
-           input wire myclone;
+           input wire myclone_x;
            input wire x;
            output wire y;
 

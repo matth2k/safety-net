@@ -1712,19 +1712,26 @@ where
         map: &mut HashMap<DrivenNet<O>, DrivenNet<I>>,
     ) -> NetRef<I> {
         let mut object = netref.get_obj().clone();
-        if let Some(prefix) = prefix
+        if let Some(prefix) = &prefix
             && let Object::Instance(_, name, _) = &mut object
         {
-            let update = prefix + name.clone();
+            let update = prefix + name;
             *name = update;
         }
 
-        let object = match object {
+        let mut object = match object {
             Object::Input(a) => Object::Input(a),
             Object::Instance(nets, name, inst_type) => {
                 Object::Instance(nets, name, inst_type.into())
             }
         };
+
+        if let Some(prefix) = &prefix {
+            for net in object.get_nets_mut() {
+                let update = prefix + net.get_identifier();
+                net.set_identifier(update);
+            }
+        }
 
         let mapped: Vec<Option<DrivenNet<I>>> = netref
             .inputs()
