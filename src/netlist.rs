@@ -721,6 +721,15 @@ where
         self.netref
     }
 
+    /// Returns the upgraded owner or panics
+    fn owner(&self) -> Rc<Netlist<I>> {
+        self.netref
+            .borrow()
+            .owner
+            .upgrade()
+            .expect("NetRef is unlinked from netlist")
+    }
+
     /// Returns a borrow to the [Net] at this circuit node.
     ///
     /// # Panics
@@ -859,12 +868,7 @@ where
     /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn expose_as_output(self) -> Result<Self, Error> {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         netlist.expose_net(self.clone().into())?;
         Ok(self)
     }
@@ -877,12 +881,7 @@ where
     /// Panics if the cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn expose_with_name(self, name: Identifier) -> Self {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         netlist.expose_net_with_name(self.clone().into(), name);
         self
     }
@@ -893,12 +892,7 @@ where
     /// # Panics
     /// Panics if the reference to the netlist is lost.
     pub fn expose_net(&self, net: &Net) -> Result<(), Error> {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         let net_index = self
             .netref
             .borrow()
@@ -917,12 +911,7 @@ where
     /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn remove_output(&self, net_name: &Identifier) -> bool {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         netlist.remove_output(&self.into(), net_name)
     }
 
@@ -934,12 +923,7 @@ where
     /// Panics if cell is a multi-output circuit node.
     /// Panics if the reference to the netlist is lost.
     pub fn remove_all_outputs(&self) -> usize {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         netlist.remove_outputs(&self.into())
     }
 
@@ -1026,12 +1010,7 @@ where
     /// # Panics
     /// Panics if the weak reference to the netlist is lost.
     pub fn drives_a_top_output(&self) -> bool {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         netlist.drives_an_output(self.clone())
     }
 
@@ -1051,12 +1030,7 @@ where
     ///
     /// Panics if the reference to the netlist is lost.
     pub fn delete_uses(self) -> Result<Object<I>, Error> {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         netlist.delete_net_uses(self)
     }
 
@@ -1070,12 +1044,7 @@ where
     /// Panics if either `self` is a multi-output circuit node.
     /// Panics if the weak reference to the netlist is lost.
     pub fn replace_uses_with(self, other: &DrivenNet<I>) -> Result<NetRef<I>, Error> {
-        let netlist = self
-            .netref
-            .borrow()
-            .owner
-            .upgrade()
-            .expect("NetRef is unlinked from netlist");
+        let netlist = self.owner();
         netlist
             .replace_net_uses(self.into(), other)
             .map(|d| d.unwrap())
@@ -1730,6 +1699,60 @@ where
     /// Removes all outputs from the netlist.
     pub fn clear_outputs(&self) {
         self.outputs.borrow_mut().clear();
+    }
+
+    /// Clones `netref` into `self`.
+    /// The operands of `netref` are remapped according to `map`.
+    /// `prefix` is used to rename the instance name.
+    /// **For operands that do not exist in the map, the cloned node is disconnected.**
+    pub fn clone_into(
+        self: &Rc<Self>,
+        netref: &NetRef<I>,
+        prefix: Identifier,
+        map: &mut HashMap<DrivenNet<I>, DrivenNet<I>>,
+    ) -> NetRef<I> {
+        let mut object = netref.get_obj().clone();
+        if let Object::Instance(_, name, _) = &mut object {
+            let update = prefix + name.clone();
+            *name = update;
+        }
+
+        let mapped: Vec<Option<DrivenNet<I>>> = netref
+            .inputs()
+            .map(|x| map.get(&x.get_driver()?).cloned())
+            .collect();
+
+        let mut operands = Vec::new();
+
+        for operand in mapped {
+            let op = match operand {
+                None => None,
+                Some(d) => {
+                    let op = d.get_operand();
+                    self.belongs(&d.unwrap());
+                    Some(op)
+                }
+            };
+            operands.push(op);
+        }
+
+        let index = self.objects.borrow().len();
+        let weak = Rc::downgrade(self);
+        let owned_object = Rc::new(RefCell::new(OwnedObject {
+            object,
+            owner: weak,
+            operands,
+            attributes: BTreeMap::new(),
+            index,
+        }));
+        self.objects.borrow_mut().push(owned_object.clone());
+        let clone = NetRef::wrap(owned_object);
+
+        for (k, v) in netref.outputs().zip(clone.outputs()) {
+            map.insert(k, v);
+        }
+
+        clone
     }
 
     /// Unlink a circuit node from the rest of the netlist. Return the object that was being stored.
