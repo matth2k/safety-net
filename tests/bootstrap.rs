@@ -74,9 +74,17 @@ fn test_modinst_set_param() {
 
     let mut inst = ModOrCell::ModInst(ModInst::new(&inner));
 
+    assert!(!inst.has_parameter(&"ex".into()));
     assert!(inst.get_parameter(&"ex".into()).is_none());
 
     inst.set_parameter(&"ex".into(), Parameter::from_bool(true));
+}
+
+#[test]
+fn test_modinst_get_const() {
+    let inst = ModOrCell::<Gate>::from_constant(false.into()).unwrap();
+
+    assert!(matches!(inst, ModOrCell::Cell(_)));
 }
 
 #[test]
