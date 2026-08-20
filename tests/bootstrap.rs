@@ -85,6 +85,9 @@ fn test_modinst_get_const() {
     let inst = ModOrCell::<Gate>::from_constant(false.into()).unwrap();
 
     assert!(matches!(inst, ModOrCell::Cell(_)));
+
+    assert_eq!(inst.get_constant(), Some(false.into()));
+    assert!(!inst.is_seq());
 }
 
 #[test]
