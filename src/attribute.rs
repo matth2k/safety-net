@@ -42,6 +42,11 @@ impl Attribute {
         &self.v
     }
 
+    /// Split the attribute into its key and value components
+    pub fn split(self) -> (AttributeKey, AttributeValue) {
+        (self.k, self.v)
+    }
+
     /// Map a attribute key-value pairs to the Attribute struct
     pub fn from_pairs(
         iter: impl Iterator<Item = (AttributeKey, AttributeValue)>,

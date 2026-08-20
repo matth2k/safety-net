@@ -1712,6 +1712,7 @@ where
         map: &mut HashMap<DrivenNet<O>, DrivenNet<I>>,
     ) -> NetRef<I> {
         let mut object = netref.get_obj().clone();
+        let attributes = BTreeMap::from_iter(netref.attributes().map(|a| a.split()));
         if let Some(prefix) = &prefix
             && let Object::Instance(_, name, _) = &mut object
         {
@@ -1758,7 +1759,7 @@ where
             object,
             owner: weak,
             operands,
-            attributes: BTreeMap::new(),
+            attributes,
             index,
         }));
         self.objects.borrow_mut().push(owned_object.clone());
