@@ -195,6 +195,14 @@ impl std::ops::Add for &Identifier {
         let rname = rhs.name.as_str();
         let escaped = self.escaped || rhs.escaped;
 
+        if !escaped && lname.is_empty() {
+            return rhs.clone();
+        }
+
+        if !escaped && rname.is_empty() {
+            return self.clone();
+        }
+
         let new_name = match (self.idx, rhs.idx) {
             (Some(l), Some(r)) => {
                 format!("{}_{}_{}_{}", lname, l, rname, r)
