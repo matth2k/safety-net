@@ -1,5 +1,5 @@
 use safety_net::{
-    Gate, Identifier, Instantiable, ModInst, ModOrCell, Net, Netlist, assert_verilog_eq,
+    Gate, Identifier, Instantiable, ModInst, ModOrCell, Net, Netlist, Parameter, assert_verilog_eq,
 };
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -22,6 +22,8 @@ fn test_nesting() {
     let inner: Rc<Netlist<Inst>> = passthru_nl("inner".into());
 
     let inst = ModOrCell::ModInst(ModInst::new(&inner));
+
+    assert!(!inst.is_seq());
 
     let nr = outer.insert_gate_disconnected(inst, "inst".into());
 
@@ -66,9 +68,46 @@ fn test_nesting() {
 }
 
 #[test]
+#[should_panic(expected = "Cannot set parameter")]
+fn test_modinst_set_param() {
+    let inner: Rc<Netlist<Inst>> = passthru_nl("inner".into());
+
+    let mut inst = ModOrCell::ModInst(ModInst::new(&inner));
+
+    inst.set_parameter(&"ex".into(), Parameter::from_bool(true));
+}
+
+#[test]
 fn test_clone_into() {
     let outer: Rc<Netlist<Inst>> = passthru_nl("outer".into());
     let inner: Rc<Netlist<Inst>> = passthru_nl("inner".into());
+
+    let input = inner.first().unwrap();
+    let _clone = outer.clone_into(&input, Some("myclone".into()), &mut HashMap::new());
+
+    assert_verilog_eq!(
+        outer.to_string(),
+        "module outer (
+           myclone_x,
+           x,
+           y
+         );
+           input wire myclone_x;
+           input wire x;
+           output wire y;
+
+
+           assign y = x;
+
+         endmodule"
+            .to_string()
+    );
+}
+
+#[test]
+fn test_clone_into_inst_into() {
+    let outer: Rc<Netlist<Inst>> = passthru_nl("outer".into());
+    let inner: Rc<Netlist<Gate>> = passthru_nl("inner".into());
 
     let input = inner.first().unwrap();
     let _clone = outer.clone_into(&input, Some("myclone".into()), &mut HashMap::new());
