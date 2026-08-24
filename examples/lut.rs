@@ -68,6 +68,14 @@ impl Instantiable for Lut {
         old
     }
 
+    fn clear_parameter(&mut self, id: &Identifier) -> Option<Parameter> {
+        if self.has_parameter(id) {
+            panic!("LUT truth table cannot be cleared");
+        }
+
+        None
+    }
+
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
         vec![(
             Identifier::new("INIT".to_string()),

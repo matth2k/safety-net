@@ -52,16 +52,16 @@ impl Instantiable for Gate {
         &self.outputs
     }
 
-    fn has_parameter(&self, _id: &Identifier) -> bool {
-        false
-    }
-
     fn get_parameter(&self, _id: &Identifier) -> Option<Parameter> {
         None
     }
 
     fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
         panic!("Gate does not support parameters");
+    }
+
+    fn clear_parameter(&mut self, _id: &Identifier) -> Option<Parameter> {
+        None
     }
 
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
@@ -2044,6 +2044,21 @@ where
         Ok(())
     }
 
+    fn cells_check(&self) -> Result<(), Error> {
+        for inst in self.objects() {
+            if let Some(inst_type) = inst.get_instance_type()
+                && let Err(rsn) = inst_type.verify()
+            {
+                return Err(Error::InstantiableError(format!(
+                    "Instantiable {} invalid: {}",
+                    inst_type.get_name(),
+                    rsn
+                )));
+            }
+        }
+        Ok(())
+    }
+
     /// Verifies that a netlist is well-formed.
     pub fn verify(&self) -> Result<(), Error> {
         if self.outputs.borrow().is_empty() {
@@ -2053,6 +2068,7 @@ where
         self.check_io()?;
         self.nets_insts_unique()?;
         self.connections_type_check()?;
+        self.cells_check()?;
 
         Ok(())
     }

@@ -30,16 +30,16 @@ impl Instantiable for Gate {
         }
     }
 
-    fn has_parameter(&self, _id: &Identifier) -> bool {
-        false
-    }
-
     fn get_parameter(&self, _id: &Identifier) -> Option<Parameter> {
         None
     }
 
     fn set_parameter(&mut self, _id: &Identifier, _val: Parameter) -> Option<Parameter> {
         panic!("Gate does not support parameters");
+    }
+
+    fn clear_parameter(&mut self, _id: &Identifier) -> Option<Parameter> {
+        None
     }
 
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {
