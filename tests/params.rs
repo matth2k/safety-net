@@ -42,12 +42,8 @@ impl Instantiable for Lut {
         std::slice::from_ref(&self.output)
     }
 
-    fn has_parameter(&self, id: &Identifier) -> bool {
-        *id == Identifier::new("INIT".to_string())
-    }
-
     fn get_parameter(&self, id: &Identifier) -> Option<Parameter> {
-        if self.has_parameter(id) {
+        if *id == Identifier::new("INIT".to_string()) {
             Some(Parameter::BitVec(self.lookup_table.clone()))
         } else {
             None
@@ -68,6 +64,14 @@ impl Instantiable for Lut {
         }
 
         old
+    }
+
+    fn clear_parameter(&mut self, id: &Identifier) -> Option<Parameter> {
+        if self.has_parameter(id) {
+            panic!("LUT truth table cannot be cleared");
+        }
+
+        None
     }
 
     fn parameters(&self) -> Vec<(Identifier, Parameter)> {

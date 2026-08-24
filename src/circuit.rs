@@ -343,9 +343,6 @@ pub trait Instantiable: Clone {
     /// Returns the output ports of the primitive
     fn get_output_ports(&self) -> &[Net];
 
-    /// Returns `true` if the type intakes a parameter with this name.
-    fn has_parameter(&self, id: &Identifier) -> bool;
-
     /// Returns the parameter value for the given key, if it exists.
     fn get_parameter(&self, id: &Identifier) -> Option<Parameter>;
 
@@ -355,6 +352,9 @@ pub trait Instantiable: Clone {
     ///
     /// If the parameter does not exist in the primitive.
     fn set_parameter(&mut self, id: &Identifier, val: Parameter) -> Option<Parameter>;
+
+    /// Clears the parameter value for the given key, if it exists.
+    fn clear_parameter(&mut self, id: &Identifier) -> Option<Parameter>;
 
     /// Returns an iterator over the parameters of the primitive.
     fn parameters(&self) -> Vec<(Identifier, Parameter)>;
@@ -368,6 +368,16 @@ pub trait Instantiable: Clone {
 
     /// Returns 'true' if the primitive is sequential.
     fn is_seq(&self) -> bool;
+
+    /// Returns `true` if the type intakes a parameter with this name.
+    fn has_parameter(&self, id: &Identifier) -> bool {
+        self.get_parameter(id).is_some()
+    }
+
+    /// Returns `Ok` if the parameter is a valid instance
+    fn verify(&self) -> Result<(), String> {
+        Ok(())
+    }
 
     /// Returns `true` if the primitive is parameterized (has at least one parameter).
     fn is_parameterized(&self) -> bool {
